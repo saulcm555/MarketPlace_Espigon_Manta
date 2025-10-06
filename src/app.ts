@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { AdminRepositoryImpl } from "./infraestructure/AdminRepositoryImpl";
 import { AdminService } from "./applications/admin/AdminService";
 import { Admin } from "./domain/entities/admin";
