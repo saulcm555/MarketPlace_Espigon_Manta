@@ -59,7 +59,7 @@ export class ProductEntity {
 	@JoinColumn({ name: "id_inventory" })
 	inventory!: InventoryEntity;
 
-	@OneToMany(() => SubCategoryEntity, (s) => s.products)
+	@ManyToOne(() => SubCategoryEntity, (s) => s.products)
 	@JoinColumn({ name: "id_sub_category" })
 	subcategory?: SubCategoryEntity;
 
