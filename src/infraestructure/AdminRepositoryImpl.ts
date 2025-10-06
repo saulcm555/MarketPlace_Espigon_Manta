@@ -1,65 +1,51 @@
-import { Admin } from "@domain/entities/admin";
-import { IAdminRepository } from "@domain/repositories/IAdminRepository";
+import { IAdminRepository } from "../domain/repositories/IAdminRepository";
+import { AdminEntity } from "../models/adminModel";
+import AppDataSource from "../data-source";
 
-// Repositorio en memoria
 export class AdminRepositoryImpl implements IAdminRepository {
-  private admins: Admin[] = [];
-  private currentId = 1;
-
-  // CREATE con Callback
+  // CREATE con Callback usando TypeORM
   create(
-    admin: Admin,
-    callback: (error: Error | null, result?: Admin) => void
+    admin: Partial<AdminEntity>,
+    callback: (error: Error | null, result?: AdminEntity) => void
   ): void {
-    try {
-      if (!admin.admin_name || !admin.admin_email) {
-        return callback(new Error("Admin must have a name and email."));
-      }
-      const newAdmin: Admin = {
-        ...admin,
-        id_admin: this.currentId++,
-        created_at: new Date(),
-      };
-      this.admins.push(newAdmin);
-      callback(null, newAdmin);
-    } catch (error) {
-      callback(error as Error);
-    }
+    const repo = AppDataSource.getRepository(AdminEntity);
+    const newAdmin = repo.create({
+      ...admin,
+      created_at: new Date(),
+    });
+    repo
+      .save(newAdmin)
+      .then((saved) => callback(null, saved))
+      .catch((err) => callback(err));
   }
 
-  // UPDATE con Promise
-  async update(id: string, data: Partial<Admin>): Promise<Admin> {
+  // UPDATE con Promise usando TypeORM
+  async update(id: string, data: Partial<AdminEntity>): Promise<AdminEntity> {
+    const repo = AppDataSource.getRepository(AdminEntity);
     const adminId = parseInt(id, 10);
-    const index = this.admins.findIndex((a) => a.id_admin === adminId);
-    if (index === -1) {
-      throw new Error(`Admin with id ${id} not found`);
-    }
-    this.admins[index] = {
-      ...this.admins[index]!,
-      ...data,
-    };
-    return this.admins[index]!;
+    await repo.update(adminId, data);
+    const updated = await repo.findOneBy({ id_admin: adminId });
+    if (!updated) throw new Error(`Admin with id ${id} not found`);
+    return updated;
   }
 
-  // READ con async/await
-  async findById(id: string): Promise<Admin | null> {
+  // READ con async/await usando TypeORM
+  async findById(id: string): Promise<AdminEntity | null> {
+    const repo = AppDataSource.getRepository(AdminEntity);
     const adminId = parseInt(id, 10);
-    const admin = this.admins.find((a) => a.id_admin === adminId);
-    return admin || null;
+    return await repo.findOneBy({ id_admin: adminId });
   }
 
-  async findAll(): Promise<Admin[]> {
-    return this.admins;
+  async findAll(): Promise<AdminEntity[]> {
+    const repo = AppDataSource.getRepository(AdminEntity);
+    return await repo.find();
   }
 
-  // DELETE con async/await
+  // DELETE con async/await usando TypeORM
   async delete(id: string): Promise<boolean> {
+    const repo = AppDataSource.getRepository(AdminEntity);
     const adminId = parseInt(id, 10);
-    const index = this.admins.findIndex((a) => a.id_admin === adminId);
-    if (index === -1) {
-      return false;
-    }
-    this.admins.splice(index, 1);
-    return true;
+    const result = await repo.delete(adminId);
+    return !!result.affected && result.affected > 0;
   }
 }

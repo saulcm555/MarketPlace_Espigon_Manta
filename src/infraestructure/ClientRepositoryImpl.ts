@@ -1,60 +1,44 @@
-import { Client } from "@domain/entities/client";
-import { IClientRepository } from "@domain/repositories/IClientRepository";
+import { IClientRepository } from "../domain/repositories/IClientRepository";
+import { ClientEntity } from "../models/clientModel";
+import AppDataSource from "../data-source";
 
 export class ClientRepositoryImpl implements IClientRepository {
-  private clients: Client[] = [];
-  private currentId = 1;
-
   create(
-    client: Client,
-    callback: (error: Error | null, result?: Client) => void
+    client: Partial<ClientEntity>,
+    callback: (error: Error | null, result?: ClientEntity) => void
   ): void {
-    try {
-      if (!client.client_name || !client.client_email) {
-        return callback(new Error("Client must have a name and email."));
-      }
-      const newClient: Client = {
-        ...client,
-        id_client: this.currentId++,
-        created_at: new Date(),
-      };
-      this.clients.push(newClient);
-      callback(null, newClient);
-    } catch (error) {
-      callback(error as Error);
-    }
+    const repo = AppDataSource.getRepository(ClientEntity);
+    const newClient = repo.create(client);
+    repo
+      .save(newClient)
+      .then((saved) => callback(null, saved))
+      .catch((err) => callback(err));
   }
 
-  async update(id: string, data: Partial<Client>): Promise<Client> {
+  async update(id: string, data: Partial<ClientEntity>): Promise<ClientEntity> {
+    const repo = AppDataSource.getRepository(ClientEntity);
     const clientId = parseInt(id, 10);
-    const index = this.clients.findIndex((c) => c.id_client === clientId);
-    if (index === -1) {
-      throw new Error(`Client with id ${id} not found`);
-    }
-    this.clients[index] = {
-      ...this.clients[index]!,
-      ...data,
-    };
-    return this.clients[index]!;
+    await repo.update(clientId, data);
+    const updated = await repo.findOneBy({ id_client: clientId });
+    if (!updated) throw new Error(`Client with id ${id} not found`);
+    return updated;
   }
 
-  async findById(id: string): Promise<Client | null> {
+  async findById(id: string): Promise<ClientEntity | null> {
+    const repo = AppDataSource.getRepository(ClientEntity);
     const clientId = parseInt(id, 10);
-    const client = this.clients.find((c) => c.id_client === clientId);
-    return client || null;
+    return await repo.findOneBy({ id_client: clientId });
   }
 
-  async findAll(): Promise<Client[]> {
-    return this.clients;
+  async findAll(): Promise<ClientEntity[]> {
+    const repo = AppDataSource.getRepository(ClientEntity);
+    return await repo.find();
   }
 
   async delete(id: string): Promise<boolean> {
+    const repo = AppDataSource.getRepository(ClientEntity);
     const clientId = parseInt(id, 10);
-    const index = this.clients.findIndex((c) => c.id_client === clientId);
-    if (index === -1) {
-      return false;
-    }
-    this.clients.splice(index, 1);
-    return true;
+    const result = await repo.delete(clientId);
+    return !!result.affected && result.affected > 0;
   }
 }

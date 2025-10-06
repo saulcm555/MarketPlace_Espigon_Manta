@@ -1,60 +1,44 @@
-import { Order } from "@domain/entities/order";
-import { IOrderRepository } from "@domain/repositories/IOrderRepository";
+import { IOrderRepository } from "../domain/repositories/IOrderRepository";
+import { OrderEntity } from "../models/orderModel";
+import AppDataSource from "../data-source";
 
 export class OrderRepositoryImpl implements IOrderRepository {
-  private orders: Order[] = [];
-  private currentId = 1;
-
   create(
-    order: Order,
-    callback: (error: Error | null, result?: Order) => void
+    order: Partial<OrderEntity>,
+    callback: (error: Error | null, result?: OrderEntity) => void
   ): void {
-    try {
-      if (!order.id_client || !order.id_cart || !order.id_payment_method) {
-        return callback(new Error("Order must have client, cart and payment method."));
-      }
-      const newOrder: Order = {
-        ...order,
-        id_order: this.currentId++,
-        order_date: new Date(),
-      };
-      this.orders.push(newOrder);
-      callback(null, newOrder);
-    } catch (error) {
-      callback(error as Error);
-    }
+    const repo = AppDataSource.getRepository(OrderEntity);
+    const newOrder = repo.create(order);
+    repo
+      .save(newOrder)
+      .then((saved) => callback(null, saved))
+      .catch((err) => callback(err));
   }
 
-  async update(id: string, data: Partial<Order>): Promise<Order> {
+  async update(id: string, data: Partial<OrderEntity>): Promise<OrderEntity> {
+    const repo = AppDataSource.getRepository(OrderEntity);
     const orderId = parseInt(id, 10);
-    const index = this.orders.findIndex((o) => o.id_order === orderId);
-    if (index === -1) {
-      throw new Error(`Order with id ${id} not found`);
-    }
-    this.orders[index] = {
-      ...this.orders[index]!,
-      ...data,
-    };
-    return this.orders[index]!;
+    await repo.update(orderId, data);
+    const updated = await repo.findOneBy({ id_order: orderId });
+    if (!updated) throw new Error(`Order with id ${id} not found`);
+    return updated;
   }
 
-  async findById(id: string): Promise<Order | null> {
+  async findById(id: string): Promise<OrderEntity | null> {
+    const repo = AppDataSource.getRepository(OrderEntity);
     const orderId = parseInt(id, 10);
-    const order = this.orders.find((o) => o.id_order === orderId);
-    return order || null;
+    return await repo.findOneBy({ id_order: orderId });
   }
 
-  async findAll(): Promise<Order[]> {
-    return this.orders;
+  async findAll(): Promise<OrderEntity[]> {
+    const repo = AppDataSource.getRepository(OrderEntity);
+    return await repo.find();
   }
 
   async delete(id: string): Promise<boolean> {
+    const repo = AppDataSource.getRepository(OrderEntity);
     const orderId = parseInt(id, 10);
-    const index = this.orders.findIndex((o) => o.id_order === orderId);
-    if (index === -1) {
-      return false;
-    }
-    this.orders.splice(index, 1);
-    return true;
+    const result = await repo.delete(orderId);
+    return !!result.affected && result.affected > 0;
   }
 }

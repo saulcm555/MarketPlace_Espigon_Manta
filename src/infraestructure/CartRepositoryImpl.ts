@@ -1,59 +1,44 @@
-import { Cart } from "@domain/entities/cart";
-import { ICartRepository } from "@domain/repositories/ICartRepository";
+import { ICartRepository } from "../domain/repositories/ICartRepository";
+import { CartEntity } from "../models/cartModel";
+import AppDataSource from "../data-source";
 
 export class CartRepositoryImpl implements ICartRepository {
-  private carts: Cart[] = [];
-  private currentId = 1;
-
   create(
-    cart: Cart,
-    callback: (error: Error | null, result?: Cart) => void
+    cart: Partial<CartEntity>,
+    callback: (error: Error | null, result?: CartEntity) => void
   ): void {
-    try {
-      if (!cart.id_client || !cart.id_product || !cart.quantity) {
-        return callback(new Error("Cart must have client, product and quantity."));
-      }
-      const newCart: Cart = {
-        ...cart,
-        id_cart: this.currentId++,
-      };
-      this.carts.push(newCart);
-      callback(null, newCart);
-    } catch (error) {
-      callback(error as Error);
-    }
+    const repo = AppDataSource.getRepository(CartEntity);
+    const newCart = repo.create(cart);
+    repo
+      .save(newCart)
+      .then((saved) => callback(null, saved))
+      .catch((err) => callback(err));
   }
 
-  async update(id: string, data: Partial<Cart>): Promise<Cart> {
+  async update(id: string, data: Partial<CartEntity>): Promise<CartEntity> {
+    const repo = AppDataSource.getRepository(CartEntity);
     const cartId = parseInt(id, 10);
-    const index = this.carts.findIndex((c) => c.id_cart === cartId);
-    if (index === -1) {
-      throw new Error(`Cart with id ${id} not found`);
-    }
-    this.carts[index] = {
-      ...this.carts[index]!,
-      ...data,
-    };
-    return this.carts[index]!;
+    await repo.update(cartId, data);
+    const updated = await repo.findOneBy({ id_cart: cartId });
+    if (!updated) throw new Error(`Cart with id ${id} not found`);
+    return updated;
   }
 
-  async findById(id: string): Promise<Cart | null> {
+  async findById(id: string): Promise<CartEntity | null> {
+    const repo = AppDataSource.getRepository(CartEntity);
     const cartId = parseInt(id, 10);
-    const cart = this.carts.find((c) => c.id_cart === cartId);
-    return cart || null;
+    return await repo.findOneBy({ id_cart: cartId });
   }
 
-  async findAll(): Promise<Cart[]> {
-    return this.carts;
+  async findAll(): Promise<CartEntity[]> {
+    const repo = AppDataSource.getRepository(CartEntity);
+    return await repo.find();
   }
 
   async delete(id: string): Promise<boolean> {
+    const repo = AppDataSource.getRepository(CartEntity);
     const cartId = parseInt(id, 10);
-    const index = this.carts.findIndex((c) => c.id_cart === cartId);
-    if (index === -1) {
-      return false;
-    }
-    this.carts.splice(index, 1);
-    return true;
+    const result = await repo.delete(cartId);
+    return !!result.affected && result.affected > 0;
   }
 }

@@ -1,59 +1,44 @@
-import { Category } from "@domain/entities/category";
-import { ICategoryRepository } from "@domain/repositories/ICategoryRepository";
+import { ICategoryRepository } from "../domain/repositories/ICategoryRepository";
+import { CategoryEntity } from "../models/categoryModel";
+import AppDataSource from "../data-source";
 
 export class CategoryRepositoryImpl implements ICategoryRepository {
-  private categories: Category[] = [];
-  private currentId = 1;
-
   create(
-    category: Category,
-    callback: (error: Error | null, result?: Category) => void
+    category: Partial<CategoryEntity>,
+    callback: (error: Error | null, result?: CategoryEntity) => void
   ): void {
-    try {
-      if (!category.category_name) {
-        return callback(new Error("Category must have a name."));
-      }
-      const newCategory: Category = {
-        ...category,
-        id_category: this.currentId++,
-      };
-      this.categories.push(newCategory);
-      callback(null, newCategory);
-    } catch (error) {
-      callback(error as Error);
-    }
+    const repo = AppDataSource.getRepository(CategoryEntity);
+    const newCategory = repo.create(category);
+    repo
+      .save(newCategory)
+      .then((saved) => callback(null, saved))
+      .catch((err) => callback(err));
   }
 
-  async update(id: string, data: Partial<Category>): Promise<Category> {
+  async update(id: string, data: Partial<CategoryEntity>): Promise<CategoryEntity> {
+    const repo = AppDataSource.getRepository(CategoryEntity);
     const categoryId = parseInt(id, 10);
-    const index = this.categories.findIndex((c) => c.id_category === categoryId);
-    if (index === -1) {
-      throw new Error(`Category with id ${id} not found`);
-    }
-    this.categories[index] = {
-      ...this.categories[index]!,
-      ...data,
-    };
-    return this.categories[index]!;
+    await repo.update(categoryId, data);
+    const updated = await repo.findOneBy({ id_category: categoryId });
+    if (!updated) throw new Error(`Category with id ${id} not found`);
+    return updated;
   }
 
-  async findById(id: string): Promise<Category | null> {
+  async findById(id: string): Promise<CategoryEntity | null> {
+    const repo = AppDataSource.getRepository(CategoryEntity);
     const categoryId = parseInt(id, 10);
-    const category = this.categories.find((c) => c.id_category === categoryId);
-    return category || null;
+    return await repo.findOneBy({ id_category: categoryId });
   }
 
-  async findAll(): Promise<Category[]> {
-    return this.categories;
+  async findAll(): Promise<CategoryEntity[]> {
+    const repo = AppDataSource.getRepository(CategoryEntity);
+    return await repo.find();
   }
 
   async delete(id: string): Promise<boolean> {
+    const repo = AppDataSource.getRepository(CategoryEntity);
     const categoryId = parseInt(id, 10);
-    const index = this.categories.findIndex((c) => c.id_category === categoryId);
-    if (index === -1) {
-      return false;
-    }
-    this.categories.splice(index, 1);
-    return true;
+    const result = await repo.delete(categoryId);
+    return !!result.affected && result.affected > 0;
   }
 }

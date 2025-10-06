@@ -1,60 +1,44 @@
-import { Delivery } from "@domain/entities/delivery";
-import { IDeliveryRepository } from "@domain/repositories/IDeliveryRepository";
+import { IDeliveryRepository } from "../domain/repositories/IDeliveryRepository";
+import { DeliveryEntity } from "../models/deliveryModel";
+import AppDataSource from "../data-source";
 
 export class DeliveryRepositoryImpl implements IDeliveryRepository {
-  private deliveries: Delivery[] = [];
-  private currentId = 1;
-
   create(
-    delivery: Delivery,
-    callback: (error: Error | null, result?: Delivery) => void
+    delivery: Partial<DeliveryEntity>,
+    callback: (error: Error | null, result?: DeliveryEntity) => void
   ): void {
-    try {
-      if (!delivery.delivery_address || !delivery.city) {
-        return callback(new Error("Delivery must have address and city."));
-      }
-      const newDelivery: Delivery = {
-        ...delivery,
-        id_delivery: this.currentId++,
-        estimated_time: new Date(),
-      };
-      this.deliveries.push(newDelivery);
-      callback(null, newDelivery);
-    } catch (error) {
-      callback(error as Error);
-    }
+    const repo = AppDataSource.getRepository(DeliveryEntity);
+    const newDelivery = repo.create(delivery);
+    repo
+      .save(newDelivery)
+      .then((saved) => callback(null, saved))
+      .catch((err) => callback(err));
   }
 
-  async update(id: string, data: Partial<Delivery>): Promise<Delivery> {
+  async update(id: string, data: Partial<DeliveryEntity>): Promise<DeliveryEntity> {
+    const repo = AppDataSource.getRepository(DeliveryEntity);
     const deliveryId = parseInt(id, 10);
-    const index = this.deliveries.findIndex((d) => d.id_delivery === deliveryId);
-    if (index === -1) {
-      throw new Error(`Delivery with id ${id} not found`);
-    }
-    this.deliveries[index] = {
-      ...this.deliveries[index]!,
-      ...data,
-    };
-    return this.deliveries[index]!;
+    await repo.update(deliveryId, data);
+    const updated = await repo.findOneBy({ id_delivery: deliveryId });
+    if (!updated) throw new Error(`Delivery with id ${id} not found`);
+    return updated;
   }
 
-  async findById(id: string): Promise<Delivery | null> {
+  async findById(id: string): Promise<DeliveryEntity | null> {
+    const repo = AppDataSource.getRepository(DeliveryEntity);
     const deliveryId = parseInt(id, 10);
-    const delivery = this.deliveries.find((d) => d.id_delivery === deliveryId);
-    return delivery || null;
+    return await repo.findOneBy({ id_delivery: deliveryId });
   }
 
-  async findAll(): Promise<Delivery[]> {
-    return this.deliveries;
+  async findAll(): Promise<DeliveryEntity[]> {
+    const repo = AppDataSource.getRepository(DeliveryEntity);
+    return await repo.find();
   }
 
   async delete(id: string): Promise<boolean> {
+    const repo = AppDataSource.getRepository(DeliveryEntity);
     const deliveryId = parseInt(id, 10);
-    const index = this.deliveries.findIndex((d) => d.id_delivery === deliveryId);
-    if (index === -1) {
-      return false;
-    }
-    this.deliveries.splice(index, 1);
-    return true;
+    const result = await repo.delete(deliveryId);
+    return !!result.affected && result.affected > 0;
   }
 }

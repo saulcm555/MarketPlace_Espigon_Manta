@@ -1,60 +1,44 @@
-import { Inventory } from "@domain/entities/inventory";
-import { IInventoryRepository } from "@domain/repositories/IInventoryRepository";
+import { IInventoryRepository } from "../domain/repositories/IInventoryRepository";
+import { InventoryEntity } from "../models/inventoryModel";
+import AppDataSource from "../data-source";
 
 export class InventoryRepositoryImpl implements IInventoryRepository {
-  private inventories: Inventory[] = [];
-  private currentId = 1;
-
   create(
-    inventory: Inventory,
-    callback: (error: Error | null, result?: Inventory) => void
+    inventory: Partial<InventoryEntity>,
+    callback: (error: Error | null, result?: InventoryEntity) => void
   ): void {
-    try {
-      if (!inventory.id_seller) {
-        return callback(new Error("Inventory must have seller."));
-      }
-      const newInventory: Inventory = {
-        ...inventory,
-        id_inventory: this.currentId++,
-        updated_at: new Date(),
-      };
-      this.inventories.push(newInventory);
-      callback(null, newInventory);
-    } catch (error) {
-      callback(error as Error);
-    }
+    const repo = AppDataSource.getRepository(InventoryEntity);
+    const newInventory = repo.create(inventory);
+    repo
+      .save(newInventory)
+      .then((saved) => callback(null, saved))
+      .catch((err) => callback(err));
   }
 
-  async update(id: string, data: Partial<Inventory>): Promise<Inventory> {
+  async update(id: string, data: Partial<InventoryEntity>): Promise<InventoryEntity> {
+    const repo = AppDataSource.getRepository(InventoryEntity);
     const inventoryId = parseInt(id, 10);
-    const index = this.inventories.findIndex((i) => i.id_inventory === inventoryId);
-    if (index === -1) {
-      throw new Error(`Inventory with id ${id} not found`);
-    }
-    this.inventories[index] = {
-      ...this.inventories[index]!,
-      ...data,
-    };
-    return this.inventories[index]!;
+    await repo.update(inventoryId, data);
+    const updated = await repo.findOneBy({ id_inventory: inventoryId });
+    if (!updated) throw new Error(`Inventory with id ${id} not found`);
+    return updated;
   }
 
-  async findById(id: string): Promise<Inventory | null> {
+  async findById(id: string): Promise<InventoryEntity | null> {
+    const repo = AppDataSource.getRepository(InventoryEntity);
     const inventoryId = parseInt(id, 10);
-    const inventory = this.inventories.find((i) => i.id_inventory === inventoryId);
-    return inventory || null;
+    return await repo.findOneBy({ id_inventory: inventoryId });
   }
 
-  async findAll(): Promise<Inventory[]> {
-    return this.inventories;
+  async findAll(): Promise<InventoryEntity[]> {
+    const repo = AppDataSource.getRepository(InventoryEntity);
+    return await repo.find();
   }
 
   async delete(id: string): Promise<boolean> {
+    const repo = AppDataSource.getRepository(InventoryEntity);
     const inventoryId = parseInt(id, 10);
-    const index = this.inventories.findIndex((i) => i.id_inventory === inventoryId);
-    if (index === -1) {
-      return false;
-    }
-    this.inventories.splice(index, 1);
-    return true;
+    const result = await repo.delete(inventoryId);
+    return !!result.affected && result.affected > 0;
   }
 }

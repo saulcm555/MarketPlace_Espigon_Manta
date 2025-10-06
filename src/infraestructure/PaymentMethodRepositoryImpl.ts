@@ -1,59 +1,44 @@
-import { PaymentMethod } from "@domain/entities/payment_method";
-import { IPaymentMethodRepository } from "@domain/repositories/IPaymentMethodRepository";
+import { IPaymentMethodRepository } from "../domain/repositories/IPaymentMethodRepository";
+import { PaymentMethodEntity } from "../models/paymentMethodModel";
+import AppDataSource from "../data-source";
 
 export class PaymentMethodRepositoryImpl implements IPaymentMethodRepository {
-  private paymentMethods: PaymentMethod[] = [];
-  private currentId = 1;
-
   create(
-    paymentMethod: PaymentMethod,
-    callback: (error: Error | null, result?: PaymentMethod) => void
+    paymentMethod: Partial<PaymentMethodEntity>,
+    callback: (error: Error | null, result?: PaymentMethodEntity) => void
   ): void {
-    try {
-      if (!paymentMethod.method_name) {
-        return callback(new Error("Payment method must have a name."));
-      }
-      const newPaymentMethod: PaymentMethod = {
-        ...paymentMethod,
-        id_payment_method: this.currentId++,
-      };
-      this.paymentMethods.push(newPaymentMethod);
-      callback(null, newPaymentMethod);
-    } catch (error) {
-      callback(error as Error);
-    }
+    const repo = AppDataSource.getRepository(PaymentMethodEntity);
+    const newPaymentMethod = repo.create(paymentMethod);
+    repo
+      .save(newPaymentMethod)
+      .then((saved) => callback(null, saved))
+      .catch((err) => callback(err));
   }
 
-  async update(id: string, data: Partial<PaymentMethod>): Promise<PaymentMethod> {
+  async update(id: string, data: Partial<PaymentMethodEntity>): Promise<PaymentMethodEntity> {
+    const repo = AppDataSource.getRepository(PaymentMethodEntity);
     const paymentMethodId = parseInt(id, 10);
-    const index = this.paymentMethods.findIndex((p) => p.id_payment_method === paymentMethodId);
-    if (index === -1) {
-      throw new Error(`Payment method with id ${id} not found`);
-    }
-    this.paymentMethods[index] = {
-      ...this.paymentMethods[index]!,
-      ...data,
-    };
-    return this.paymentMethods[index]!;
+    await repo.update(paymentMethodId, data);
+    const updated = await repo.findOneBy({ id_payment_method: paymentMethodId });
+    if (!updated) throw new Error(`Payment method with id ${id} not found`);
+    return updated;
   }
 
-  async findById(id: string): Promise<PaymentMethod | null> {
+  async findById(id: string): Promise<PaymentMethodEntity | null> {
+    const repo = AppDataSource.getRepository(PaymentMethodEntity);
     const paymentMethodId = parseInt(id, 10);
-    const paymentMethod = this.paymentMethods.find((p) => p.id_payment_method === paymentMethodId);
-    return paymentMethod || null;
+    return await repo.findOneBy({ id_payment_method: paymentMethodId });
   }
 
-  async findAll(): Promise<PaymentMethod[]> {
-    return this.paymentMethods;
+  async findAll(): Promise<PaymentMethodEntity[]> {
+    const repo = AppDataSource.getRepository(PaymentMethodEntity);
+    return await repo.find();
   }
 
   async delete(id: string): Promise<boolean> {
+    const repo = AppDataSource.getRepository(PaymentMethodEntity);
     const paymentMethodId = parseInt(id, 10);
-    const index = this.paymentMethods.findIndex((p) => p.id_payment_method === paymentMethodId);
-    if (index === -1) {
-      return false;
-    }
-    this.paymentMethods.splice(index, 1);
-    return true;
+    const result = await repo.delete(paymentMethodId);
+    return !!result.affected && result.affected > 0;
   }
 }

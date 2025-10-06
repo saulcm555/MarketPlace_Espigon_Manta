@@ -1,73 +1,48 @@
-import { Product } from "@domain/entities/product";
-import { IProductRepository } from "@domain/repositories/IProductRepository";
+import { IProductRepository } from "../domain/repositories/IProductRepository";
+import { ProductEntity } from "../models/productModel";
+import AppDataSource from "../data-source";
 
-// Repositorio en memoria
 export class ProductRepositoryImpl implements IProductRepository {
-  private products: Product[] = [];
-  private currentId = 1;
-
   // CREATE con Callback
   create(
-    product: Product,
-    callback: (error: Error | null, result?: Product) => void
+    product: Partial<ProductEntity>,
+    callback: (error: Error | null, result?: ProductEntity) => void
   ): void {
-    try {
-      // Validación simple
-      if (!product.product_name || !product.price) {
-        return callback(new Error("Product must have a name and price."));
-      }
-
-      const newProduct: Product = {
-        ...product,
-        id_product: this.currentId++,
-        created_at: new Date(),
-      } as Product; // <-- fix: assertion
-
-      this.products.push(newProduct);
-      callback(null, newProduct);
-    } catch (error) {
-      callback(error as Error);
-    }
+    const repo = AppDataSource.getRepository(ProductEntity);
+    const newProduct = repo.create(product);
+    repo
+      .save(newProduct)
+      .then((saved) => callback(null, saved))
+      .catch((err) => callback(err));
   }
 
   // UPDATE con Promise
-  async update(id: string, data: Partial<Product>): Promise<Product> {
+  async update(id: string, data: Partial<ProductEntity>): Promise<ProductEntity> {
+    const repo = AppDataSource.getRepository(ProductEntity);
     const productId = parseInt(id, 10);
-    const index = this.products.findIndex((p) => p.id_product === productId);
-
-    if (index === -1) {
-      throw new Error(`Product with id ${id} not found`);
-    }
-
-    this.products[index] = {
-      ...this.products[index]!,
-      ...data,
-    };
-
-    return this.products[index]!; // <-- fix: non-null assertion
+    await repo.update(productId, data);
+    const updated = await repo.findOneBy({ id_product: productId });
+    if (!updated) throw new Error(`Product with id ${id} not found`);
+    return updated;
   }
 
   // READ con async/await
-  async findById(id: string): Promise<Product | null> {
+  async findById(id: string): Promise<ProductEntity | null> {
+    const repo = AppDataSource.getRepository(ProductEntity);
     const productId = parseInt(id, 10);
-    const product = this.products.find((p) => p.id_product === productId);
-    return product || null;
+    return await repo.findOneBy({ id_product: productId });
   }
 
-  async findAll(): Promise<Product[]> {
-    return this.products;
+  async findAll(): Promise<ProductEntity[]> {
+    const repo = AppDataSource.getRepository(ProductEntity);
+    return await repo.find();
   }
 
   // DELETE con async/await
   async delete(id: string): Promise<boolean> {
+    const repo = AppDataSource.getRepository(ProductEntity);
     const productId = parseInt(id, 10);
-    const index = this.products.findIndex((p) => p.id_product === productId);
-
-    if (index === -1) {
-      return false;
-    }
-
-    this.products.splice(index, 1);
-    return true;
+    const result = await repo.delete(productId);
+    return !!result.affected && result.affected > 0;
   }
 }
