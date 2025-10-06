@@ -6,6 +6,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsnd --respawn --clear src/app.ts",
     "build": "rimraf ./dist && tsc",
+    "generate:erd": "typeorm-erd",
     "start": "npm run build && node dist/app.js"
   },
   "keywords": [],
@@ -17,6 +18,7 @@
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
+    "typeorm-erd": "^0.0.4",
     "typescript": "^5.9.2"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
     "class-validator": "^0.14.2",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
+    "sqlite3": "^5.1.7",
     "typeorm": "^0.3.27"
   }
 }

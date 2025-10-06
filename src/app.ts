@@ -1,65 +1,132 @@
 import "reflect-metadata";
-import { AdminRepositoryImpl } from "./infraestructure/AdminRepositoryImpl";
-import { AdminService } from "./applications/admin/AdminService";
-import { Admin } from "./domain/entities/admin";
+import AppDataSource from "./data-source";
 
-import { ProductRepositoryImpl } from "./infraestructure/ProductRepositoryImpl";
-import { ProductService } from "./applications/product/ProductService";
-import { Product } from "./domain/entities/product";
+// Entities
+import { AdminEntity } from "./models/adminModel";
+import { CategoryEntity } from "./models/categoryModel";
+import { SubCategoryEntity } from "./models/subCategoryModel";
+import { SellerEntity } from "./models/sellerModel";
+import { InventoryEntity } from "./models/inventoryModel";
+import { ProductEntity } from "./models/productModel";
 
-(() => {
-  // 1️⃣ Inicializar repositorios
-  const adminRepo = new AdminRepositoryImpl();
-  const productRepo = new ProductRepositoryImpl();
+async function seed() {
+  const adminRepo = AppDataSource.getRepository(AdminEntity);
+  const categoryRepo = AppDataSource.getRepository(CategoryEntity);
+  const subCategoryRepo = AppDataSource.getRepository(SubCategoryEntity);
+  const sellerRepo = AppDataSource.getRepository(SellerEntity);
+  const inventoryRepo = AppDataSource.getRepository(InventoryEntity);
+  const productRepo = AppDataSource.getRepository(ProductEntity);
 
-  // 2️⃣ Inicializar servicios
-  const adminService = new AdminService(adminRepo);
-  const productService = new ProductService(productRepo);
+  console.log("Iniciando seeding mínimo...");
 
-  // 3️⃣ Crear Admin
-  const adminData: Omit<Admin, "id_admin" | "created_at"> = {
-    admin_name: "Juan Pérez",
-    admin_email: "juan.perez@email.com",
-    admin_password: "123456",
-    role: "superadmin"
-    // created_at lo pone el repositorio
-  };
+  // Admin
+  const adminEmail = "juan.perez@email.com";
+  let admin = await adminRepo.findOne({ where: { admin_email: adminEmail } });
+  if (!admin) {
+    admin = adminRepo.create({
+      admin_name: "Juan Pérez",
+      admin_email: adminEmail,
+      admin_password: "123456",
+      role: "superadmin",
+    });
+    admin = await adminRepo.save(admin);
+    console.log("✔ Admin creado");
+  } else {
+    console.log("↪ Admin ya existía");
+  }
 
-  adminService.createAdmin(adminData as Admin, (err, admin) => {
-    if (err) {
-      console.error("Error en callback:", err);
-    } else {
-      console.log("Admin creado:", admin);
+  // Category
+  const categoryName = "Electrónica";
+  let category = await categoryRepo.findOne({ where: { category_name: categoryName } });
+  if (!category) {
+    category = categoryRepo.create({
+      category_name: categoryName,
+      description: "Productos electrónicos",
+      // photo es nullable; omitimos para evitar validaciones de URL
+    });
+    category = await categoryRepo.save(category);
+    console.log("✔ Category creada");
+  } else {
+    console.log("↪ Category ya existía");
+  }
 
-      // 4️⃣ Crear Producto (puedes dejar esto aquí si quieres que se cree después del admin)
-      const productData: Omit<Product, "id_product" | "created_at" | "inventory" | "seller" | "category" | "subcategory"> = {
-        id_seller: 1,
-        id_inventory: 1,
-        id_category: 1,
-        id_sub_category: 1,
-        product_name: "Laptop HP",
-        description: "Laptop HP 15 pulgadas",
-        price: 1200,
-        stock: 10,
-        image_url: "https://example.com/laptop-hp.jpg"
-      };
-      productService.createProduct(productData as Product, (err, product) => {
-        if (err) {
-          console.error("Error al crear producto:", err);
-        } else {
-          console.log("Producto creado:", product);
-
-          // 5️⃣ Listar productos
-          productService.getAllProducts().then(products => {
-            console.log("Productos existentes:", products);
-
-            // 6️⃣ Listar admins
-            adminService.getAllAdmins().then(admins => {
-              console.log("Admins existentes:", admins);
-            });
-          });
-        }
-      });
-    }
+  // SubCategory
+  const subCategoryName = "Laptops";
+  let subCategory = await subCategoryRepo.findOne({
+    where: { sub_category_name: subCategoryName, id_category: category.id_category },
   });
-})();
+  if (!subCategory) {
+    subCategory = subCategoryRepo.create({
+      id_category: category.id_category,
+      sub_category_name: subCategoryName,
+      description: "Computadoras portátiles",
+    });
+    subCategory = await subCategoryRepo.save(subCategory);
+    console.log("✔ SubCategory creada");
+  } else {
+    console.log("↪ SubCategory ya existía");
+  }
+
+  // Seller
+  const sellerEmail = "ventas@techmanta.com";
+  let seller = await sellerRepo.findOne({ where: { seller_email: sellerEmail } });
+  if (!seller) {
+    seller = sellerRepo.create({
+      seller_name: "Tech Manta",
+      seller_email: sellerEmail,
+      seller_password: "123456",
+      phone: 593987654321,
+      bussines_name: "Tech Manta S.A.",
+      location: "Manta, Ecuador",
+    });
+    seller = await sellerRepo.save(seller);
+    console.log("✔ Seller creado");
+  } else {
+    console.log("↪ Seller ya existía");
+  }
+
+  // Inventory
+  let inventory = await inventoryRepo.findOne({ where: { id_seller: seller.id_seller } });
+  if (!inventory) {
+    inventory = inventoryRepo.create({
+      id_seller: seller.id_seller,
+    });
+    inventory = await inventoryRepo.save(inventory);
+    console.log("✔ Inventory creado");
+  } else {
+    console.log("↪ Inventory ya existía");
+  }
+
+  // Product
+  const productName = "Laptop HP";
+  let product = await productRepo.findOne({
+    where: { product_name: productName, id_seller: seller.id_seller },
+  });
+  if (!product) {
+    product = productRepo.create({
+      id_seller: seller.id_seller,
+      id_inventory: inventory.id_inventory,
+      id_category: category.id_category,
+      id_sub_category: subCategory.id_sub_category,
+      product_name: productName,
+      description: "Laptop HP 15 pulgadas",
+      price: 1200,
+      stock: 10,
+      image_url: "https://example.com/laptop-hp.jpg",
+    });
+    product = await productRepo.save(product);
+    console.log("✔ Product creado");
+  } else {
+    console.log("↪ Product ya existía");
+  }
+
+  console.log("Seeding finalizado ✨");
+}
+
+AppDataSource.initialize()
+  .then(async () => {
+    await seed();
+  })
+  .catch((err) => {
+    console.error("Error inicializando la base de datos:", err);
+  });
