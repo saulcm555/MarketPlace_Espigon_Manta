@@ -1,4 +1,4 @@
-import type { Inventory } from "./inventory.js";
+import type { Inventory } from "./inventory";
 
 export interface Seller {
 	id_seller: number;

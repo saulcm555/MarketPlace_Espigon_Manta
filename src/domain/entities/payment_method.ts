@@ -1,4 +1,4 @@
-import type { Order } from "./order.js";
+import type { Order } from "./order";
 
 export interface PaymentMethod {
 	id_payment_method: number;

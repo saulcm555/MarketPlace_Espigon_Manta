@@ -22,7 +22,7 @@ export class DeliveryEntity {
 	@Length(2, 50)
 	status!: string;
 
-	@Column({ name: "estimated_time", type: "timestamp" })
+	@Column({ name: "estimated_time", type: "datetime" })
 	estimated_time!: Date;
 
 	@Column({ name: "delivery_person", length: 100 })

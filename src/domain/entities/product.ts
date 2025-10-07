@@ -1,7 +1,7 @@
-import type { Inventory } from "./inventory.js";
-import { Order } from "./order.js";
-import type { Cart } from "./cart.js";
-import type { SubCategory } from "./sub_category.js";
+import type { Inventory } from "./inventory";
+import { Order } from "./order";
+import type { Cart } from "./cart";
+import type { SubCategory } from "./sub_category";
 
 export interface Product {
 	id_product: number;

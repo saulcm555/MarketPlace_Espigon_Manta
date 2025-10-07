@@ -1,5 +1,5 @@
-import type { Category } from "./category.js";
-import type { Product } from "./product.js";
+import type { Category } from "./category";
+import type { Product } from "./product";
 
 export interface SubCategory {
 	id_sub_category: number;

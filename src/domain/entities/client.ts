@@ -1,4 +1,4 @@
-import { Cart } from "./cart.js";
+import { Cart } from "./cart";
 
 export interface Client {
 	id_client: number;

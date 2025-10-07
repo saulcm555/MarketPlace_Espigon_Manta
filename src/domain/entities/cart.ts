@@ -1,5 +1,5 @@
-import type { Product } from "./product.js";
-import type { Client } from "./client.js";
+import type { Product } from "./product";
+import type { Client } from "./client";
 import { Order } from "./order.js";
 
 export interface Cart {

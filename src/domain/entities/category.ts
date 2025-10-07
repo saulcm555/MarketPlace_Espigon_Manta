@@ -1,4 +1,4 @@
-import type { SubCategory } from "./sub_category.js";
+import type { SubCategory } from "./sub_category";
 
 export interface Category {
 	id_category: number;

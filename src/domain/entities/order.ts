@@ -1,5 +1,5 @@
-import type { Client } from "./client.js";
-import type { PaymentMethod } from "./payment_method.js";
+import type { Client } from "./client";
+import type { PaymentMethod } from "./payment_method";
 
 // Order interface definition
 export interface Order {

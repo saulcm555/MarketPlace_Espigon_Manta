@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } from "typeorm";
 import { IsEmail, Length } from "class-validator";
-import { CartEntity } from "./cartModel.js";
+import { CartEntity } from "./cartModel";
 
 @Entity({ name: "client" })
 export class ClientEntity {
