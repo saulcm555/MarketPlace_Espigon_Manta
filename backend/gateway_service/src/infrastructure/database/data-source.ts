@@ -10,7 +10,7 @@ const AppDataSource = new DataSource({
   logging: false,    // Opcional: activa logs de queries
   entities: [
     // Aquí puedes poner la ruta a tus entidades, por ejemplo:
-    __dirname + "/models/*.ts"
+    __dirname + "/../../models/*.ts"
   ],
   migrations: [],
   subscribers: [],
