@@ -1,6 +1,6 @@
-import { IPaymentMethodRepository } from "../domain/repositories/IPaymentMethodRepository";
-import { PaymentMethodEntity } from "../models/paymentMethodModel";
-import AppDataSource from "../data-source";
+import { IPaymentMethodRepository } from "../../domain/repositories/IPaymentMethodRepository";
+import { PaymentMethodEntity } from "../../models/paymentMethodModel";
+import AppDataSource from "../database/data-source";
 
 export class PaymentMethodRepositoryImpl implements IPaymentMethodRepository {
   create(

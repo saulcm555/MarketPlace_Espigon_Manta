@@ -1,6 +1,6 @@
-import { IClientRepository } from "../domain/repositories/IClientRepository";
-import { ClientEntity } from "../models/clientModel";
-import AppDataSource from "../data-source";
+import { IClientRepository } from "../../domain/repositories/IClientRepository";
+import { ClientEntity } from "../../models/clientModel";
+import AppDataSource from "../database/data-source";
 
 export class ClientRepositoryImpl implements IClientRepository {
   create(

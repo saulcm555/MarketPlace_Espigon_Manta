@@ -1,6 +1,6 @@
-import { ICategoryRepository } from "../domain/repositories/ICategoryRepository";
-import { CategoryEntity } from "../models/categoryModel";
-import AppDataSource from "../data-source";
+import { ICategoryRepository } from "../../domain/repositories/ICategoryRepository";
+import { CategoryEntity } from "../../models/categoryModel";
+import AppDataSource from "../database/data-source";
 
 export class CategoryRepositoryImpl implements ICategoryRepository {
   create(

@@ -1,6 +1,6 @@
-import { IAdminRepository } from "../domain/repositories/IAdminRepository";
-import { AdminEntity } from "../models/adminModel";
-import AppDataSource from "../data-source";
+import { IAdminRepository } from "../../domain/repositories/IAdminRepository";
+import { AdminEntity } from "../../models/adminModel";
+import AppDataSource from "../database/data-source";
 
 export class AdminRepositoryImpl implements IAdminRepository {
   // CREATE con Callback usando TypeORM

@@ -1,0 +1,6 @@
+/dist
+/.env
+backend/.env
+backend/marketplace.sqlite
+backend/gateway_service/node_modules
+/backend/gateway_service/dist

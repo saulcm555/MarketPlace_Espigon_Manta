@@ -1,6 +1,6 @@
-import { IDeliveryRepository } from "../domain/repositories/IDeliveryRepository";
-import { DeliveryEntity } from "../models/deliveryModel";
-import AppDataSource from "../data-source";
+import { IDeliveryRepository } from "../../domain/repositories/IDeliveryRepository";
+import { DeliveryEntity } from "../../models/deliveryModel";
+import AppDataSource from "../database/data-source";
 
 export class DeliveryRepositoryImpl implements IDeliveryRepository {
   create(

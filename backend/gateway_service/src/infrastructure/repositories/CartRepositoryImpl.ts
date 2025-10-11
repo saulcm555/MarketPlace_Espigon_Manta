@@ -1,6 +1,6 @@
-import { ICartRepository } from "../domain/repositories/ICartRepository";
-import { CartEntity } from "../models/cartModel";
-import AppDataSource from "../data-source";
+import { ICartRepository } from "../../domain/repositories/ICartRepository";
+import { CartEntity } from "../../models/cartModel";
+import AppDataSource from "../database/data-source";
 
 export class CartRepositoryImpl implements ICartRepository {
   create(

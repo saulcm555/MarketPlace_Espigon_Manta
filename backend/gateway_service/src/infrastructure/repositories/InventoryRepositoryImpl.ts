@@ -1,6 +1,6 @@
-import { IInventoryRepository } from "../domain/repositories/IInventoryRepository";
-import { InventoryEntity } from "../models/inventoryModel";
-import AppDataSource from "../data-source";
+import { IInventoryRepository } from "../../domain/repositories/IInventoryRepository";
+import { InventoryEntity } from "../../models/inventoryModel";
+import AppDataSource from "../database/data-source";
 
 export class InventoryRepositoryImpl implements IInventoryRepository {
   create(

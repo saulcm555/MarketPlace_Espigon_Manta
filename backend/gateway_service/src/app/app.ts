@@ -1,13 +1,13 @@
 import "reflect-metadata";
-import AppDataSource from "./data-source";
+import AppDataSource from "../infrastructure/database/data-source";
 
 // Entities
-import { AdminEntity } from "./models/adminModel";
-import { CategoryEntity } from "./models/categoryModel";
-import { SubCategoryEntity } from "./models/subCategoryModel";
-import { SellerEntity } from "./models/sellerModel";
-import { InventoryEntity } from "./models/inventoryModel";
-import { ProductEntity } from "./models/productModel";
+import { AdminEntity } from "../models/adminModel";
+import { CategoryEntity } from "../models/categoryModel";
+import { SubCategoryEntity } from "../models/subCategoryModel";
+import { SellerEntity } from "../models/sellerModel";
+import { InventoryEntity } from "../models/inventoryModel";
+import { ProductEntity } from "../models/productModel";
 
 async function seed() {
   const adminRepo = AppDataSource.getRepository(AdminEntity);

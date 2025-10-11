@@ -1,6 +1,6 @@
-import { IOrderRepository } from "../domain/repositories/IOrderRepository";
-import { OrderEntity } from "../models/orderModel";
-import AppDataSource from "../data-source";
+import { IOrderRepository } from "../../domain/repositories/IOrderRepository";
+import { OrderEntity } from "../../models/orderModel";
+import AppDataSource from "../database/data-source";
 
 export class OrderRepositoryImpl implements IOrderRepository {
   create(

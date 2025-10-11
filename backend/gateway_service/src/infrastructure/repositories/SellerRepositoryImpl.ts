@@ -1,6 +1,6 @@
-import { ISellerRepository } from "../domain/repositories/ISellerRepository";
-import { SellerEntity } from "../models/sellerModel";
-import AppDataSource from "../data-source";
+import { ISellerRepository } from "../../domain/repositories/ISellerRepository";
+import { SellerEntity } from "../../models/sellerModel";
+import AppDataSource from "../database/data-source";
 
 export class SellerRepositoryImpl implements ISellerRepository {
   create(

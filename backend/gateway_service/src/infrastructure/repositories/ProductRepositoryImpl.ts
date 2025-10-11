@@ -1,6 +1,6 @@
-import { IProductRepository } from "../domain/repositories/IProductRepository";
-import { ProductEntity } from "../models/productModel";
-import AppDataSource from "../data-source";
+import { IProductRepository } from "../../domain/repositories/IProductRepository";
+import { ProductEntity } from "../../models/productModel";
+import AppDataSource from "../database/data-source";
 
 export class ProductRepositoryImpl implements IProductRepository {
   // CREATE con Callback
