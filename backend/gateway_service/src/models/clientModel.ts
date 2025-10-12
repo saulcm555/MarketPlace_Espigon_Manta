@@ -23,6 +23,24 @@ export class ClientEntity {
 	@Length(3, 255)
 	address!: string;
 
+	@Column({ name: "phone", length: 20, nullable: true })
+	phone?: string;
+
+	@Column({ name: "document_type", length: 20, nullable: true })
+	document_type?: string; // 'cedula', 'dni', 'pasaporte', 'ruc', etc.
+
+	@Column({ name: "document_number", length: 50, nullable: true })
+	document_number?: string;
+
+	@Column({ name: "birth_date", type: "date", nullable: true })
+	birth_date?: Date;
+
+	@Column({ name: "avatar_url", length: 500, nullable: true })
+	avatar_url?: string;
+
+	@Column({ name: "additional_addresses", type: "text", nullable: true })
+	additional_addresses?: string; // JSON string: [{"type": "casa", "address": "..."}]
+
 	@CreateDateColumn({ name: "created_at" })
 	created_at!: Date;
 
