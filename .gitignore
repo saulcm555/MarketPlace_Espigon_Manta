@@ -1,5 +1,5 @@
-/node_modules
-/dist
 /.env
-/sqlite.db
-/marketplace.sqlite
+backend/.env
+backend/gateway_service/marketplace.sqlite
+backend/gateway_service/node_modules
+/backend/gateway_service/dist
