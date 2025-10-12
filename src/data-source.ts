@@ -1,19 +1,22 @@
+import "reflect-metadata";
 import { DataSource } from "typeorm";
+import * as dotenv from "dotenv";
 
-// Cambiamos el tipo de base de datos a 'sqlite'.
-// Solo necesitas especificar la propiedad 'database' con la ruta del archivo .sqlite.
-// No se requieren host, port, username ni password.
+dotenv.config();
+
 const AppDataSource = new DataSource({
-  type: "sqlite",
-  database: "marketplace.sqlite", // Puedes cambiar el nombre o la ruta si lo deseas
-  synchronize: true, // Opcional: crea las tablas automáticamente en desarrollo
-  logging: false,    // Opcional: activa logs de queries
-  entities: [
-    // Aquí puedes poner la ruta a tus entidades, por ejemplo:
-    __dirname + "/models/*.ts"
-  ],
+  type: "postgres",
+  url: process.env.DATABASE_URL!,
+  synchronize: true,
+  logging: true,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  entities: [__dirname + "/models/*.ts"],
   migrations: [],
   subscribers: [],
 });
+
+console.log("🔗 Conectando a Supabase...");
 
 export default AppDataSource;

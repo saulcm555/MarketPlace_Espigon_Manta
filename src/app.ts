@@ -125,8 +125,9 @@ async function seed() {
 
 AppDataSource.initialize()
   .then(async () => {
-    await seed();
+    console.log("✅ Conexión a la base de datos establecida correctamente");
+    await seed(); // Ejecuta tu función de carga inicial
   })
   .catch((err) => {
-    console.error("Error inicializando la base de datos:", err);
+    console.error("❌ Error inicializando la base de datos:", err);
   });
