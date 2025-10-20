@@ -33,10 +33,6 @@ export class CartEntity {
 	@Min(1)
 	quantity!: number;
 
-	@ManyToOne(() => ProductEntity)
-	@JoinColumn({ name: "id_product" })
-	product?: ProductEntity;
-
 	@OneToMany(() => OrderEntity, (o) => o.cart)
 	order?: OrderEntity;
 

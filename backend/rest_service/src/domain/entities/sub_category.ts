@@ -16,7 +16,6 @@ export interface SubCategory {
 	sub_category_name: string;
 	description: string;
 	category: Category;
-	products?: Product[];
 	// Relación con tabla transaccional
 	subCategoryProducts?: SubCategoryProduct[];
 }

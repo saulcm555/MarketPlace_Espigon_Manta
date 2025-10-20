@@ -31,9 +31,6 @@ export class SubCategoryEntity {
   @JoinColumn({ name: "id_category" })
   category!: CategoryEntity;
 
-  @OneToMany(() => ProductEntity, (p) => p.subcategory)
-  products?: ProductEntity[];
-
   // Relación con tabla transaccional
   @OneToMany(() => SubCategoryProductEntity, (scp) => scp.subCategory)
   subCategoryProducts?: SubCategoryProductEntity[];

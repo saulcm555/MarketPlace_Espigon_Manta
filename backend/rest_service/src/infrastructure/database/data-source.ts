@@ -18,17 +18,14 @@ dotenv.config();
 
 const AppDataSource = new DataSource({
   type: "postgres",
-  url: process.env.DATABASE_URL!,
+  host: process.env.DB_HOST || "aws-1-us-east-2.pooler.supabase.com",
+  port: parseInt(process.env.DB_PORT || "6543"),
+  username: process.env.DB_USER || "postgres.wqqvlfnnbgyfvaygqiib",
+  password: process.env.DB_PASSWORD || "J@ma281105",
+  database: process.env.DB_NAME || "postgres",
   synchronize: true,  // ⬅️ Cambiado a true para crear las tablas
   logging: true,
-  ssl: {
-    rejectUnauthorized: false
-  },
-  extra: {
-    ssl: {
-      rejectUnauthorized: false
-    }
-  },
+  ssl: false,
   entities: [
     AdminEntity,
     CartEntity,

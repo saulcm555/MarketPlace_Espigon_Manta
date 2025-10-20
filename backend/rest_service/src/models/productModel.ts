@@ -9,8 +9,9 @@ import {
 } from "typeorm";
 import { Length, Min, IsUrl } from "class-validator";
 import { InventoryEntity } from "./inventoryModel";
-import { SubCategoryEntity, SubCategoryProductEntity } from "./subCategoryModel";
-import { CartEntity } from "./cartModel";
+import { SubCategoryProductEntity } from "./subCategoryModel";
+import { ProductOrderEntity } from "./orderModel";
+import { ProductCartEntity } from "./cartModel";
 
 @Entity({ name: "product" })
 export class ProductEntity {
@@ -51,18 +52,20 @@ export class ProductEntity {
 	@CreateDateColumn({ name: "created_at" })
 	created_at!: Date;
 
+	// ManyToOne hacia Inventory
 	@ManyToOne(() => InventoryEntity, (i) => i.products)
 	@JoinColumn({ name: "id_inventory" })
 	inventory!: InventoryEntity;
 
-	@ManyToOne(() => SubCategoryEntity, (s) => s.products)
-	@JoinColumn({ name: "id_sub_category" })
-	subcategory?: SubCategoryEntity;
-
-	@OneToMany(() => CartEntity, (c) => c.product)
-	cart?: CartEntity[];
-
+	// OneToMany hacia sub_category_product (tabla intermedia)
 	@OneToMany(() => SubCategoryProductEntity, (scp) => scp.product)
 	subCategoryProducts?: SubCategoryProductEntity[];
 
+	// OneToMany hacia product_order (tabla intermedia)
+	@OneToMany(() => ProductOrderEntity, (po) => po.product)
+	productOrders?: ProductOrderEntity[];
+
+	// OneToMany hacia product_cart (tabla intermedia)
+	@OneToMany(() => ProductCartEntity, (pc) => pc.product)
+	productCarts?: ProductCartEntity[];
 }
