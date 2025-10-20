@@ -1,7 +1,7 @@
 /.env
 backend/.env
 backend/gateway_service/marketplace.sqlite
-backend/gateway_service/node_modules
-/backend/gateway_service/dist
+backend/rest_service/node_modules
+/backend/rest_service/dist
 node_modules
 marketplace.sqlite

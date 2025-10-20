@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { ProductEntity } from "../../../models/productModel";
-import AppDataSource from "../../../infrastructure/database/data-source";
+import AppDataSource from "../../database/data-source";
 
 export const getProducts = async (req: Request, res: Response) => {
   const repo = AppDataSource.getRepository(ProductEntity);
