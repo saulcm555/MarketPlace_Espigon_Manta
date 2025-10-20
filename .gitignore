@@ -5,3 +5,4 @@ backend/rest_service/node_modules
 /backend/rest_service/dist
 node_modules
 marketplace.sqlite
+backend/rest_service/.env
