@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
-import { SubCategoryEntity } from "../../../models/subCategoryModel";
+import { SubCategoryEntity, SubCategoryProductEntity } from "../../../models/subCategoryModel";
 import AppDataSource from "../../database/data-source";
 
 export const getSubCategories = async (req: Request, res: Response) => {
   try {
     const repo = AppDataSource.getRepository(SubCategoryEntity);
-    const subCategories = await repo.find({ relations: ["category"] });
+    const subCategories = await repo.find({ 
+      relations: ["category", "subCategoryProducts", "subCategoryProducts.product"] 
+    });
     res.json(subCategories);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener subcategorías", error });
@@ -18,7 +20,7 @@ export const getSubCategoryById = async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     const subCategory = await repo.findOne({ 
       where: { id_sub_category: id },
-      relations: ["category"]
+      relations: ["category", "subCategoryProducts", "subCategoryProducts.product"]
     });
     if (!subCategory) {
       return res.status(404).json({ message: "Subcategoría no encontrada" });

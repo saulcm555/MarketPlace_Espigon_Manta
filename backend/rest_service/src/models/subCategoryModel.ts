@@ -33,4 +33,29 @@ export class SubCategoryEntity {
 
   @OneToMany(() => ProductEntity, (p) => p.subcategory)
   products?: ProductEntity[];
+
+  // Relación con tabla transaccional
+  @OneToMany(() => SubCategoryProductEntity, (scp) => scp.subCategory)
+  subCategoryProducts?: SubCategoryProductEntity[];
+}
+
+// Entidad transaccional sub_category_product (tabla intermedia)
+@Entity({ name: "sub_category_product" })
+export class SubCategoryProductEntity {
+  @PrimaryGeneratedColumn({ name: "id_sub_category_product" })
+  id_sub_category_product!: number;
+
+  @Column({ name: "id_sub_category" })
+  id_sub_category!: number;
+
+  @Column({ name: "id_product" })
+  id_product!: number;
+
+  @ManyToOne(() => SubCategoryEntity, (sc) => sc.subCategoryProducts)
+  @JoinColumn({ name: "id_sub_category" })
+  subCategory!: SubCategoryEntity;
+
+  @ManyToOne(() => ProductEntity)
+  @JoinColumn({ name: "id_product" })
+  product!: ProductEntity;
 }

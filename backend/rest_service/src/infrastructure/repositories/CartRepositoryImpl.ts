@@ -27,12 +27,17 @@ export class CartRepositoryImpl implements ICartRepository {
   async findById(id: string): Promise<CartEntity | null> {
     const repo = AppDataSource.getRepository(CartEntity);
     const cartId = parseInt(id, 10);
-    return await repo.findOneBy({ id_cart: cartId });
+    return await repo.findOne({
+      where: { id_cart: cartId },
+      relations: ["productCarts", "productCarts.product"]
+    });
   }
 
   async findAll(): Promise<CartEntity[]> {
     const repo = AppDataSource.getRepository(CartEntity);
-    return await repo.find();
+    return await repo.find({
+      relations: ["productCarts", "productCarts.product"]
+    });
   }
 
   async delete(id: string): Promise<boolean> {

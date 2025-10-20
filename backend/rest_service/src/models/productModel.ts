@@ -9,9 +9,8 @@ import {
 } from "typeorm";
 import { Length, Min, IsUrl } from "class-validator";
 import { InventoryEntity } from "./inventoryModel";
-import { SubCategoryEntity } from "./subCategoryModel";
+import { SubCategoryEntity, SubCategoryProductEntity } from "./subCategoryModel";
 import { CartEntity } from "./cartModel";
-import { OrderEntity } from "./orderModel";
 
 @Entity({ name: "product" })
 export class ProductEntity {
@@ -29,9 +28,6 @@ export class ProductEntity {
 
 	@Column({ name: "id_sub_category" })
 	id_sub_category!: number;
-
-	@Column({ name: "id_order", nullable: true })
-	id_order!: number | null;
 
 	@Column({ name: "product_name", length: 150 })
 	@Length(3, 150)
@@ -66,7 +62,7 @@ export class ProductEntity {
 	@OneToMany(() => CartEntity, (c) => c.product)
 	cart?: CartEntity[];
 
-	@ManyToOne(() => OrderEntity, (o) => o.products)
-	@JoinColumn({ name: "id_order" })
-	order?: OrderEntity;
+	@OneToMany(() => SubCategoryProductEntity, (scp) => scp.product)
+	subCategoryProducts?: SubCategoryProductEntity[];
+
 }
