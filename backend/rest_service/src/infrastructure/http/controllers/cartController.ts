@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
-import { CartEntity } from "../../../models/cartModel";
+import { CartEntity, ProductCartEntity } from "../../../models/cartModel";
 import AppDataSource from "../../database/data-source";
 
 export const getCarts = async (req: Request, res: Response) => {
   try {
     const repo = AppDataSource.getRepository(CartEntity);
-    const carts = await repo.find({ relations: ["client", "product"] });
+    const carts = await repo.find({ 
+      relations: ["client", "product", "productCarts", "productCarts.product"] 
+    });
     res.json(carts);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener carritos", error });
@@ -18,7 +20,7 @@ export const getCartById = async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     const cart = await repo.findOne({
       where: { id_cart: id },
-      relations: ["client", "product"]
+      relations: ["client", "product", "productCarts", "productCarts.product"]
     });
     if (!cart) {
       return res.status(404).json({ message: "Carrito no encontrado" });

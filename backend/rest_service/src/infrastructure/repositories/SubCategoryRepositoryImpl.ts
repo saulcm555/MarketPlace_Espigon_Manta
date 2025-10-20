@@ -1,59 +1,55 @@
 import { SubCategory } from "@domain/entities/sub_category";
 import { ISubCategoryRepository } from "@domain/repositories/ISubCategoryRepository";
+import { SubCategoryEntity } from "../../models/subCategoryModel";
+import AppDataSource from "../database/data-source";
 
 export class SubCategoryRepositoryImpl implements ISubCategoryRepository {
-  private subCategories: SubCategory[] = [];
-  private currentId = 1;
-
   create(
-    subCategory: SubCategory,
-    callback: (error: Error | null, result?: SubCategory) => void
+    subCategory: Partial<SubCategoryEntity>,
+    callback: (error: Error | null, result?: SubCategoryEntity) => void
   ): void {
-    try {
-      if (!subCategory.sub_category_name) {
-        return callback(new Error("SubCategory must have a name."));
-      }
-      const newSubCategory: SubCategory = {
-        ...subCategory,
-        id_sub_category: this.currentId++,
-      };
-      this.subCategories.push(newSubCategory);
-      callback(null, newSubCategory);
-    } catch (error) {
-      callback(error as Error);
-    }
+    const repo = AppDataSource.getRepository(SubCategoryEntity);
+    const newSubCategory = repo.create(subCategory);
+    repo
+      .save(newSubCategory)
+      .then((saved) => callback(null, saved))
+      .catch((err) => callback(err));
   }
 
-  async update(id: string, data: Partial<SubCategory>): Promise<SubCategory> {
+  async update(id: string, data: Partial<SubCategoryEntity>): Promise<SubCategory> {
+    const repo = AppDataSource.getRepository(SubCategoryEntity);
     const subCategoryId = parseInt(id, 10);
-    const index = this.subCategories.findIndex((s) => s.id_sub_category === subCategoryId);
-    if (index === -1) {
-      throw new Error(`SubCategory with id ${id} not found`);
-    }
-    this.subCategories[index] = {
-      ...this.subCategories[index]!,
-      ...data,
-    };
-    return this.subCategories[index]!;
+    await repo.update(subCategoryId, data as any);
+    const updated = await repo.findOne({
+      where: { id_sub_category: subCategoryId },
+      relations: ["subCategoryProducts", "subCategoryProducts.product"]
+    });
+    if (!updated) throw new Error(`SubCategory with id ${id} not found`);
+    return updated as unknown as SubCategory;
   }
 
   async findById(id: string): Promise<SubCategory | null> {
+    const repo = AppDataSource.getRepository(SubCategoryEntity);
     const subCategoryId = parseInt(id, 10);
-    const subCategory = this.subCategories.find((s) => s.id_sub_category === subCategoryId);
-    return subCategory || null;
+    const result = await repo.findOne({
+      where: { id_sub_category: subCategoryId },
+      relations: ["subCategoryProducts", "subCategoryProducts.product"]
+    });
+    return result as unknown as SubCategory | null;
   }
 
   async findAll(): Promise<SubCategory[]> {
-    return this.subCategories;
+    const repo = AppDataSource.getRepository(SubCategoryEntity);
+    const results = await repo.find({
+      relations: ["subCategoryProducts", "subCategoryProducts.product"]
+    });
+    return results as unknown as SubCategory[];
   }
 
   async delete(id: string): Promise<boolean> {
+    const repo = AppDataSource.getRepository(SubCategoryEntity);
     const subCategoryId = parseInt(id, 10);
-    const index = this.subCategories.findIndex((s) => s.id_sub_category === subCategoryId);
-    if (index === -1) {
-      return false;
-    }
-    this.subCategories.splice(index, 1);
-    return true;
+    const result = await repo.delete(subCategoryId);
+    return !!result.affected && result.affected > 0;
   }
 }

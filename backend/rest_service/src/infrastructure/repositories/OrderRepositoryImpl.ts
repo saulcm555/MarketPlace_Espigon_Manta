@@ -27,12 +27,17 @@ export class OrderRepositoryImpl implements IOrderRepository {
   async findById(id: string): Promise<OrderEntity | null> {
     const repo = AppDataSource.getRepository(OrderEntity);
     const orderId = parseInt(id, 10);
-    return await repo.findOneBy({ id_order: orderId });
+    return await repo.findOne({
+      where: { id_order: orderId },
+      relations: ["productOrders", "productOrders.product"]
+    });
   }
 
   async findAll(): Promise<OrderEntity[]> {
     const repo = AppDataSource.getRepository(OrderEntity);
-    return await repo.find();
+    return await repo.find({
+      relations: ["productOrders", "productOrders.product"]
+    });
   }
 
   async delete(id: string): Promise<boolean> {

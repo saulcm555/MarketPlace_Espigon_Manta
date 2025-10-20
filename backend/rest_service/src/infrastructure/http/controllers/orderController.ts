@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
-import { OrderEntity } from "../../../models/orderModel";
+import { OrderEntity, ProductOrderEntity } from "../../../models/orderModel";
 import AppDataSource from "../../database/data-source";
 
 export const getOrders = async (req: Request, res: Response) => {
   try {
     const repo = AppDataSource.getRepository(OrderEntity);
-    const orders = await repo.find({ relations: ["products", "cart", "delivery"] });
+    const orders = await repo.find({ 
+      relations: ["cart", "delivery", "productOrders", "productOrders.product"] 
+    });
     res.json(orders);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener órdenes", error });
@@ -18,7 +20,7 @@ export const getOrderById = async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     const order = await repo.findOne({
       where: { id_order: id },
-      relations: ["products", "cart", "delivery"]
+      relations: ["cart", "delivery", "productOrders", "productOrders.product"]
     });
     if (!order) {
       return res.status(404).json({ message: "Orden no encontrada" });

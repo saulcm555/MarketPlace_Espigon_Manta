@@ -60,8 +60,40 @@ export class OrderEntity {
 	@JoinColumn({ name: "id_delivery" })
 	delivery!: DeliveryEntity;
 
-	// Relación: Un Order tiene muchos Products (FK id_order en product)
-	@OneToMany(() => ProductEntity, (p) => p.order)
-	products?: ProductEntity[];
+	// Relación con tabla transaccional
+	@OneToMany(() => ProductOrderEntity, (po) => po.order)
+	productOrders?: ProductOrderEntity[];
+}
+
+// Entidad transaccional product_order (tabla intermedia)
+@Entity({ name: "product_order" })
+export class ProductOrderEntity {
+	@PrimaryGeneratedColumn({ name: "id_product_order" })
+	id_product_order!: number;
+
+	@Column({ name: "id_order" })
+	id_order!: number;
+
+	@Column({ name: "id_product" })
+	id_product!: number;
+
+	@Column({ name: "price_unit", type: "decimal", precision: 10, scale: 2 })
+	@Min(0)
+	price_unit!: number;
+
+	@Column({ name: "subtotal", type: "decimal", precision: 10, scale: 2 })
+	@Min(0)
+	subtotal!: number;
+
+	@CreateDateColumn({ name: "created_at" })
+	created_at!: Date;
+
+	@ManyToOne(() => OrderEntity, (o) => o.productOrders)
+	@JoinColumn({ name: "id_order" })
+	order!: OrderEntity;
+
+	@ManyToOne(() => ProductEntity)
+	@JoinColumn({ name: "id_product" })
+	product!: ProductEntity;
 }
 
