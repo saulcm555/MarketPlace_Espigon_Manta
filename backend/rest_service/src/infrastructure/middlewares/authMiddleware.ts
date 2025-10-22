@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import * as jwt from "jsonwebtoken";
 
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this-in-production";
+
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
 	const authHeader = req.headers.authorization;
 	if (!authHeader) {
@@ -11,7 +13,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     return res.status(401).json({ message: "No token provided" });
     }
     try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    const decoded = jwt.verify(token, JWT_SECRET);
     (req as any).user = decoded;
     next();
     } catch (err) {
