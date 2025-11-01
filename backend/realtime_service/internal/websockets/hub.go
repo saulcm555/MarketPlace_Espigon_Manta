@@ -2,7 +2,7 @@ package websockets
 
 import "sync"
 
-// Hub mantiene clientes conectados de forma simple 
+// Hub mantiene clientes conectados de forma simple
 type Hub struct {
 	clients map[string]*Client
 	rooms   map[string]map[string]*Client // roomID -> clientID -> *Client
@@ -88,5 +88,20 @@ func (h *Hub) BroadcastRoom(room string, msg []byte) {
 		for _, c := range members {
 			_ = c.Send(msg)
 		}
+	}
+}
+
+// Snapshot devuelve información resumida del Hub para monitorización.
+// Retorna el número total de clientes y un mapa room -> número de miembros.
+func (h *Hub) Snapshot() map[string]interface{} {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	rooms := make(map[string]int)
+	for room, members := range h.rooms {
+		rooms[room] = len(members)
+	}
+	return map[string]interface{}{
+		"clients": len(h.clients),
+		"rooms":   rooms,
 	}
 }
