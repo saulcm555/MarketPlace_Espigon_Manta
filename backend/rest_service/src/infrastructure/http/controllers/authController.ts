@@ -10,8 +10,60 @@ const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-this-in-pro
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "24h";
 
 /**
- * Login para clientes
- * POST /api/auth/login/client
+ * @swagger
+ * /api/auth/login/client:
+ *   post:
+ *     summary: Login de cliente
+ *     description: Autentica un cliente con email y contraseña, retorna token JWT
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: cliente@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: password123
+ *     responses:
+ *       200:
+ *         description: Login exitoso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                       example: client
+ *       400:
+ *         description: Datos faltantes
+ *       401:
+ *         description: Credenciales inválidas
+ *       500:
+ *         description: Error interno del servidor
  */
 export const loginClient = async (req: Request, res: Response) => {
   try {
@@ -63,8 +115,60 @@ export const loginClient = async (req: Request, res: Response) => {
 };
 
 /**
- * Login para sellers
- * POST /api/auth/login/seller
+ * @swagger
+ * /api/auth/login/seller:
+ *   post:
+ *     summary: Login de vendedor
+ *     description: Autentica un vendedor con email y contraseña, retorna token JWT
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: vendedor@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: password123
+ *     responses:
+ *       200:
+ *         description: Login exitoso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                       example: seller
+ *       400:
+ *         description: Datos faltantes
+ *       401:
+ *         description: Credenciales inválidas
+ *       500:
+ *         description: Error interno del servidor
  */
 export const loginSeller = async (req: Request, res: Response) => {
   try {
@@ -116,8 +220,60 @@ export const loginSeller = async (req: Request, res: Response) => {
 };
 
 /**
- * Login para admins
- * POST /api/auth/login/admin
+ * @swagger
+ * /api/auth/login/admin:
+ *   post:
+ *     summary: Login de administrador
+ *     description: Autentica un administrador con email y contraseña, retorna token JWT
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: admin@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: admin123
+ *     responses:
+ *       200:
+ *         description: Login exitoso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                       example: admin
+ *       400:
+ *         description: Datos faltantes
+ *       401:
+ *         description: Credenciales inválidas
+ *       500:
+ *         description: Error interno del servidor
  */
 export const loginAdmin = async (req: Request, res: Response) => {
   try {
@@ -169,8 +325,38 @@ export const loginAdmin = async (req: Request, res: Response) => {
 };
 
 /**
- * Verificar token
- * GET /api/auth/verify
+ * @swagger
+ * /api/auth/verify:
+ *   get:
+ *     summary: Verificar token JWT
+ *     description: Valida si el token JWT proporcionado es válido y retorna información del usuario
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Token válido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 valid:
+ *                   type: boolean
+ *                   example: true
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *       401:
+ *         description: Token inválido o no proporcionado
  */
 export const verifyToken = async (req: Request, res: Response) => {
   try {
@@ -197,8 +383,68 @@ export const verifyToken = async (req: Request, res: Response) => {
 };
 
 /**
- * Registro de cliente (público)
- * POST /api/auth/register/client
+ * @swagger
+ * /api/auth/register/client:
+ *   post:
+ *     summary: Registro de nuevo cliente
+ *     description: Registra un nuevo cliente en el sistema y retorna token JWT
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - client_name
+ *               - email
+ *               - password
+ *             properties:
+ *               client_name:
+ *                 type: string
+ *                 example: Juan Pérez
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: juan.perez@example.com
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: password123
+ *               phone:
+ *                 type: string
+ *                 example: "0999123456"
+ *               address:
+ *                 type: string
+ *                 example: Calle Principal 123
+ *     responses:
+ *       201:
+ *         description: Cliente registrado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                       example: client
+ *       400:
+ *         description: Datos faltantes o email ya registrado
+ *       500:
+ *         description: Error interno del servidor
  */
 export const registerClient = async (req: Request, res: Response) => {
   try {

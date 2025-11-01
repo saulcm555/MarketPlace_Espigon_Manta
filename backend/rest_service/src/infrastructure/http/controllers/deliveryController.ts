@@ -3,8 +3,14 @@ import AppDataSource from "../../database/data-source";
 import { DeliveryEntity } from "../../../models/deliveryModel";
 
 /**
- * Obtener todos los métodos de entrega
- * GET /api/deliveries
+ * @swagger
+ * /api/deliveries:
+ *   get:
+ *     summary: Listar todos los métodos de entrega
+ *     tags: [Deliveries]
+ *     responses:
+ *       200:
+ *         description: Lista de métodos de entrega obtenida exitosamente
  */
 export const getDeliveries = async (req: Request, res: Response) => {
   try {
@@ -17,8 +23,20 @@ export const getDeliveries = async (req: Request, res: Response) => {
 };
 
 /**
- * Obtener un método de entrega por ID
- * GET /api/deliveries/:id
+ * @swagger
+ * /api/deliveries/{id}:
+ *   get:
+ *     summary: Obtener método de entrega por ID
+ *     tags: [Deliveries]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Método de entrega obtenido exitosamente
  */
 export const getDeliveryById = async (req: Request, res: Response) => {
   try {
@@ -39,8 +57,34 @@ export const getDeliveryById = async (req: Request, res: Response) => {
 };
 
 /**
- * Crear un nuevo método de entrega
- * POST /api/deliveries
+ * @swagger
+ * /api/deliveries:
+ *   post:
+ *     summary: Crear nuevo método de entrega
+ *     tags: [Deliveries]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - delivery_method_name
+ *             properties:
+ *               delivery_method_name:
+ *                 type: string
+ *                 example: Entrega a domicilio
+ *               delivery_cost:
+ *                 type: number
+ *                 example: 3.50
+ *               estimated_time:
+ *                 type: string
+ *                 example: 1-2 días hábiles
+ *     responses:
+ *       201:
+ *         description: Método de entrega creado exitosamente
  */
 export const createDelivery = async (req: Request, res: Response) => {
   try {
@@ -54,8 +98,22 @@ export const createDelivery = async (req: Request, res: Response) => {
 };
 
 /**
- * Actualizar un método de entrega
- * PUT /api/deliveries/:id
+ * @swagger
+ * /api/deliveries/{id}:
+ *   put:
+ *     summary: Actualizar método de entrega
+ *     tags: [Deliveries]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Método de entrega actualizado exitosamente
  */
 export const updateDelivery = async (req: Request, res: Response) => {
   try {

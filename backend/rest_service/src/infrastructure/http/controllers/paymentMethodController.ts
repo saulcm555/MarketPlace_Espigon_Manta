@@ -3,8 +3,14 @@ import AppDataSource from "../../database/data-source";
 import { PaymentMethodEntity } from "../../../models/paymentMethodModel";
 
 /**
- * Obtener todos los métodos de pago
- * GET /api/payment-methods
+ * @swagger
+ * /api/payment-methods:
+ *   get:
+ *     summary: Listar todos los métodos de pago
+ *     tags: [Payment Methods]
+ *     responses:
+ *       200:
+ *         description: Lista de métodos de pago obtenida exitosamente
  */
 export const getPaymentMethods = async (req: Request, res: Response) => {
   try {
@@ -17,8 +23,22 @@ export const getPaymentMethods = async (req: Request, res: Response) => {
 };
 
 /**
- * Obtener un método de pago por ID
- * GET /api/payment-methods/:id
+ * @swagger
+ * /api/payment-methods/{id}:
+ *   get:
+ *     summary: Obtener método de pago por ID
+ *     tags: [Payment Methods]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Método de pago obtenido exitosamente
+ *       404:
+ *         description: Método de pago no encontrado
  */
 export const getPaymentMethodById = async (req: Request, res: Response) => {
   try {
@@ -39,8 +59,31 @@ export const getPaymentMethodById = async (req: Request, res: Response) => {
 };
 
 /**
- * Crear un nuevo método de pago
- * POST /api/payment-methods
+ * @swagger
+ * /api/payment-methods:
+ *   post:
+ *     summary: Crear nuevo método de pago
+ *     tags: [Payment Methods]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - payment_method_name
+ *             properties:
+ *               payment_method_name:
+ *                 type: string
+ *                 example: Tarjeta de Crédito
+ *               description:
+ *                 type: string
+ *                 example: Pago con tarjeta de crédito Visa/Mastercard
+ *     responses:
+ *       201:
+ *         description: Método de pago creado exitosamente
  */
 export const createPaymentMethod = async (req: Request, res: Response) => {
   try {
@@ -54,8 +97,22 @@ export const createPaymentMethod = async (req: Request, res: Response) => {
 };
 
 /**
- * Actualizar un método de pago
- * PUT /api/payment-methods/:id
+ * @swagger
+ * /api/payment-methods/{id}:
+ *   put:
+ *     summary: Actualizar método de pago
+ *     tags: [Payment Methods]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Método de pago actualizado exitosamente
  */
 export const updatePaymentMethod = async (req: Request, res: Response) => {
   try {
