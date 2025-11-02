@@ -1,0 +1,44 @@
+Admin:
+  type: object
+  properties:
+    id_admin:
+      type: integer
+      example: 1
+    name:
+      type: string
+      example: Admin Principal
+    email:
+      type: string
+      format: email
+      example: admin@example.com
+    role:
+      type: string
+      example: super_admin
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+AdminInput:
+  type: object
+  required:
+    - name
+    - email
+    - password
+  properties:
+    name:
+      type: string
+      example: Admin Principal
+    email:
+      type: string
+      format: email
+      example: admin@example.com
+    password:
+      type: string
+      format: password
+      example: admin123
+    role:
+      type: string
+      example: admin

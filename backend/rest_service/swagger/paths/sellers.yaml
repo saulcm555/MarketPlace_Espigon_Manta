@@ -1,0 +1,97 @@
+/api/sellers:
+  get:
+    summary: Listar todos los vendedores
+    description: Obtiene lista completa de vendedores registrados
+    tags:
+      - Sellers
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: Lista de vendedores obtenida exitosamente
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Seller'
+
+  post:
+    summary: Crear nuevo vendedor
+    description: Registra un nuevo vendedor en el sistema
+    tags:
+      - Sellers
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SellerInput'
+    responses:
+      '201':
+        description: Vendedor creado exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Seller'
+
+/api/sellers/{id}:
+  get:
+    summary: Obtener vendedor por ID
+    tags:
+      - Sellers
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Vendedor obtenido exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Seller'
+
+  put:
+    summary: Actualizar datos del vendedor
+    tags:
+      - Sellers
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SellerInput'
+    responses:
+      '200':
+        description: Vendedor actualizado exitosamente
+
+  delete:
+    summary: Eliminar vendedor
+    tags:
+      - Sellers
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Vendedor eliminado correctamente

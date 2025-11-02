@@ -1,0 +1,91 @@
+/api/payment-methods:
+  get:
+    summary: Listar todos los métodos de pago
+    tags:
+      - Payment Methods
+    responses:
+      '200':
+        description: Lista de métodos de pago obtenida exitosamente
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/PaymentMethod'
+
+  post:
+    summary: Crear nuevo método de pago
+    tags:
+      - Payment Methods
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PaymentMethodInput'
+    responses:
+      '201':
+        description: Método de pago creado exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethod'
+
+/api/payment-methods/{id}:
+  get:
+    summary: Obtener método de pago por ID
+    tags:
+      - Payment Methods
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Método de pago obtenido exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethod'
+
+  put:
+    summary: Actualizar método de pago
+    tags:
+      - Payment Methods
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PaymentMethodInput'
+    responses:
+      '200':
+        description: Método de pago actualizado exitosamente
+
+  delete:
+    summary: Eliminar método de pago
+    tags:
+      - Payment Methods
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Método de pago eliminado correctamente

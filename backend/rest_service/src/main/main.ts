@@ -2,6 +2,7 @@ import "reflect-metadata";
 import express = require("express");
 import AppDataSource from "../infrastructure/database/data-source";
 import { setupSwagger } from "../infrastructure/config/swagger";
+import { errorHandler, notFoundHandler } from "../infrastructure/middlewares/errors";
 
 // Import all routes
 import authRoutes from "../infrastructure/http/routes/authRoutes";
@@ -36,6 +37,17 @@ app.use("/api/carts", cartRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/payment-methods", paymentMethodRoutes);
 app.use("/api/deliveries", deliveryRoutes);
+
+// ============================================
+// ERROR HANDLING MIDDLEWARES
+// Debe ir DESPUÉS de todas las rutas
+// ============================================
+
+// Captura rutas no encontradas (404)
+app.use(notFoundHandler);
+
+// Middleware global de manejo de errores
+app.use(errorHandler);
 
 AppDataSource.initialize()
   .then(() => {

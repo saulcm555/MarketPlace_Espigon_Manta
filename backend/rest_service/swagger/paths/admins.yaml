@@ -1,0 +1,96 @@
+/api/admins:
+  get:
+    summary: Listar todos los administradores
+    description: Obtiene lista completa de administradores
+    tags:
+      - Admins
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: Lista de administradores obtenida exitosamente
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Admin'
+
+  post:
+    summary: Crear nuevo administrador
+    tags:
+      - Admins
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AdminInput'
+    responses:
+      '201':
+        description: Administrador creado exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Admin'
+
+/api/admins/{id}:
+  get:
+    summary: Obtener administrador por ID
+    tags:
+      - Admins
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Administrador obtenido exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Admin'
+
+  put:
+    summary: Actualizar administrador
+    tags:
+      - Admins
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AdminInput'
+    responses:
+      '200':
+        description: Administrador actualizado exitosamente
+
+  delete:
+    summary: Eliminar administrador
+    tags:
+      - Admins
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Administrador eliminado correctamente

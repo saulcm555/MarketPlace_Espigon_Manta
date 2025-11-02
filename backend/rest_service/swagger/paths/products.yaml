@@ -1,0 +1,91 @@
+/api/products:
+  get:
+    summary: Listar productos con filtros
+    description: Obtiene lista de productos con paginación y filtros opcionales
+    tags:
+      - Products
+    parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 10
+      - in: query
+        name: id_category
+        schema:
+          type: integer
+      - in: query
+        name: id_sub_category
+        schema:
+          type: integer
+      - in: query
+        name: id_seller
+        schema:
+          type: integer
+      - in: query
+        name: min_price
+        schema:
+          type: number
+      - in: query
+        name: max_price
+        schema:
+          type: number
+      - in: query
+        name: search
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Lista de productos obtenida exitosamente
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+
+  post:
+    summary: Crear nuevo producto
+    description: Crea un nuevo producto en el sistema
+    tags:
+      - Products
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProductInput'
+    responses:
+      '201':
+        description: Producto creado exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+
+/api/products/{id}:
+  delete:
+    summary: Eliminar producto
+    description: Elimina un producto del sistema por su ID
+    tags:
+      - Products
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Producto eliminado correctamente
+      '404':
+        description: Producto no encontrado

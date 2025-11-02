@@ -1,0 +1,91 @@
+/api/deliveries:
+  get:
+    summary: Listar todos los métodos de entrega
+    tags:
+      - Deliveries
+    responses:
+      '200':
+        description: Lista de métodos de entrega obtenida exitosamente
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Delivery'
+
+  post:
+    summary: Crear nuevo método de entrega
+    tags:
+      - Deliveries
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DeliveryInput'
+    responses:
+      '201':
+        description: Método de entrega creado exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Delivery'
+
+/api/deliveries/{id}:
+  get:
+    summary: Obtener método de entrega por ID
+    tags:
+      - Deliveries
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Método de entrega obtenido exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Delivery'
+
+  put:
+    summary: Actualizar método de entrega
+    tags:
+      - Deliveries
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DeliveryInput'
+    responses:
+      '200':
+        description: Método de entrega actualizado exitosamente
+
+  delete:
+    summary: Eliminar método de entrega
+    tags:
+      - Deliveries
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Método de entrega eliminado correctamente

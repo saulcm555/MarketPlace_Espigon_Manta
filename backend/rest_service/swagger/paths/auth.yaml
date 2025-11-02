@@ -1,0 +1,130 @@
+/api/auth/login/client:
+  post:
+    summary: Login de cliente
+    description: Autentica un cliente con email y contraseña, retorna token JWT
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+              - password
+            properties:
+              email:
+                type: string
+                format: email
+                example: cliente@example.com
+              password:
+                type: string
+                format: password
+                example: password123
+    responses:
+      '200':
+        description: Login exitoso
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                token:
+                  type: string
+                user:
+                  type: object
+      '400':
+        description: Datos faltantes
+      '401':
+        description: Credenciales inválidas
+
+/api/auth/login/seller:
+  post:
+    summary: Login de vendedor
+    description: Autentica un vendedor con email y contraseña
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+              - password
+            properties:
+              email:
+                type: string
+                format: email
+              password:
+                type: string
+                format: password
+    responses:
+      '200':
+        description: Login exitoso
+      '401':
+        description: Credenciales inválidas
+
+/api/auth/login/admin:
+  post:
+    summary: Login de administrador
+    description: Autentica un administrador con email y contraseña
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+              - password
+            properties:
+              email:
+                type: string
+                format: email
+              password:
+                type: string
+                format: password
+    responses:
+      '200':
+        description: Login exitoso
+      '401':
+        description: Credenciales inválidas
+
+/api/auth/verify:
+  get:
+    summary: Verificar token JWT
+    description: Valida si el token JWT proporcionado es válido
+    tags:
+      - Auth
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: Token válido
+      '401':
+        description: Token inválido
+
+/api/auth/register/client:
+  post:
+    summary: Registro de nuevo cliente
+    description: Registra un nuevo cliente en el sistema
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ClientInput'
+    responses:
+      '201':
+        description: Cliente registrado exitosamente
+      '400':
+        description: Datos inválidos

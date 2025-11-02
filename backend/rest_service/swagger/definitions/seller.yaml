@@ -1,0 +1,45 @@
+Seller:
+  type: object
+  properties:
+    id_seller:
+      type: integer
+      example: 1
+    name:
+      type: string
+      example: Juan Vendedor
+    email:
+      type: string
+      format: email
+      example: vendedor@example.com
+    phone:
+      type: string
+      example: "0998765432"
+    address:
+      type: string
+      example: Av. Comercial 456
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+SellerInput:
+  type: object
+  required:
+    - name
+    - email
+  properties:
+    name:
+      type: string
+      example: Juan Vendedor
+    email:
+      type: string
+      format: email
+      example: vendedor@example.com
+    phone:
+      type: string
+      example: "0998765432"
+    address:
+      type: string
+      example: Av. Comercial 456

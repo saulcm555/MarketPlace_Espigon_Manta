@@ -1,0 +1,30 @@
+Category:
+  type: object
+  properties:
+    id_category:
+      type: integer
+      example: 1
+    category_name:
+      type: string
+      example: Electrónica
+    description:
+      type: string
+      example: Productos electrónicos y tecnología
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+CategoryInput:
+  type: object
+  required:
+    - category_name
+  properties:
+    category_name:
+      type: string
+      example: Electrónica
+    description:
+      type: string
+      example: Productos electrónicos y tecnología

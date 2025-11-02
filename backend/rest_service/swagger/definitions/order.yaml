@@ -1,0 +1,57 @@
+Order:
+  type: object
+  properties:
+    id_order:
+      type: integer
+      example: 1
+    id_client:
+      type: integer
+      example: 1
+    id_payment_method:
+      type: integer
+      example: 1
+    id_delivery:
+      type: integer
+      example: 1
+    order_status:
+      type: string
+      enum: [pending, processing, shipped, delivered, cancelled]
+      example: pending
+    order_notes:
+      type: string
+      example: Entregar en horario de oficina
+    total_amount:
+      type: number
+      format: decimal
+      example: 1299.99
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+OrderInput:
+  type: object
+  required:
+    - id_client
+    - id_cart
+    - id_payment_method
+    - id_delivery
+  properties:
+    id_client:
+      type: integer
+      example: 1
+    id_cart:
+      type: integer
+      example: 1
+      description: Carrito desde el cual crear ProductOrder
+    id_payment_method:
+      type: integer
+      example: 1
+    id_delivery:
+      type: integer
+      example: 1
+    order_notes:
+      type: string
+      example: Entregar en horario de oficina

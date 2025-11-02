@@ -1,0 +1,52 @@
+Product:
+  type: object
+  properties:
+    id_product:
+      type: integer
+      example: 1
+    product_name:
+      type: string
+      example: Laptop HP
+    description:
+      type: string
+      example: Laptop HP Intel Core i5
+    price:
+      type: number
+      format: decimal
+      example: 899.99
+    stock:
+      type: integer
+      example: 10
+    id_seller:
+      type: integer
+      example: 1
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+ProductInput:
+  type: object
+  required:
+    - product_name
+    - price
+    - id_seller
+  properties:
+    product_name:
+      type: string
+      example: Laptop HP
+    description:
+      type: string
+      example: Laptop HP Intel Core i5
+    price:
+      type: number
+      format: decimal
+      example: 899.99
+    stock:
+      type: integer
+      example: 10
+    id_seller:
+      type: integer
+      example: 1

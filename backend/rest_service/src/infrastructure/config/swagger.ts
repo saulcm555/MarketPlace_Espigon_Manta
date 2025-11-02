@@ -1,6 +1,31 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { Express } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as yaml from 'js-yaml';
+
+// Función para cargar archivos YAML
+const loadYamlFiles = (dir: string): any => {
+  const files = fs.readdirSync(dir);
+  const schemas: any = {};
+  
+  files.forEach(file => {
+    if (file.endsWith('.yaml') || file.endsWith('.yml')) {
+      const filePath = path.join(dir, file);
+      const content = fs.readFileSync(filePath, 'utf8');
+      const parsed = yaml.load(content);
+      Object.assign(schemas, parsed);
+    }
+  });
+  
+  return schemas;
+};
+
+// Cargar definiciones y paths desde archivos YAML
+const swaggerDir = path.join(__dirname, '../../../swagger');
+const definitions = loadYamlFiles(path.join(swaggerDir, 'definitions'));
+const paths = loadYamlFiles(path.join(swaggerDir, 'paths'));
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -8,7 +33,7 @@ const options: swaggerJsdoc.Options = {
     info: {
       title: 'MarketPlace Espigón Manta API',
       version: '1.0.0',
-      description: 'API REST para el sistema de MarketPlace con tablas transaccionales',
+      description: 'API REST para el sistema de MarketPlace con Clean Architecture y tablas transaccionales',
       contact: {
         name: 'API Support',
         email: 'support@marketplace.com'
@@ -30,22 +55,10 @@ const options: swaggerJsdoc.Options = {
         }
       },
       schemas: {
-        // Schemas comunes
-        Error: {
-          type: 'object',
-          properties: {
-            message: {
-              type: 'string',
-              description: 'Mensaje de error'
-            },
-            error: {
-              type: 'string',
-              description: 'Detalles del error'
-            }
-          }
-        },
+        // Schemas cargados desde archivos YAML
+        ...definitions,
         
-        // Auth Schemas
+        // Auth Schemas (mantenemos los existentes mientras se migran todos)
         LoginRequest: {
           type: 'object',
           required: ['email', 'password'],
@@ -219,7 +232,11 @@ const options: swaggerJsdoc.Options = {
       { name: 'Payment Methods', description: 'Métodos de pago' },
       { name: 'Deliveries', description: 'Métodos de entrega' },
       { name: 'Inventory', description: 'Gestión de inventario' }
-    ]
+    ],
+    // Paths cargados desde archivos YAML
+    paths: {
+      ...paths
+    }
   },
   apis: ['./src/infrastructure/http/controllers/*.ts', './src/infrastructure/http/routes/*.ts']
 };

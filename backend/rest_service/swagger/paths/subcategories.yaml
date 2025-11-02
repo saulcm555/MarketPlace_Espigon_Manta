@@ -1,0 +1,95 @@
+/api/subcategories:
+  get:
+    summary: Listar todas las subcategorías
+    description: Obtiene lista completa de subcategorías
+    tags:
+      - SubCategories
+    responses:
+      '200':
+        description: Lista de subcategorías obtenida exitosamente
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/SubCategory'
+
+  post:
+    summary: Crear nueva subcategoría
+    description: Crea una nueva subcategoría en el sistema
+    tags:
+      - SubCategories
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SubCategoryInput'
+    responses:
+      '201':
+        description: Subcategoría creada exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubCategory'
+
+/api/subcategories/{id}:
+  get:
+    summary: Obtener subcategoría por ID
+    tags:
+      - SubCategories
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Subcategoría obtenida exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubCategory'
+      '404':
+        description: Subcategoría no encontrada
+
+  put:
+    summary: Actualizar subcategoría
+    tags:
+      - SubCategories
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SubCategoryInput'
+    responses:
+      '200':
+        description: Subcategoría actualizada exitosamente
+
+  delete:
+    summary: Eliminar subcategoría
+    tags:
+      - SubCategories
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Subcategoría eliminada correctamente

@@ -1,0 +1,42 @@
+Inventory:
+  type: object
+  properties:
+    id_inventory:
+      type: integer
+      example: 1
+    id_seller:
+      type: integer
+      example: 1
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+InventoryInput:
+  type: object
+  required:
+    - id_seller
+  properties:
+    id_seller:
+      type: integer
+      example: 1
+
+UpdateStock:
+  type: object
+  required:
+    - stock
+    - id_seller
+  properties:
+    stock:
+      type: integer
+      example: 50
+    operation:
+      type: string
+      enum: [set, add, subtract]
+      default: set
+      example: set
+    id_seller:
+      type: integer
+      example: 1

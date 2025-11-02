@@ -1,0 +1,56 @@
+Cart:
+  type: object
+  properties:
+    id_cart:
+      type: integer
+      example: 1
+    id_client:
+      type: integer
+      example: 1
+    cart_status:
+      type: string
+      enum: [active, completed, abandoned]
+      example: active
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+CartInput:
+  type: object
+  required:
+    - id_client
+  properties:
+    id_client:
+      type: integer
+      example: 1
+
+AddProductToCart:
+  type: object
+  required:
+    - id_cart
+    - id_product
+    - quantity
+  properties:
+    id_cart:
+      type: integer
+      example: 1
+    id_product:
+      type: integer
+      example: 1
+    quantity:
+      type: integer
+      minimum: 1
+      example: 2
+
+UpdateCartProduct:
+  type: object
+  required:
+    - quantity
+  properties:
+    quantity:
+      type: integer
+      minimum: 1
+      example: 3

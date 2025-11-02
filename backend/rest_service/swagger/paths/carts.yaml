@@ -1,0 +1,162 @@
+/api/carts:
+  get:
+    summary: Obtener todos los carritos
+    tags:
+      - Carts
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: Lista de carritos obtenida exitosamente
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Cart'
+
+  post:
+    summary: Crear un nuevo carrito
+    tags:
+      - Carts
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CartInput'
+    responses:
+      '201':
+        description: Carrito creado exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cart'
+
+/api/carts/{id}:
+  get:
+    summary: Obtener un carrito por ID
+    tags:
+      - Carts
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Carrito encontrado
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cart'
+
+  delete:
+    summary: Eliminar carrito
+    tags:
+      - Carts
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Carrito eliminado correctamente
+
+/api/carts/{id}/products:
+  post:
+    summary: Agregar un producto al carrito (Tabla Transaccional ProductCart)
+    tags:
+      - Carts
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AddProductToCart'
+    responses:
+      '201':
+        description: Producto agregado al carrito exitosamente
+
+/api/carts/{id}/products/{productId}:
+  put:
+    summary: Actualizar cantidad de un producto en el carrito
+    tags:
+      - Carts
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      - in: path
+        name: productId
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UpdateCartProduct'
+    responses:
+      '200':
+        description: Cantidad actualizada exitosamente
+
+  delete:
+    summary: Eliminar un producto del carrito
+    tags:
+      - Carts
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      - in: path
+        name: productId
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Producto eliminado del carrito correctamente
+
+/api/carts/{id}/with-products:
+  get:
+    summary: Obtener carrito con todos sus productos
+    tags:
+      - Carts
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Carrito con productos obtenido exitosamente

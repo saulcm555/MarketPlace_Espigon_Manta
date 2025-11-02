@@ -1,0 +1,96 @@
+/api/inventories:
+  get:
+    summary: Listar todos los inventarios
+    tags:
+      - Inventory
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: Lista de inventarios obtenida exitosamente
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Inventory'
+
+  post:
+    summary: Crear nuevo inventario
+    tags:
+      - Inventory
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InventoryInput'
+    responses:
+      '201':
+        description: Inventario creado exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Inventory'
+
+/api/inventories/{id}:
+  get:
+    summary: Obtener inventario por ID
+    tags:
+      - Inventory
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Inventario obtenido exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Inventory'
+
+  put:
+    summary: Actualizar stock del inventario
+    description: Actualiza el stock de un producto en el inventario
+    tags:
+      - Inventory
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UpdateStock'
+    responses:
+      '200':
+        description: Stock actualizado exitosamente
+
+  delete:
+    summary: Eliminar inventario
+    tags:
+      - Inventory
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Inventario eliminado correctamente

@@ -1,0 +1,101 @@
+/api/clients:
+  get:
+    summary: Listar todos los clientes
+    description: Obtiene lista completa de clientes registrados
+    tags:
+      - Clients
+    security:
+      - bearerAuth: []
+    responses:
+      '200':
+        description: Lista de clientes obtenida exitosamente
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Client'
+
+  post:
+    summary: Crear nuevo cliente
+    description: Registra un nuevo cliente en el sistema
+    tags:
+      - Clients
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ClientInput'
+    responses:
+      '201':
+        description: Cliente creado exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Client'
+
+/api/clients/{id}:
+  get:
+    summary: Obtener cliente por ID
+    description: Obtiene los detalles de un cliente específico
+    tags:
+      - Clients
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Cliente obtenido exitosamente
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Client'
+      '404':
+        description: Cliente no encontrado
+
+  put:
+    summary: Actualizar datos del cliente
+    description: Actualiza la información de un cliente existente
+    tags:
+      - Clients
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ClientInput'
+    responses:
+      '200':
+        description: Cliente actualizado exitosamente
+
+  delete:
+    summary: Eliminar cliente
+    tags:
+      - Clients
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Cliente eliminado correctamente

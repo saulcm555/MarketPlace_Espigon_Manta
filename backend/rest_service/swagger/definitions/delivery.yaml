@@ -1,0 +1,38 @@
+Delivery:
+  type: object
+  properties:
+    id_delivery:
+      type: integer
+      example: 1
+    delivery_method_name:
+      type: string
+      example: Entrega a domicilio
+    delivery_cost:
+      type: number
+      format: decimal
+      example: 3.50
+    estimated_time:
+      type: string
+      example: 1-2 días hábiles
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+DeliveryInput:
+  type: object
+  required:
+    - delivery_method_name
+  properties:
+    delivery_method_name:
+      type: string
+      example: Entrega a domicilio
+    delivery_cost:
+      type: number
+      format: decimal
+      example: 3.50
+    estimated_time:
+      type: string
+      example: 1-2 días hábiles

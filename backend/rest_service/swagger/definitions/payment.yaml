@@ -1,0 +1,30 @@
+PaymentMethod:
+  type: object
+  properties:
+    id_payment_method:
+      type: integer
+      example: 1
+    payment_method_name:
+      type: string
+      example: Tarjeta de Crédito
+    description:
+      type: string
+      example: Pago con tarjeta de crédito Visa/Mastercard
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+PaymentMethodInput:
+  type: object
+  required:
+    - payment_method_name
+  properties:
+    payment_method_name:
+      type: string
+      example: Tarjeta de Crédito
+    description:
+      type: string
+      example: Pago con tarjeta de crédito Visa/Mastercard

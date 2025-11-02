@@ -1,0 +1,45 @@
+Client:
+  type: object
+  properties:
+    id_client:
+      type: integer
+      example: 1
+    name:
+      type: string
+      example: Juan Pérez
+    email:
+      type: string
+      format: email
+      example: juan@example.com
+    phone:
+      type: string
+      example: "0998765432"
+    address:
+      type: string
+      example: Calle Principal 123
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+ClientInput:
+  type: object
+  required:
+    - name
+    - email
+  properties:
+    name:
+      type: string
+      example: Juan Pérez
+    email:
+      type: string
+      format: email
+      example: juan@example.com
+    phone:
+      type: string
+      example: "0998765432"
+    address:
+      type: string
+      example: Calle Principal 123

@@ -1,0 +1,36 @@
+Error:
+  type: object
+  properties:
+    success:
+      type: boolean
+      example: false
+    error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Recurso no encontrado
+        statusCode:
+          type: integer
+          example: 404
+        isOperational:
+          type: boolean
+          example: true
+
+ValidationError:
+  type: object
+  properties:
+    success:
+      type: boolean
+      example: false
+    errors:
+      type: array
+      items:
+        type: object
+        properties:
+          field:
+            type: string
+            example: email
+          message:
+            type: string
+            example: El email es requerido
