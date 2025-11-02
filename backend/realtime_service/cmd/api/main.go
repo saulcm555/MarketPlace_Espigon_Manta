@@ -19,6 +19,18 @@ func main() {
 	hub := websockets.NewHub()
 	go hub.Run()
 
+	// Opcional: configurar Redis Pub/Sub si REDIS_ADDR está presente.
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr != "" {
+		redisPass := os.Getenv("REDIS_PASSWORD")
+		ps := websockets.NewRedisPubSub(redisAddr, redisPass)
+		if err := hub.SetPubSub(ps); err != nil {
+			log.Printf("warning: could not start redis pubsub: %v", err)
+		} else {
+			log.Printf("redis pubsub started (addr=%s)", redisAddr)
+		}
+	}
+
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		websockets.ServeWS(hub, w, r)
 	})

@@ -7,6 +7,7 @@ type Hub struct {
 	clients map[string]*Client
 	rooms   map[string]map[string]*Client // roomID -> clientID -> *Client
 	mu      sync.RWMutex
+	pub     PubSub
 }
 
 // NewHub crea un Hub nuevo.
@@ -89,6 +90,29 @@ func (h *Hub) BroadcastRoom(room string, msg []byte) {
 			_ = c.Send(msg)
 		}
 	}
+}
+
+// PublishRoom envía el mensaje localmente y lo publica en el PubSub si está configurado.
+func (h *Hub) PublishRoom(room string, msg []byte) {
+	// enviar localmente
+	h.BroadcastRoom(room, msg)
+	// publicar en pubsub para que otras instancias repliquen
+	if h.pub != nil {
+		_ = h.pub.Publish(room, msg)
+	}
+}
+
+// SetPubSub configura una implementación de PubSub y la inicia si es necesario.
+func (h *Hub) SetPubSub(p PubSub) error {
+	h.pub = p
+	if p == nil {
+		return nil
+	}
+	// iniciar la suscripción para recibir mensajes de otras instancias
+	return h.pub.Start(func(room string, payload []byte) {
+		// cuando recibimos desde PubSub, solo difundimos localmente (no re-publicamos)
+		h.BroadcastRoom(room, payload)
+	})
 }
 
 // Snapshot devuelve información resumida del Hub para monitorización.
