@@ -12,6 +12,18 @@ const productRepository = new ProductRepositoryImpl();
 const inventoryService = new InventoryService(inventoryRepository);
 const productService = new ProductService(productRepository);
 
+/**
+ * @swagger
+ * /api/inventories:
+ *   get:
+ *     summary: Listar todos los inventarios
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de inventarios obtenida exitosamente
+ */
 export const getInventories = async (req: Request, res: Response) => {
   try {
     const inventories = await inventoryService.getAllInventories();
@@ -21,6 +33,24 @@ export const getInventories = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/inventories/{id}:
+ *   get:
+ *     summary: Obtener inventario por ID
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Inventario obtenido exitosamente
+ */
 export const getInventoryById = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
@@ -35,6 +65,30 @@ export const getInventoryById = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/inventories:
+ *   post:
+ *     summary: Crear nuevo inventario
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id_seller
+ *             properties:
+ *               id_seller:
+ *                 type: integer
+ *                 example: 1
+ *     responses:
+ *       201:
+ *         description: Inventario creado exitosamente
+ */
 export const createInventory = async (req: Request, res: Response) => {
   try {
     inventoryService.createInventory(req.body, (err, inventory) => {
@@ -48,6 +102,47 @@ export const createInventory = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/inventories/{id}:
+ *   put:
+ *     summary: Actualizar stock del inventario
+ *     description: Actualiza el stock de un producto en el inventario
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del producto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - stock
+ *               - id_seller
+ *             properties:
+ *               stock:
+ *                 type: integer
+ *                 example: 50
+ *               operation:
+ *                 type: string
+ *                 enum: [set, add, subtract]
+ *                 default: set
+ *                 example: set
+ *               id_seller:
+ *                 type: integer
+ *                 example: 1
+ *     responses:
+ *       200:
+ *         description: Stock actualizado exitosamente
+ */
 export const updateInventory = async (req: Request, res: Response) => {
   try {
     const updateStockUseCase = new UpdateStock(productService, inventoryService);
@@ -66,6 +161,24 @@ export const updateInventory = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/inventories/{id}:
+ *   delete:
+ *     summary: Eliminar inventario
+ *     tags: [Inventory]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Inventario eliminado correctamente
+ */
 export const deleteInventory = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);

@@ -11,6 +11,20 @@ import { CartRepositoryImpl } from "../../repositories/CartRepositoryImpl";
 const cartRepository = new CartRepositoryImpl();
 const cartService = new CartService(cartRepository);
 
+/**
+ * @swagger
+ * /api/carts:
+ *   get:
+ *     summary: Obtener todos los carritos
+ *     tags: [Carts]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de carritos obtenida exitosamente
+ *       500:
+ *         description: Error del servidor
+ */
 export const getCarts = async (req: Request, res: Response) => {
   try {
     // Para admin - obtener todos los carritos
@@ -21,6 +35,29 @@ export const getCarts = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/carts/{id}:
+ *   get:
+ *     summary: Obtener un carrito por ID
+ *     tags: [Carts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del carrito
+ *     responses:
+ *       200:
+ *         description: Carrito encontrado
+ *       404:
+ *         description: Carrito no encontrado
+ *       500:
+ *         description: Error del servidor
+ */
 export const getCartById = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
@@ -35,6 +72,37 @@ export const getCartById = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/carts:
+ *   post:
+ *     summary: Crear un nuevo carrito
+ *     tags: [Carts]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id_client
+ *             properties:
+ *               id_client:
+ *                 type: integer
+ *                 description: ID del cliente
+ *                 example: 1
+ *               status:
+ *                 type: string
+ *                 description: Estado del carrito
+ *                 example: "active"
+ *     responses:
+ *       201:
+ *         description: Carrito creado exitosamente
+ *       500:
+ *         description: Error al crear carrito
+ */
 export const createCart = async (req: Request, res: Response) => {
   try {
     // Agregar status por defecto si no se proporciona
@@ -94,8 +162,46 @@ export const deleteCart = async (req: Request, res: Response) => {
 // ============================================
 
 /**
- * Agregar un producto a un carrito específico
- * POST /carts/:id/products
+ * @swagger
+ * /api/carts/{id}/products:
+ *   post:
+ *     summary: Agregar un producto al carrito (Tabla Transaccional ProductCart)
+ *     tags: [Carts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del carrito
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id_product
+ *               - quantity
+ *             properties:
+ *               id_product:
+ *                 type: integer
+ *                 description: ID del producto a agregar
+ *                 example: 1
+ *               quantity:
+ *                 type: integer
+ *                 description: Cantidad del producto
+ *                 example: 2
+ *                 minimum: 1
+ *     responses:
+ *       201:
+ *         description: Producto agregado al carrito exitosamente
+ *       400:
+ *         description: Error en la solicitud
+ *       401:
+ *         description: No autenticado
  */
 export const addProductToCart = async (req: Request, res: Response) => {
   try {
@@ -115,8 +221,33 @@ export const addProductToCart = async (req: Request, res: Response) => {
 };
 
 /**
- * Quitar un producto del carrito
- * DELETE /carts/:id/products/:productId
+ * @swagger
+ * /api/carts/{id}/products/{productId}:
+ *   delete:
+ *     summary: Eliminar un producto del carrito (Tabla Transaccional ProductCart)
+ *     tags: [Carts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del carrito
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del producto
+ *     responses:
+ *       200:
+ *         description: Producto eliminado del carrito correctamente
+ *       404:
+ *         description: Producto no encontrado en el carrito
+ *       400:
+ *         description: Error en la solicitud
  */
 export const removeProductFromCart = async (req: Request, res: Response) => {
   try {
@@ -138,8 +269,45 @@ export const removeProductFromCart = async (req: Request, res: Response) => {
 };
 
 /**
- * Actualizar cantidad de un producto en el carrito
- * PUT /carts/:id/products/:productId
+ * @swagger
+ * /api/carts/{id}/products/{productId}:
+ *   put:
+ *     summary: Actualizar cantidad de un producto en el carrito (Tabla Transaccional ProductCart)
+ *     tags: [Carts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del carrito
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del producto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - quantity
+ *             properties:
+ *               quantity:
+ *                 type: integer
+ *                 description: Nueva cantidad del producto
+ *                 example: 5
+ *                 minimum: 1
+ *     responses:
+ *       200:
+ *         description: Cantidad actualizada exitosamente
+ *       400:
+ *         description: Error en la solicitud
  */
 export const updateCartItemQuantity = async (req: Request, res: Response) => {
   try {
@@ -160,8 +328,27 @@ export const updateCartItemQuantity = async (req: Request, res: Response) => {
 };
 
 /**
- * Obtener carrito con todos sus productos
- * GET /carts/:id/products
+ * @swagger
+ * /api/carts/{id}/with-products:
+ *   get:
+ *     summary: Obtener carrito con todos sus productos (Tabla Transaccional ProductCart)
+ *     tags: [Carts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del carrito
+ *     responses:
+ *       200:
+ *         description: Carrito con productos obtenido exitosamente
+ *       404:
+ *         description: Carrito no encontrado
+ *       400:
+ *         description: Error en la solicitud
  */
 export const getCartWithProducts = async (req: Request, res: Response) => {
   try {

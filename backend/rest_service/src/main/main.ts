@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import express = require("express");
 import AppDataSource from "../infrastructure/database/data-source";
+import { setupSwagger } from "../infrastructure/config/swagger";
 
 // Import all routes
 import authRoutes from "../infrastructure/http/routes/authRoutes";
@@ -18,6 +19,9 @@ import deliveryRoutes from "../infrastructure/http/routes/deliveryRoutes";
 
 const app = express();
 app.use(express.json());
+
+// Setup Swagger documentation
+setupSwagger(app);
 
 // Register all routes
 app.use("/api/auth", authRoutes);

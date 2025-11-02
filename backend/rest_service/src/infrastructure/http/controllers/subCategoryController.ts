@@ -12,6 +12,16 @@ const subCategoryRepository = new SubCategoryRepositoryImpl();
 const categoryService = new CategoryService(categoryRepository);
 const subCategoryService = new SubCategoryService(subCategoryRepository);
 
+/**
+ * @swagger
+ * /api/subcategories:
+ *   get:
+ *     summary: Listar todas las subcategorías
+ *     tags: [SubCategories]
+ *     responses:
+ *       200:
+ *         description: Lista de subcategorías obtenida exitosamente
+ */
 export const getSubCategories = async (req: Request, res: Response) => {
   try {
     const subCategories = await subCategoryService.getAllSubCategories();
@@ -21,6 +31,22 @@ export const getSubCategories = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/subcategories/{id}:
+ *   get:
+ *     summary: Obtener subcategoría por ID
+ *     tags: [SubCategories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Subcategoría obtenida exitosamente
+ */
 export const getSubCategoryById = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
@@ -35,6 +61,36 @@ export const getSubCategoryById = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/subcategories:
+ *   post:
+ *     summary: Crear nueva subcategoría
+ *     tags: [SubCategories]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - sub_category_name
+ *               - id_category
+ *             properties:
+ *               sub_category_name:
+ *                 type: string
+ *                 example: Laptops
+ *               id_category:
+ *                 type: integer
+ *                 example: 1
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Subcategoría creada exitosamente
+ */
 export const createSubCategory = async (req: Request, res: Response) => {
   try {
     const createSubCategoryUseCase = new CreateSubCategory(subCategoryService);
@@ -45,6 +101,24 @@ export const createSubCategory = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/subcategories/{id}:
+ *   put:
+ *     summary: Actualizar subcategoría
+ *     tags: [SubCategories]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Subcategoría actualizada exitosamente
+ */
 export const updateSubCategory = async (req: Request, res: Response) => {
   try {
     const manageCategoriesUseCase = new ManageCategories(categoryService, subCategoryService);
@@ -61,6 +135,24 @@ export const updateSubCategory = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/subcategories/{id}:
+ *   delete:
+ *     summary: Eliminar subcategoría
+ *     tags: [SubCategories]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Subcategoría eliminada correctamente
+ */
 export const deleteSubCategory = async (req: Request, res: Response) => {
   try {
     const manageCategoriesUseCase = new ManageCategories(categoryService, subCategoryService);

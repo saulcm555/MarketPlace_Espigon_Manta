@@ -9,6 +9,23 @@ import { ClientRepositoryImpl } from "../../repositories/ClientRepositoryImpl";
 const clientRepository = new ClientRepositoryImpl();
 const clientService = new ClientService(clientRepository);
 
+/**
+ * @swagger
+ * /api/clients:
+ *   get:
+ *     summary: Listar todos los clientes
+ *     description: Obtiene lista completa de clientes registrados
+ *     tags: [Clients]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de clientes obtenida exitosamente
+ *       401:
+ *         description: No autenticado
+ *       500:
+ *         description: Error interno del servidor
+ */
 export const getClients = async (req: Request, res: Response) => {
   try {
     const clients = await clientService.getAllClients();
@@ -18,6 +35,32 @@ export const getClients = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/clients/{id}:
+ *   get:
+ *     summary: Obtener cliente por ID
+ *     description: Obtiene los detalles de un cliente específico
+ *     tags: [Clients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del cliente
+ *     responses:
+ *       200:
+ *         description: Cliente obtenido exitosamente
+ *       401:
+ *         description: No autenticado
+ *       404:
+ *         description: Cliente no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
 export const getClientById = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
@@ -32,6 +75,53 @@ export const getClientById = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/clients:
+ *   post:
+ *     summary: Crear nuevo cliente
+ *     description: Registra un nuevo cliente en el sistema
+ *     tags: [Clients]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - client_name
+ *               - client_email
+ *               - client_password
+ *             properties:
+ *               client_name:
+ *                 type: string
+ *                 example: María García
+ *               client_email:
+ *                 type: string
+ *                 format: email
+ *                 example: maria.garcia@example.com
+ *               client_password:
+ *                 type: string
+ *                 format: password
+ *                 example: password123
+ *               phone:
+ *                 type: string
+ *                 example: "0999123456"
+ *               address:
+ *                 type: string
+ *                 example: Av. Principal 456
+ *     responses:
+ *       201:
+ *         description: Cliente creado exitosamente
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       401:
+ *         description: No autenticado
+ *       500:
+ *         description: Error interno del servidor
+ */
 export const createClient = async (req: Request, res: Response) => {
   try {
     const registerClientUseCase = new RegisterClient(clientService);
@@ -42,6 +132,50 @@ export const createClient = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/clients/{id}:
+ *   put:
+ *     summary: Actualizar datos del cliente
+ *     description: Actualiza la información de un cliente existente
+ *     tags: [Clients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del cliente
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               client_name:
+ *                 type: string
+ *               client_email:
+ *                 type: string
+ *                 format: email
+ *               phone:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Cliente actualizado exitosamente
+ *       400:
+ *         description: Datos inválidos
+ *       401:
+ *         description: No autenticado
+ *       404:
+ *         description: Cliente no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
 export const updateClient = async (req: Request, res: Response) => {
   try {
     const updateClientProfileUseCase = new UpdateClientProfile(clientService);
@@ -58,6 +192,32 @@ export const updateClient = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/clients/{id}:
+ *   delete:
+ *     summary: Eliminar cliente
+ *     description: Elimina un cliente del sistema por su ID
+ *     tags: [Clients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del cliente
+ *     responses:
+ *       200:
+ *         description: Cliente eliminado correctamente
+ *       401:
+ *         description: No autenticado
+ *       404:
+ *         description: Cliente no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
 export const deleteClient = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);

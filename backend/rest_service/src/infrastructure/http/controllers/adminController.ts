@@ -16,6 +16,23 @@ const adminService = new AdminService(adminRepository);
 const clientService = new ClientService(clientRepository);
 const sellerService = new SellerService(sellerRepository);
 
+/**
+ * @swagger
+ * /api/admins:
+ *   get:
+ *     summary: Listar todos los administradores
+ *     description: Obtiene lista completa de administradores
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de administradores obtenida exitosamente
+ *       401:
+ *         description: No autenticado
+ *       500:
+ *         description: Error interno del servidor
+ */
 export const getAdmins = async (req: Request, res: Response) => {
   try {
     const admins = await adminService.getAllAdmins();
@@ -25,6 +42,26 @@ export const getAdmins = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/admins/{id}:
+ *   get:
+ *     summary: Obtener administrador por ID
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Administrador obtenido exitosamente
+ *       404:
+ *         description: Administrador no encontrado
+ */
 export const getAdminById = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
@@ -39,6 +76,38 @@ export const getAdminById = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/admins:
+ *   post:
+ *     summary: Crear nuevo administrador
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - admin_name
+ *               - admin_email
+ *               - admin_password
+ *               - role
+ *             properties:
+ *               admin_name:
+ *                 type: string
+ *               admin_email:
+ *                 type: string
+ *               admin_password:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Administrador creado exitosamente
+ */
 export const createAdmin = async (req: Request, res: Response) => {
   try {
     adminService.createAdmin(req.body, (err, admin) => {
@@ -52,6 +121,30 @@ export const createAdmin = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/admins/{id}:
+ *   put:
+ *     summary: Actualizar administrador
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Administrador actualizado exitosamente
+ */
 export const updateAdmin = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
@@ -62,6 +155,24 @@ export const updateAdmin = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @swagger
+ * /api/admins/{id}:
+ *   delete:
+ *     summary: Eliminar administrador
+ *     tags: [Admins]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Administrador eliminado correctamente
+ */
 export const deleteAdmin = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
