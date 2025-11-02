@@ -6,3 +6,4 @@ backend/rest_service/node_modules
 node_modules
 marketplace.sqlite
 backend/rest_service/.env
+/backend/realtime_service/api.exe

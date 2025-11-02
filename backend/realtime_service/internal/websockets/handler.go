@@ -77,19 +77,22 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 				_ = client.Send([]byte(ack))
 			}
 		case "broadcast":
-			// enviar payload['body'] a la sala
+			// construir envelope estándar y enviarlo a la sala
 			if roomRaw, ok := m.Payload["room"].(string); ok {
 				body := m.Payload["body"]
-				// re-serializar body a JSON si no es string
-				var out []byte
-				switch v := body.(type) {
-				case string:
-					out = []byte(v)
-				default:
-					b, _ := json.Marshal(v)
-					out = b
+				env := Envelope{
+					From: client.ID,
+					Room: roomRaw,
+					Ts:   time.Now().UTC().Format(time.RFC3339),
+					Body: body,
 				}
-				h.BroadcastRoom(roomRaw, out)
+				out, err := json.Marshal(env)
+				if err != nil {
+					log.Printf("broadcast marshal error (%s): %v", client.ID, err)
+					continue
+				}
+				// publicar localmente y propagar via PubSub si está configurado
+				h.PublishRoom(roomRaw, out)
 			}
 		default:
 			// por defecto, eco

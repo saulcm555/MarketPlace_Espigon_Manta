@@ -2,11 +2,12 @@ package websockets
 
 import "sync"
 
-// Hub mantiene clientes conectados de forma simple 
+// Hub mantiene clientes conectados de forma simple
 type Hub struct {
 	clients map[string]*Client
 	rooms   map[string]map[string]*Client // roomID -> clientID -> *Client
 	mu      sync.RWMutex
+	pub     PubSub
 }
 
 // NewHub crea un Hub nuevo.
@@ -88,5 +89,43 @@ func (h *Hub) BroadcastRoom(room string, msg []byte) {
 		for _, c := range members {
 			_ = c.Send(msg)
 		}
+	}
+}
+
+// PublishRoom envía el mensaje localmente y lo publica en el PubSub si está configurado.
+func (h *Hub) PublishRoom(room string, msg []byte) {
+	// enviar localmente
+	h.BroadcastRoom(room, msg)
+	// publicar en pubsub para que otras instancias repliquen
+	if h.pub != nil {
+		_ = h.pub.Publish(room, msg)
+	}
+}
+
+// SetPubSub configura una implementación de PubSub y la inicia si es necesario.
+func (h *Hub) SetPubSub(p PubSub) error {
+	h.pub = p
+	if p == nil {
+		return nil
+	}
+	// iniciar la suscripción para recibir mensajes de otras instancias
+	return h.pub.Start(func(room string, payload []byte) {
+		// cuando recibimos desde PubSub, solo difundimos localmente (no re-publicamos)
+		h.BroadcastRoom(room, payload)
+	})
+}
+
+// Snapshot devuelve información resumida del Hub para monitorización.
+// Retorna el número total de clientes y un mapa room -> número de miembros.
+func (h *Hub) Snapshot() map[string]interface{} {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	rooms := make(map[string]int)
+	for room, members := range h.rooms {
+		rooms[room] = len(members)
+	}
+	return map[string]interface{}{
+		"clients": len(h.clients),
+		"rooms":   rooms,
 	}
 }
