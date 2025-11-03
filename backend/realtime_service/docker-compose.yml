@@ -1,0 +1,28 @@
+version: '3.8'
+# Compose para pruebas locales: arranca Redis y dos instancias de la API
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  api1:
+    build: .
+    environment:
+      - JWT_SECRET=prueba
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - redis
+    ports:
+      - "8080:8080"
+
+  api2:
+    build: .
+    environment:
+      - JWT_SECRET=prueba
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - redis
+    ports:
+      - "8081:8080"

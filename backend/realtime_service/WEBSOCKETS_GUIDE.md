@@ -57,64 +57,108 @@ Este documento explica el estado actual del PoC de WebSockets, qué se ha implem
 	- Qué falta: integración `pubsub` para publicar/recibir eventos entre instancias (archivos `pubsub.go`, `redis_pubsub.go`).
 	- Por qué: actualmente el `Hub` está en memoria; para escalar a múltiples réplicas necesitas sincronizar eventos (p. ej. broadcasts) entre instancias.
 
-3. Envelope de mensajes enriquecido y contratos
-	- Qué falta: enviar reenvíos con un envelope estándar `{from, room, ts, body, meta}` en vez de solo el body.
-	- Por qué: los clientes necesitan metadatos para mostrar origen, ordenar mensajes y trazar eventos.
+# Guía de implementación de WebSockets (Go) — realtime_service
 
-4. Observabilidad: métricas y logs estructurados
-	- Qué falta: endpoint `/metrics` (Prometheus), logs en formato estructurado y contadores (conexiones activas, mensajes/s).
-	- Por qué: para operar el servicio en producción y alertar sobre anomalías.
+Este documento describe el estado actual del PoC de WebSockets, qué se ha implementado hasta ahora, y cómo probarlo localmente.
 
-5. Seguridad y hardening
-	- Qué falta: restringir `CheckOrigin`, habilitar TLS (wss://), aplicar rate-limits y límites por usuario/conexión.
-	- Por qué: mitigar ataques y cumplir con prácticas de seguridad en producción.
+## Estado general (resumen)
 
-6. Tests automatizados
-	- Qué falta: unit tests para `auth.ValidateToken`, `Hub` y tests de integración end-to-end que verifiquen handshake y flujo de mensajes.
-	- Por qué: asegurar regresiones y facilitar refactorizaciones.
+- Estado: PoC funcional y compilable.
+- Endpoint principal: `/ws` (handshake WebSocket con JWT).
+- Autenticación: JWT (Authorization header o `?token=`). El `JWT_SECRET` se lee desde la variable de entorno.
+- Gestión de conexiones: `Hub` en memoria con soporte de `rooms`.
+- Mensajería: `join`, `leave`, `broadcast` y reenvío mediante un `Envelope` estándar.
 
-7. Docker y despliegue con dependencias (ej. Redis)
-	- Qué falta: `Dockerfile` y `docker-compose.yml` para arrancar el servicio junto a Redis (dev).
-	- Por qué: facilitar pruebas locales y despliegue reproducible.
+## Qué se ha implementado (detallado)
 
-8. Manejo avanzado de clientes
-	- Qué falta: read/write pumps separados, ping/pong, reconexión, límites de tamaño de mensajes, autenticación refresh.
-	- Por qué: robustez en conexiones reales y resistencia a fallos de red.
+1) Endpoint WebSocket y handler
+   - Archivos clave: `cmd/api/main.go`, `internal/websockets/handler.go`.
+   - Comportamiento: realiza el upgrade HTTP→WebSocket, valida JWT en el handshake y crea un `Client` por conexión.
 
-## Para qué sirve cada cosa 
+2) Validación de JWT y secret por entorno
+   - Archivo: `internal/websockets/auth.go`.
+   - Detalles: se aceptan tokens en `Authorization: Bearer <token>` o `?token=<token>`. El secreto se lee desde `JWT_SECRET` (env), lo que facilita pruebas y despliegues.
 
-- `/ws` (handler): puerta de entrada para conexiones reales; autentica y crea `Client`.
-- `auth.go`: garantiza que solo usuarios válidos abran sockets (seguridad en la etapa de handshake).
-- `client.go` / `hub.go`: mantienen el estado de conexiones y rutas de mensajes (core de mensajería en memoria).
-- `message.go` / handler parsing: define el contrato de comunicación entre cliente y servidor.
-- `token_gen.go`: herramienta de desarrollo para pruebas locales.
+3) Client, Hub y gestión de salas
+   - Archivos: `internal/websockets/client.go`, `internal/websockets/hub.go`.
+   - Funcionalidad: registro/desregistro de clientes, join/leave de rooms y snapshot para endpoint admin.
 
-## Recomendación de roadmap (prioridad)
+4) Envelope estándar para broadcasts
+   - Archivo: `internal/websockets/message.go` (contiene `Message` y `Envelope`).
+   - Detalles: cuando un cliente hace `broadcast`, el servidor envía un `Envelope` JSON con campos básicos (ej. from, room, ts, body) para estandarizar la entrega.
 
-1. Añadir `/admin/clients` y logging/métricas básicas (visibilidad rápida).
-2. Implementar envelope JSON estándar y mejorar logs (cliente/room/ts).
-3. Añadir Pub/Sub con Redis (esqueleto + integración) y probar con 2 instancias.
-4. Añadir Docker + docker-compose con Redis para entorno dev.
-5. Tests automatizados y ajustes de seguridad (origin, TLS, rate limiting).
+5) Pub/Sub (skeleton) e integración con Hub
+   - Archivos: `internal/websockets/pubsub.go` (interfaz) y `internal/websockets/redis_pubsub.go` (implementación Redis).
+   - Estado: la interfaz PubSub está integrada en `Hub` y hay una implementación basada en Redis que publica/subscribe mensajes por canal `ws:room:<room>`. La implementación duplicada que causaba errores fue limpiada y ahora el proyecto compila.
 
-## Cómo comprobar lo implementado ahora (recordatorio rápido)
+6) Endpoint admin (snapshot)
+   - Ruta: `/admin/clients` (implementación PoC).
+   - Qué devuelve: snapshot JSON con número de clientes y miembros por sala (útil para debugging y UI simple).
 
-1. Terminal A (servidor):
+7) Docker + docker-compose para pruebas locales
+   - Archivos añadidos: `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `README_DOCKER.md`.
+   - Funcionamiento: `docker compose up --build` arranca Redis y dos instancias de la API (puertos host 8080 y 8081) para probar replicación vía Redis Pub/Sub.
+
+## Cómo probar localmente
+
+Opción A — ejecución directa (dev)
+
+1. Establece el secret y ejecuta el binario:
+
 ```powershell
 $env:JWT_SECRET = "prueba"
 go run ./cmd/api
 ```
 
-2. Terminal B (cliente):
+2. Genera un token de prueba (si usas la utilidad `token_gen.go`) y conéctate con `wscat`:
+
 ```powershell
 go run .\token_gen.go
 wscat -c "ws://localhost:8080/ws" -H "Authorization: Bearer <TOKEN>"
 ```
 
-3. Ejemplos de mensajes (desde wscat):
+3. Mensajes de ejemplo (desde cliente):
+
 ```json
 {"type":"join","payload":{"room":"room-1"}}
 {"type":"broadcast","payload":{"room":"room-1","body":"Hola sala 1"}}
 ```
+
+Opción B — con Docker (recomendado para probar múltiples instancias)
+
+1. Levanta el stack:
+
+```powershell
+cd backend/realtime_service
+docker compose up --build
+```
+
+2. Conecta dos clientes a `ws://localhost:8080/ws` y `ws://localhost:8081/ws`. Únelos a la misma room y envía un `broadcast`. Deberías ver la réplica del mensaje entre instancias vía Redis.
+
+3. Para detener:
+
+```powershell
+docker compose down
+```
+
+## Estado de calidad y build
+
+- Se resolvieron errores previos en `redis_pubsub.go` (duplicados/imports) y la compilación de `./cmd/api` fue verificada.
+
+## Próximos pasos recomendados (priorizados)
+
+1. Añadir reconexión y backoff en `redis_pubsub.go` (robustez ante caídas de Redis).
+2. Añadir métricas (`/metrics`) y logs estructurados (Prometheus + JSON).
+3. Implementar tests unitarios e integración (incluyendo E2E con docker-compose).
+4. Mejorar seguridad: `CheckOrigin`, limites por mensaje/conexión y TLS (`wss://`).
+5. Crear una interfaz `/admin` simple (UI) que consuma `/admin/clients` para facilitar demos.
+
+## Notas finales
+
+- Este repo contiene un PoC completo y ampliable: la idea es mantener el `Hub` simple (in-memory) y delegar la replicación a la capa Pub/Sub para permitir escalado horizontal.
+- Si quieres, puedo:
+  - Añadir reconexión con backoff en `redis_pubsub.go`.
+  - Crear una página `/admin` estática que muestre el snapshot.
+  - Preparar tests E2E que usen `docker compose`.
 
 
