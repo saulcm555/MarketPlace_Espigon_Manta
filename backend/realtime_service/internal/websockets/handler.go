@@ -11,10 +11,26 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true }, // ajustar para producción
+	CheckOrigin: func(r *http.Request) bool { return true }, // Ajustar para producción
 }
 
-// ServeWS realiza el upgrade y registra el cliente en el Hub.
+// MaxMessageSize es el tamaño máximo (bytes) aceptado por mensaje. Evita DoS por payloads grandes.
+const MaxMessageSize = 8 * 1024 // 8 KB
+
+// sendProtocolError envía un mensaje de error estructurado al cliente.
+func sendProtocolError(c *Client, msg string) {
+	resp := map[string]interface{}{
+		"type": "error",
+		"payload": map[string]string{
+			"error": msg,
+		},
+	}
+	b, _ := json.Marshal(resp)
+	_ = c.Send(b)
+}
+
+// ServeWS realiza el upgrade de la conexión HTTP a WebSocket y registra el cliente en el Hub.
+// Maneja la autenticación JWT y el loop de lectura de mensajes.
 func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("Authorization")
 	// soporte opcional: si no hay header, mirar query param ?token=
@@ -38,13 +54,16 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// limitar tamaño de lectura por mensaje
+	conn.SetReadLimit(MaxMessageSize)
+
 	// id simple a partir del timestamp (PoC)
 	clientID := fmt.Sprintf("conn-%d", time.Now().UnixNano())
 	client := &Client{ID: clientID, UserID: claims.UserID, Conn: conn}
 	h.Register(client)
 	log.Printf("client connected: id=%s user=%s", client.ID, client.UserID)
 
-	// loop de lectura: manejar tipos JSON básicos (join/leave/broadcast) y loguear
+	// loop de lectura: manejar tipos JSON básicos (join/leave/broadcast)
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
@@ -52,12 +71,25 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
+		// si el mensaje excede el límite, conn.ReadMessage ya lo rechazará, pero
+		// por seguridad comprobamos el tamaño aquí también.
+		if len(msg) > MaxMessageSize {
+			sendProtocolError(client, "message too large")
+			break
+		}
+
 		// intentar parsear JSON
 		var m Message
 		if err := json.Unmarshal(msg, &m); err != nil {
-			// no JSON -> eco y log
-			log.Printf("Received raw message from %s: %s", client.UserID, string(msg))
-			_ = client.Send(msg)
+			// intentamos parsear pero falló: enviar error estructurado
+			log.Printf("invalid JSON from %s: %v", client.UserID, err)
+			sendProtocolError(client, "invalid json")
+			continue
+		}
+
+		// validar tipo y estructura mínima
+		if m.Type != "join" && m.Type != "leave" && m.Type != "broadcast" {
+			sendProtocolError(client, "unsupported message type")
 			continue
 		}
 
@@ -65,35 +97,59 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 
 		switch m.Type {
 		case "join":
-			if roomRaw, ok := m.Payload["room"].(string); ok {
-				h.JoinRoom(roomRaw, client)
-				ack := fmt.Sprintf("joined %s", roomRaw)
-				_ = client.Send([]byte(ack))
+			roomRaw, ok := m.Payload["room"].(string)
+			if !ok || roomRaw == "" {
+				sendProtocolError(client, "missing or invalid room for join")
+				continue
 			}
+			// autorización: comprobar que el usuario puede unirse a la room
+			allowed, err := CanJoinRoom(r.Context(), claims.UserID, claims, roomRaw)
+			if err != nil {
+				log.Printf("authorization check error for user=%s room=%s: %v", client.UserID, roomRaw, err)
+				sendProtocolError(client, "server error")
+				continue
+			}
+			if !allowed {
+				sendProtocolError(client, "not authorized")
+				continue
+			}
+			h.JoinRoom(roomRaw, client)
+			ack := fmt.Sprintf("joined %s", roomRaw)
+			_ = client.Send([]byte(ack))
+
 		case "leave":
-			if roomRaw, ok := m.Payload["room"].(string); ok {
-				h.LeaveRoom(roomRaw, client)
-				ack := fmt.Sprintf("left %s", roomRaw)
-				_ = client.Send([]byte(ack))
+			roomRaw, ok := m.Payload["room"].(string)
+			if !ok || roomRaw == "" {
+				sendProtocolError(client, "missing or invalid room for leave")
+				continue
 			}
+			h.LeaveRoom(roomRaw, client)
+			ack := fmt.Sprintf("left %s", roomRaw)
+			_ = client.Send([]byte(ack))
+
 		case "broadcast":
 			// construir envelope estándar y enviarlo a la sala
-			if roomRaw, ok := m.Payload["room"].(string); ok {
-				body := m.Payload["body"]
-				env := Envelope{
-					From: client.ID,
-					Room: roomRaw,
-					Ts:   time.Now().UTC().Format(time.RFC3339),
-					Body: body,
-				}
-				out, err := json.Marshal(env)
-				if err != nil {
-					log.Printf("broadcast marshal error (%s): %v", client.ID, err)
-					continue
-				}
-				// publicar localmente y propagar via PubSub si está configurado
-				h.PublishRoom(roomRaw, out)
+			roomRaw, ok := m.Payload["room"].(string)
+			if !ok || roomRaw == "" {
+				sendProtocolError(client, "missing or invalid room for broadcast")
+				continue
 			}
+			body := m.Payload["body"]
+			env := Envelope{
+				From: client.ID,
+				Room: roomRaw,
+				Ts:   time.Now().UTC().Format(time.RFC3339),
+				Body: body,
+			}
+			out, err := json.Marshal(env)
+			if err != nil {
+				log.Printf("broadcast marshal error (%s): %v", client.ID, err)
+				sendProtocolError(client, "server error")
+				continue
+			}
+			// publicar localmente y propagar via PubSub si está configurado
+			h.PublishRoom(roomRaw, out)
+
 		default:
 			// por defecto, eco
 			_ = client.Send(msg)

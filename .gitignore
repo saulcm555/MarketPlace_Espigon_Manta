@@ -6,4 +6,9 @@ backend/rest_service/node_modules
 node_modules
 marketplace.sqlite
 backend/rest_service/.env
-/backend/realtime_service/api.exe
+
+# Go binaries
+/backend/realtime_service/*.exe
+/backend/realtime_service/bin/
+backend/realtime_service/api.exe
+backend/realtime_service/main.exe

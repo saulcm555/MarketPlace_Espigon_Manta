@@ -6,15 +6,16 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Client representa una conexión activa.
+// Client representa una conexión WebSocket activa.
+// Mantiene información del cliente conectado, su conexión y las salas suscritas.
 type Client struct {
-	ID     string
-	UserID string
-	Conn   *websocket.Conn
-	Rooms  map[string]bool // salas a las que está suscrito
+	ID     string          // Identificador único de la conexión
+	UserID string          // ID del usuario autenticado
+	Conn   *websocket.Conn // Conexión WebSocket
+	Rooms  map[string]bool // Salas a las que está suscrito
 }
 
-// Send escribe un mensaje de texto hacia el cliente.
+// Send escribe un mensaje de texto hacia el cliente con timeout.
 func (c *Client) Send(msg []byte) error {
 	c.Conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	return c.Conn.WriteMessage(websocket.TextMessage, msg)

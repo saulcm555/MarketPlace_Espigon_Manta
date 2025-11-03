@@ -9,16 +9,20 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-// jwtSecret se lee desde la variable de entorno JWT_SECRET si existe.
+// jwtSecret se lee desde la variable de entorno JWT_SECRET.
 var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
-// Claims minimalistas para PoC.
+// Claims contiene la información del usuario extraída del JWT.
+// Incluye RegisteredClaims para validar exp/nbf/iat.
 type Claims struct {
-	UserID string `json:"user_id"`
+	UserID   string `json:"user_id"`
+	Role     string `json:"role,omitempty"`
+	SellerID string `json:"seller_id,omitempty"`
+	jwt.RegisteredClaims
 }
 
-// ValidateToken valida un header "Authorization: Bearer <token>" de forma simple
-// y extrae el claim `user_id` si está presente.
+// ValidateToken valida el header "Authorization: Bearer <token>" de forma segura.
+// Comprueba algoritmo (HMAC), firma y claims registrados (exp, nbf).
 func ValidateToken(authorizationHeader string) (*Claims, error) {
 	if authorizationHeader == "" {
 		return nil, errors.New("missing token")
@@ -33,24 +37,35 @@ func ValidateToken(authorizationHeader string) (*Claims, error) {
 		return nil, errors.New("jwt secret not set (JWT_SECRET env var)")
 	}
 
-	tok, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+	claims := &Claims{}
+	tok, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+		// Asegurar que el método de firma es HMAC (HS256/HS384/HS512 etc.)
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
 		return jwtSecret, nil
 	})
 	if err != nil {
-		// devolver el error original para tener más contexto en los logs
 		return nil, fmt.Errorf("parse error: %w", err)
 	}
 	if tok == nil || !tok.Valid {
 		return nil, fmt.Errorf("token invalid")
 	}
 
-	// extraer claims
-	if claims, ok := tok.Claims.(jwt.MapClaims); ok {
-		if uid, ok := claims["user_id"].(string); ok {
-			return &Claims{UserID: uid}, nil
+	// Validar claims registrados (exp, nbf, iat) explícitamente.
+	if err := claims.RegisteredClaims.Valid(); err != nil {
+		return nil, fmt.Errorf("invalid claims: %w", err)
+	}
+
+	// Si user_id no está en el struct (compatibilidad), intentar extraer de MapClaims
+	if claims.UserID == "" {
+		if mc, ok := tok.Claims.(jwt.MapClaims); ok {
+			if uid, ok := mc["user_id"].(string); ok {
+				claims.UserID = uid
+			}
 		}
 	}
 
-	// si no hay user_id, devolver un id vacío pero válido
-	return &Claims{UserID: ""}, nil
+	// devolver claims (userID puede estar vacío dependiendo del token)
+	return claims, nil
 }

@@ -2,20 +2,25 @@ package websockets
 
 import "sync"
 
-// Hub mantiene clientes conectados de forma simple
+// Hub mantiene clientes conectados y salas activas.
+// Es el núcleo central que gestiona todas las conexiones WebSocket.
 type Hub struct {
-	clients map[string]*Client
-	rooms   map[string]map[string]*Client // roomID -> clientID -> *Client
+	clients map[string]*Client            // clientID -> Client
+	rooms   map[string]map[string]*Client // roomID -> clientID -> Client
 	mu      sync.RWMutex
-	pub     PubSub
+	pub     PubSub // Sistema de pub/sub (ej: Redis)
 }
 
 // NewHub crea un Hub nuevo.
 func NewHub() *Hub {
-	return &Hub{clients: make(map[string]*Client), rooms: make(map[string]map[string]*Client)}
+	return &Hub{
+		clients: make(map[string]*Client),
+		rooms:   make(map[string]map[string]*Client),
+	}
 }
 
 // Run puede contener lógica de background (canales) en producción.
+// En esta implementación simple, no requiere lógica activa.
 func (h *Hub) Run() {
 	// PoC: no loop necesario aquí; en producción usar register/unregister canales
 }
@@ -27,7 +32,7 @@ func (h *Hub) Register(c *Client) {
 	h.clients[c.ID] = c
 }
 
-// Unregister elimina un cliente del Hub.
+// Unregister elimina un cliente del Hub y de todas sus salas.
 func (h *Hub) Unregister(c *Client) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -93,6 +98,7 @@ func (h *Hub) BroadcastRoom(room string, msg []byte) {
 }
 
 // PublishRoom envía el mensaje localmente y lo publica en el PubSub si está configurado.
+// Esto permite comunicación entre múltiples instancias del servicio.
 func (h *Hub) PublishRoom(room string, msg []byte) {
 	// enviar localmente
 	h.BroadcastRoom(room, msg)
@@ -128,4 +134,12 @@ func (h *Hub) Snapshot() map[string]interface{} {
 		"clients": len(h.clients),
 		"rooms":   rooms,
 	}
+}
+
+// Close limpia recursos asociados al Hub (por ejemplo, cierra PubSub si existe).
+func (h *Hub) Close() error {
+	if h.pub != nil {
+		return h.pub.Close()
+	}
+	return nil
 }

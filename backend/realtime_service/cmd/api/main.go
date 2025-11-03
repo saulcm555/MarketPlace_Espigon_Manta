@@ -1,47 +1,104 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
+	"github.com/saulcm555/MarketPlace_Espigon_Manta/backend/realtime_service/internal/config"
+	"github.com/saulcm555/MarketPlace_Espigon_Manta/backend/realtime_service/internal/db"
 	"github.com/saulcm555/MarketPlace_Espigon_Manta/backend/realtime_service/internal/websockets"
 )
 
+// main es el punto de entrada del servicio de tiempo real.
+// Inicializa configuración, Redis, WebSocket Hub y endpoints HTTP.
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	// Cargar configuración desde variables de entorno
+	cfg := config.LoadConfig()
+	log.Printf("Starting realtime_service on port %s (env: %s)", cfg.Port, cfg.Environment)
+
+	// Inicializar conexión a Redis (opcional pero recomendado para pub/sub)
+	if err := db.InitRedis(); err != nil {
+		log.Printf("Warning: Redis not available: %v", err)
+		log.Println("Service will run without Redis pub/sub support")
+	} else {
+		log.Printf("Redis connected successfully at %s", cfg.RedisAddr)
+		defer db.CloseRedis()
 	}
 
+	// Crear y arrancar el Hub de WebSockets
 	hub := websockets.NewHub()
 	go hub.Run()
 
-	// Opcional: configurar Redis Pub/Sub si REDIS_ADDR está presente.
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr != "" {
-		redisPass := os.Getenv("REDIS_PASSWORD")
-		ps := websockets.NewRedisPubSub(redisAddr, redisPass)
+	// Configurar Redis Pub/Sub si está disponible
+	if db.RedisClient != nil {
+		ps := websockets.NewRedisPubSub(cfg.RedisAddr, cfg.RedisPassword)
 		if err := hub.SetPubSub(ps); err != nil {
-			log.Printf("warning: could not start redis pubsub: %v", err)
+			log.Printf("Warning: could not start redis pubsub: %v", err)
 		} else {
-			log.Printf("redis pubsub started (addr=%s)", redisAddr)
+			log.Printf("Redis pub/sub started successfully")
 		}
 	}
 
+	// Endpoint WebSocket principal
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		websockets.ServeWS(hub, w, r)
 	})
 
-	// endpoint admin ligero: devuelve conteo de clientes y miembros por sala
+	// Endpoint de administración: devuelve conteo de clientes y miembros por sala
 	http.HandleFunc("/admin/clients", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(hub.Snapshot())
 	})
 
-	srv := &http.Server{Addr: ":" + port, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second}
-	log.Printf("realtime_service listening on %s", srv.Addr)
-	log.Fatal(srv.ListenAndServe())
+	// Endpoint de health check
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":  "healthy",
+			"service": "realtime_service",
+		})
+	})
+
+	// Configurar servidor HTTP
+	srv := &http.Server{
+		Addr:         ":" + cfg.Port,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
+	// Manejar shutdown ordenado
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		log.Printf("Realtime service listening on %s", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	<-stop
+	log.Println("Shutting down gracefully...")
+
+	// Contexto para shutdown con timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Cerrar recursos del hub (pubsub)
+	if err := hub.Close(); err != nil {
+		log.Printf("Error closing hub: %v", err)
+	}
+
+	// Shutdown del servidor HTTP
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server shutdown failed: %v", err)
+	}
+
+	log.Println("Server stopped successfully")
 }
