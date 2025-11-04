@@ -1,6 +1,6 @@
 module github.com/saulcm555/MarketPlace_Espigon_Manta/backend/realtime_service
 
-go 1.25
+go 1.23
 
 require (
 	github.com/golang-jwt/jwt/v4 v4.5.2

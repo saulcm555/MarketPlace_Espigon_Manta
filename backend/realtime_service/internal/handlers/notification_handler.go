@@ -63,15 +63,11 @@ func (h *NotificationHandler) HandleSendNotification(w http.ResponseWriter, r *h
 		}
 	} else {
 		// Enviar a usuario específico
-		msg, err := json.Marshal(notification)
-		if err != nil {
-			log.Printf("Error marshaling notification: %v", err)
+		if err := h.notificationService.SendNotificationToUser(req.UserID, req.Event, req.Data); err != nil {
+			log.Printf("Error sending notification to user: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
-		// Aquí necesitarías acceso al hub, puedes extender el servicio
-		_ = msg
-		log.Printf("Notification sent to user %s", req.UserID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

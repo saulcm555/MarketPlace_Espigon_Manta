@@ -12,6 +12,8 @@ import (
 
 	"github.com/saulcm555/MarketPlace_Espigon_Manta/backend/realtime_service/internal/config"
 	"github.com/saulcm555/MarketPlace_Espigon_Manta/backend/realtime_service/internal/db"
+	"github.com/saulcm555/MarketPlace_Espigon_Manta/backend/realtime_service/internal/handlers"
+	"github.com/saulcm555/MarketPlace_Espigon_Manta/backend/realtime_service/internal/services"
 	"github.com/saulcm555/MarketPlace_Espigon_Manta/backend/realtime_service/internal/websockets"
 )
 
@@ -45,10 +47,17 @@ func main() {
 		}
 	}
 
+	// Crear servicio de notificaciones y su handler
+	notifService := services.NewNotificationService(hub)
+	notifHandler := handlers.NewNotificationHandler(notifService)
+
 	// Endpoint WebSocket principal
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		websockets.ServeWS(hub, w, r)
 	})
+
+	// Endpoint para enviar notificaciones desde otros servicios
+	http.HandleFunc("/api/notify", notifHandler.HandleSendNotification)
 
 	// Endpoint de administración: devuelve conteo de clientes y miembros por sala
 	http.HandleFunc("/admin/clients", func(w http.ResponseWriter, r *http.Request) {

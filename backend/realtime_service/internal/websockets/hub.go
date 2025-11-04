@@ -50,12 +50,23 @@ func (h *Hub) Unregister(c *Client) {
 }
 
 // SendToUser envía un mensaje a todas las conexiones del mismo userID.
+// Si un cliente está lento y no puede recibir el mensaje, se desconecta.
 func (h *Hub) SendToUser(userID string, msg []byte) {
 	h.mu.RLock()
-	defer h.mu.RUnlock()
+	clients := make([]*Client, 0)
 	for _, c := range h.clients {
 		if c.UserID == userID {
-			_ = c.Send(msg)
+			clients = append(clients, c)
+		}
+	}
+	h.mu.RUnlock()
+
+	// Enviar fuera del lock para evitar bloqueos
+	for _, c := range clients {
+		if !c.Send(msg) {
+			// Cliente lento, desconectar
+			h.Unregister(c)
+			c.Close()
 		}
 	}
 }
@@ -87,12 +98,24 @@ func (h *Hub) LeaveRoom(room string, c *Client) {
 }
 
 // BroadcastRoom envía un mensaje a todos los miembros de una sala.
+// Si un cliente está lento y no puede recibir el mensaje, se desconecta.
 func (h *Hub) BroadcastRoom(room string, msg []byte) {
 	h.mu.RLock()
-	defer h.mu.RUnlock()
+	var clients []*Client
 	if members, ok := h.rooms[room]; ok {
+		clients = make([]*Client, 0, len(members))
 		for _, c := range members {
-			_ = c.Send(msg)
+			clients = append(clients, c)
+		}
+	}
+	h.mu.RUnlock()
+
+	// Enviar fuera del lock para evitar bloqueos
+	for _, c := range clients {
+		if !c.Send(msg) {
+			// Cliente lento, desconectar
+			h.Unregister(c)
+			c.Close()
 		}
 	}
 }

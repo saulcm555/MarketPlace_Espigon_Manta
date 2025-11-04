@@ -18,6 +18,7 @@ var upgrader = websocket.Upgrader{
 const MaxMessageSize = 8 * 1024 // 8 KB
 
 // sendProtocolError envía un mensaje de error estructurado al cliente.
+// Si el envío falla (cliente lento), el cliente será desconectado por el Hub.
 func sendProtocolError(c *Client, msg string) {
 	resp := map[string]interface{}{
 		"type": "error",
@@ -26,7 +27,7 @@ func sendProtocolError(c *Client, msg string) {
 		},
 	}
 	b, _ := json.Marshal(resp)
-	_ = c.Send(b)
+	c.Send(b)
 }
 
 // ServeWS realiza el upgrade de la conexión HTTP a WebSocket y registra el cliente en el Hub.
@@ -59,9 +60,18 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 
 	// id simple a partir del timestamp (PoC)
 	clientID := fmt.Sprintf("conn-%d", time.Now().UnixNano())
-	client := &Client{ID: clientID, UserID: claims.UserID, Conn: conn}
+
+	// Crear cliente con NewClient que inicia el writePump automáticamente
+	client := NewClient(clientID, claims.UserID, conn)
 	h.Register(client)
 	log.Printf("client connected: id=%s user=%s", client.ID, client.UserID)
+
+	// Asegurar limpieza al salir
+	defer func() {
+		h.Unregister(client)
+		client.Close() // Cierra el canal send, lo que termina writePump
+		log.Printf("client disconnected: id=%s user=%s", client.ID, client.UserID)
+	}()
 
 	// loop de lectura: manejar tipos JSON básicos (join/leave/broadcast)
 	for {
@@ -115,7 +125,7 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 			}
 			h.JoinRoom(roomRaw, client)
 			ack := fmt.Sprintf("joined %s", roomRaw)
-			_ = client.Send([]byte(ack))
+			client.Send([]byte(ack))
 
 		case "leave":
 			roomRaw, ok := m.Payload["room"].(string)
@@ -125,7 +135,7 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 			}
 			h.LeaveRoom(roomRaw, client)
 			ack := fmt.Sprintf("left %s", roomRaw)
-			_ = client.Send([]byte(ack))
+			client.Send([]byte(ack))
 
 		case "broadcast":
 			// construir envelope estándar y enviarlo a la sala
@@ -152,11 +162,8 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 
 		default:
 			// por defecto, eco
-			_ = client.Send(msg)
+			client.Send(msg)
 		}
 	}
-
-	h.Unregister(client)
-	conn.Close()
-	log.Printf("client disconnected: id=%s user=%s", client.ID, client.UserID)
+	// La limpieza se hace en el defer al inicio de la función
 }

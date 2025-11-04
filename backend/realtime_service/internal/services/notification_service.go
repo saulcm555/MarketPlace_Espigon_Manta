@@ -75,3 +75,28 @@ func (ns *NotificationService) BroadcastNotification(room string, event string, 
 	log.Printf("Notification broadcasted to room %s: event=%s", room, event)
 	return nil
 }
+
+// SendNotificationToUser envía una notificación a un usuario específico.
+func (ns *NotificationService) SendNotificationToUser(userID string, event string, data interface{}) error {
+	notification := models.Notification{
+		Event: event,
+		Data:  data,
+		To:    userID,
+	}
+
+	msg, err := json.Marshal(notification)
+	if err != nil {
+		log.Printf("Error marshaling notification: %v", err)
+		return err
+	}
+
+	ns.hub.SendToUser(userID, msg)
+	log.Printf("Notification sent to user %s: event=%s", userID, event)
+	return nil
+}
+
+// SendToUser envía un mensaje ya serializado directamente a un usuario.
+// Útil cuando ya tienes el mensaje en formato []byte y no necesitas serializarlo.
+func (ns *NotificationService) SendToUser(userID string, msg []byte) {
+	ns.hub.SendToUser(userID, msg)
+}
