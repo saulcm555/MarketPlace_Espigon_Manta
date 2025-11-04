@@ -3,6 +3,7 @@ import express = require("express");
 import AppDataSource from "../infrastructure/database/data-source";
 import { setupSwagger } from "../infrastructure/config/swagger";
 import { errorHandler, notFoundHandler } from "../infrastructure/middlewares/errors";
+import { connectRedis, disconnectRedis } from "../infrastructure/clients/redisClient";
 
 // Import all routes
 import authRoutes from "../infrastructure/http/routes/authRoutes";
@@ -17,6 +18,7 @@ import cartRoutes from "../infrastructure/http/routes/cartRoutes";
 import adminRoutes from "../infrastructure/http/routes/adminRoutes";
 import paymentMethodRoutes from "../infrastructure/http/routes/paymentMethodRoutes";
 import deliveryRoutes from "../infrastructure/http/routes/deliveryRoutes";
+import wsAuthRoutes from "../infrastructure/http/routes/wsAuthRoutes";
 
 const app = express();
 app.use(express.json());
@@ -37,6 +39,7 @@ app.use("/api/carts", cartRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/payment-methods", paymentMethodRoutes);
 app.use("/api/deliveries", deliveryRoutes);
+app.use("/api/ws", wsAuthRoutes); // 🔔 Rutas de autorización WebSocket
 
 // ============================================
 // ERROR HANDLING MIDDLEWARES
@@ -50,12 +53,40 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 AppDataSource.initialize()
-  .then(() => {
+  .then(async () => {
     console.log("✅ Conexión a la base de datos establecida correctamente");
-    app.listen(3000, () => {
+    
+    // Inicializar Redis para notificaciones en tiempo real
+    await connectRedis();
+    
+    const server = app.listen(3000, () => {
       console.log("🚀 Servidor Express corriendo en puerto 3000");
     });
+
+    // Graceful shutdown
+    const shutdown = async () => {
+      console.log("\n⚠️  Cerrando servidor...");
+      
+      // Cerrar servidor HTTP
+      server.close(() => {
+        console.log("✅ Servidor HTTP cerrado");
+      });
+      
+      // Desconectar Redis
+      await disconnectRedis();
+      
+      // Cerrar conexión a base de datos
+      await AppDataSource.destroy();
+      console.log("✅ Base de datos desconectada");
+      
+      process.exit(0);
+    };
+
+    // Manejar señales de terminación
+    process.on("SIGTERM", shutdown);
+    process.on("SIGINT", shutdown);
   })
   .catch((err) => {
     console.error("❌ Error inicializando la base de datos:", err);
+    process.exit(1);
   });

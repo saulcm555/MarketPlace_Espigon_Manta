@@ -2,6 +2,7 @@ import { UpdateStockDto } from "../../dtos/inventory/UpdateStock.dto";
 import { ProductService } from "../../../domain/services/ProductService";
 import { InventoryService } from "../../../domain/services/InventoryService";
 import { Product } from "../../../domain/entities/product";
+import { notifyInventoryUpdated } from "../../../infrastructure/clients/notificationClient";
 
 /**
  * Caso de uso para actualizar el stock de un producto
@@ -60,9 +61,28 @@ export class UpdateStock {
       stock: newStock,
     };
 
-    return await this.productService.updateProduct(
+    const updatedProduct = await this.productService.updateProduct(
       data.id_product.toString(),
       updateData
     );
+
+    // 🔔 NOTIFICACIÓN: Enviar notificación de inventario actualizado
+    if (updatedProduct && updatedProduct.id_seller) {
+      notifyInventoryUpdated(
+        updatedProduct.id_product,
+        updatedProduct.id_seller.toString(),
+        {
+          product_name: updatedProduct.product_name,
+          old_stock: product.stock,
+          new_stock: newStock,
+          operation: data.operation || 'set',
+          stock_change: newStock - product.stock
+        }
+      ).catch(err => {
+        console.error('Error sending inventory update notification:', err);
+      });
+    }
+
+    return updatedProduct;
   }
 }

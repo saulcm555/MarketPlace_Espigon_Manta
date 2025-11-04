@@ -4,6 +4,7 @@ import {
 } from "../../dtos/products/ManageProducts.dto";
 import { ProductService } from "../../../domain/services/ProductService";
 import { Product } from "../../../domain/entities/product";
+import { notifyProductUpdated } from "../../../infrastructure/clients/notificationClient";
 
 /**
  * Casos de uso para actualizar y eliminar productos (vendedores)
@@ -51,10 +52,28 @@ export class ManageProducts {
       throw new Error("No hay campos para actualizar");
     }
 
-    return await this.productService.updateProduct(
+    const updatedProduct = await this.productService.updateProduct(
       data.id_product.toString(),
       updateData
     );
+
+    // 🔔 NOTIFICACIÓN: Enviar notificación de producto actualizado
+    if (updatedProduct && updatedProduct.id_seller) {
+      notifyProductUpdated(
+        updatedProduct.id_product,
+        updatedProduct.id_seller.toString(),
+        {
+          product_name: updatedProduct.product_name,
+          price: updatedProduct.price,
+          stock: updatedProduct.stock,
+          updated_fields: Object.keys(updateData)
+        }
+      ).catch(err => {
+        console.error('Error sending product update notification:', err);
+      });
+    }
+
+    return updatedProduct;
   }
 
   /**

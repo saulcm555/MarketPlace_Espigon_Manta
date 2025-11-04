@@ -5,6 +5,7 @@ import { Order } from "../../../domain/entities/order";
 import AppDataSource from "../../../infrastructure/database/data-source";
 import { OrderEntity, ProductOrderEntity } from "../../../models/orderModel";
 import { ProductEntity } from "../../../models/productModel";
+import { notifyOrderCreated } from "../../../infrastructure/clients/notificationClient";
 
 /**
  * Caso de uso para crear una nueva orden a partir de un carrito
@@ -115,6 +116,30 @@ export class CreateOrder {
         where: { id_order: savedOrder.id_order },
         relations: ["productOrders", "productOrders.product"],
       });
+
+      // 🔔 NOTIFICACIÓN: Enviar notificación de orden creada
+      // Nota: Esto se hace DESPUÉS del commit para asegurar que la orden existe
+      if (orderWithProducts) {
+        // Obtener el seller_id del primer producto (asumiendo que todos son del mismo vendedor)
+        const firstProduct = orderWithProducts.productOrders?.[0]?.product;
+        const sellerId = firstProduct?.id_seller?.toString() || '';
+        
+        // Enviar notificación (async, no bloqueante)
+        notifyOrderCreated(
+          savedOrder.id_order,
+          data.id_client.toString(),
+          sellerId,
+          {
+            total_amount,
+            status: savedOrder.status,
+            delivery_type: savedOrder.delivery_type,
+            products_count: data.productOrders?.length || 0
+          }
+        ).catch(err => {
+          // Log del error pero no fallar el caso de uso
+          console.error('Error sending order creation notification:', err);
+        });
+      }
 
       return orderWithProducts as unknown as Order;
     } catch (error) {

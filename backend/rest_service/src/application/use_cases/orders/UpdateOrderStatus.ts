@@ -1,6 +1,7 @@
 import { UpdateOrderStatusDto } from "../../dtos/orders/UpdateOrderStatus.dto";
 import { OrderService } from "../../../domain/services/OrderService";
 import { Order } from "../../../domain/entities/order";
+import { notifyOrderUpdated } from "../../../infrastructure/clients/notificationClient";
 
 /**
  * Caso de uso para actualizar el estado de una orden
@@ -37,10 +38,37 @@ export class UpdateOrderStatus {
       status: data.status,
     };
 
-    return await this.orderService.updateOrder(
+    const updatedOrder = await this.orderService.updateOrder(
       data.id_order.toString(),
       updateData
     );
+
+    // 🔔 NOTIFICACIÓN: Enviar notificación de orden actualizada
+    if (updatedOrder) {
+      const clientId = updatedOrder.id_client?.toString() || '';
+      
+      // Obtener el seller_id del primer producto (si está disponible)
+      const sellerId = updatedOrder.productOrders?.[0]?.product?.id_seller?.toString() || '';
+      
+      // Solo enviar si tenemos los IDs necesarios
+      if (clientId && sellerId) {
+        // Enviar notificación (async, no bloqueante)
+        notifyOrderUpdated(
+          updatedOrder.id_order,
+          clientId,
+          sellerId,
+          updatedOrder.status,
+          {
+            total_amount: updatedOrder.total_amount,
+            order_date: updatedOrder.order_date
+          }
+        ).catch(err => {
+          console.error('Error sending order update notification:', err);
+        });
+      }
+    }
+
+    return updatedOrder;
   }
 
   /**
