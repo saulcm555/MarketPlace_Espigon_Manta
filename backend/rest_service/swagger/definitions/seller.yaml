@@ -27,16 +27,21 @@ Seller:
 SellerInput:
   type: object
   required:
-    - name
+    - seller_name
     - email
+    - password
   properties:
-    name:
+    seller_name:
       type: string
       example: Juan Vendedor
     email:
       type: string
       format: email
       example: vendedor@example.com
+    password:
+      type: string
+      format: password
+      example: "123456"
     phone:
       type: string
       example: "0998765432"

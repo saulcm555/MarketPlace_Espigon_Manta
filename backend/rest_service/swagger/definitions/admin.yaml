@@ -24,11 +24,11 @@ Admin:
 AdminInput:
   type: object
   required:
-    - name
+    - admin_name
     - email
     - password
   properties:
-    name:
+    admin_name:
       type: string
       example: Admin Principal
     email:
@@ -39,6 +39,9 @@ AdminInput:
       type: string
       format: password
       example: admin123
+    phone:
+      type: string
+      example: "0999999999"
     role:
       type: string
       example: admin

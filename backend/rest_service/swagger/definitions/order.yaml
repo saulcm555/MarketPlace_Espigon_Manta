@@ -37,7 +37,7 @@ OrderInput:
     - id_client
     - id_cart
     - id_payment_method
-    - id_delivery
+    - delivery_type
   properties:
     id_client:
       type: integer
@@ -49,9 +49,11 @@ OrderInput:
     id_payment_method:
       type: integer
       example: 1
-    id_delivery:
-      type: integer
-      example: 1
+    delivery_type:
+      type: string
+      enum: [pickup, delivery]
+      example: delivery
+      description: Tipo de entrega (pickup = recoger, delivery = envío)
     order_notes:
       type: string
       example: Entregar en horario de oficina

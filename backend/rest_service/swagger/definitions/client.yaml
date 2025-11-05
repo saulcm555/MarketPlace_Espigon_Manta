@@ -27,16 +27,21 @@ Client:
 ClientInput:
   type: object
   required:
-    - name
+    - client_name
     - email
+    - password
   properties:
-    name:
+    client_name:
       type: string
       example: Juan Pérez
     email:
       type: string
       format: email
       example: juan@example.com
+    password:
+      type: string
+      format: password
+      example: "123456"
     phone:
       type: string
       example: "0998765432"
