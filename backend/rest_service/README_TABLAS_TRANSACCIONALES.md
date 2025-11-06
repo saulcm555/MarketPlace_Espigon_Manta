@@ -515,7 +515,9 @@ Separación de responsabilidades en capas:
 
 ### Variables de Entorno
 ```env
-JWT_SECRET=your-secret-key-change-this-in-production
+# ⚠️ IMPORTANTE: Genera un JWT_SECRET seguro y único para tu aplicación
+# Nunca uses este valor de ejemplo en producción
+JWT_SECRET=TU_CLAVE_SECRETA_AQUI
 JWT_EXPIRES_IN=24h
 ```
 

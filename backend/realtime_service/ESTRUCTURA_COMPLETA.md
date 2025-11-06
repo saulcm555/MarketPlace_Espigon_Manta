@@ -723,7 +723,9 @@ Log: "client disconnected"
 
 ```bash
 # Desarrollo local
-export JWT_SECRET=mi-secreto-super-seguro
+# ⚠️ IMPORTANTE: configura tus variables en un archivo `.env` y no las incluyas en el repositorio
+# Ejemplo (no uses estos valores en producción):
+export JWT_SECRET=TU_CLAVE_SECRETA_AQUI
 export REDIS_ADDR=localhost:6379
 go run cmd/api/main.go
 
@@ -734,7 +736,7 @@ go build -o bin/realtime_service cmd/api/main.go
 # Docker
 docker build -t realtime-service .
 docker run -p 8080:8080 \
-  -e JWT_SECRET=mi-secreto \
+  -e JWT_SECRET=TU_CLAVE_SECRETA_AQUI \
   -e REDIS_ADDR=redis:6379 \
   realtime-service
 

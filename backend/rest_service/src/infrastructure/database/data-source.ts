@@ -16,13 +16,22 @@ import { SubCategoryEntity, SubCategoryProductEntity } from "../../models/subCat
 
 dotenv.config();
 
+// Validar variables de entorno requeridas para la conexión a la base de datos.
+// Evitamos valores por defecto inseguros en el código.
+if (!process.env.DB_HOST || !process.env.DB_USER || !process.env.DB_PASSWORD || !process.env.DB_NAME) {
+  throw new Error(
+    "❌ Faltan variables de entorno requeridas: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME. \n" +
+      "Por favor añade estas variables en el archivo .env y reinicia el servicio."
+  );
+}
+
 const AppDataSource = new DataSource({
   type: "postgres",
-  host: process.env.DB_HOST || "aws-1-us-east-2.pooler.supabase.com",
+  host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || "6543"),
-  username: process.env.DB_USER || "postgres.wqqvlfnnbgyfvaygqiib",
-  password: process.env.DB_PASSWORD || "J@ma281105",
-  database: process.env.DB_NAME || "postgres",
+  username: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   synchronize: true,  // ⬅️ Cambiado a true para crear las tablas
   logging: true,
   ssl: false,
