@@ -8,6 +8,7 @@ import type {
   LoginRequest, 
   LoginResponse, 
   RegisterClientRequest,
+  RegisterSellerRequest,
   User,
   UserRole 
 } from '@/types/api';
@@ -65,6 +66,14 @@ export const login = async (credentials: LoginRequest, role: UserRole = 'client'
  */
 export const registerClient = async (data: RegisterClientRequest): Promise<LoginResponse> => {
   const response = await apiClient.post<LoginResponse>('/auth/register/client', data);
+  return response.data;
+};
+
+/**
+ * Registrar nuevo vendedor
+ */
+export const registerSeller = async (data: RegisterSellerRequest): Promise<LoginResponse> => {
+  const response = await apiClient.post<LoginResponse>('/auth/register/seller', data);
   return response.data;
 };
 

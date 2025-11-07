@@ -21,12 +21,19 @@ export interface LoginResponse {
 
 export interface RegisterClientRequest {
   client_name: string;
-  client_email: string;
-  client_password: string;
-  phone?: number;
+  email: string;
+  password: string;
+  phone?: string;
   address?: string;
-  document_type?: string;
-  document_number?: string;
+}
+
+export interface RegisterSellerRequest {
+  seller_name: string;
+  seller_email: string;
+  seller_password: string;
+  phone: string;
+  bussines_name: string;
+  location: string;
 }
 
 export interface User {

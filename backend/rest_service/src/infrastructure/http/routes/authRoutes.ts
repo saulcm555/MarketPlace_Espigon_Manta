@@ -5,12 +5,14 @@ import {
   loginAdmin,
   verifyToken,
   registerClient,
+  registerSeller,
 } from "../controllers/authController";
 import { authMiddleware } from "../../middlewares/authMiddleware";
 import { validateRequest } from "../../middlewares/validateRequest";
 import {
   loginValidation,
-  registerClientValidation
+  registerClientValidation,
+  registerSellerValidation
 } from "../../middlewares/validations/authValidations";
 
 const router = Router();
@@ -22,6 +24,7 @@ router.post("/login/admin", loginValidation, validateRequest, loginAdmin);
 
 // Register endpoints
 router.post("/register/client", registerClientValidation, validateRequest, registerClient);
+router.post("/register/seller", registerSellerValidation, validateRequest, registerSeller);
 
 // Verify token
 router.get("/verify", authMiddleware, verifyToken);

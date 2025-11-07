@@ -39,10 +39,10 @@ export const getSellerProducts = async (sellerId: number) => {
 // ============================================
 
 /**
- * Registrar nuevo vendedor
- * Endpoint público para registro
+ * Crear nuevo vendedor (admin)
+ * Endpoint para crear vendedor desde panel admin
  */
-export const registerSeller = async (data: CreateSellerRequest): Promise<Seller> => {
+export const createSeller = async (data: CreateSellerRequest): Promise<Seller> => {
   const response = await apiClient.post<Seller>('/sellers', data);
   return response.data;
 };

@@ -217,3 +217,59 @@ export const registerClient = asyncHandler(async (req: Request, res: Response) =
     },
   });
 });
+
+export const registerSeller = asyncHandler(async (req: Request, res: Response) => {
+  const { seller_name, seller_email, seller_password, phone, bussines_name, location } = req.body;
+
+  if (!seller_name || !seller_email || !seller_password || !phone || !bussines_name || !location) {
+    throw new BadRequestError("Todos los campos son requeridos");
+  }
+
+  const sellerRepo = AppDataSource.getRepository(SellerEntity);
+
+  // Verificar si el email ya existe
+  const existingSeller = await sellerRepo.findOne({ where: { seller_email } });
+  if (existingSeller) {
+    throw new ConflictError("El email ya está registrado");
+  }
+
+  // Hash de la contraseña
+  const hashedPassword = await bcrypt.hash(seller_password, 10);
+
+  // Crear vendedor
+  const newSeller = sellerRepo.create({
+    seller_name,
+    seller_email,
+    seller_password: hashedPassword,
+    phone,
+    bussines_name,
+    location,
+  });
+
+  const savedSeller = await sellerRepo.save(newSeller);
+
+  // Generar token
+  const token = jwt.sign(
+    {
+      id: savedSeller.id_seller,
+      email: savedSeller.seller_email,
+      role: "seller",
+      name: savedSeller.seller_name,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+  );
+
+  res.status(201).json({
+    message: "Vendedor registrado exitosamente",
+    token,
+    user: {
+      id: savedSeller.id_seller,
+      email: savedSeller.seller_email,
+      name: savedSeller.seller_name,
+      role: "seller",
+      business_name: savedSeller.bussines_name,
+      location: savedSeller.location,
+    },
+  });
+});
