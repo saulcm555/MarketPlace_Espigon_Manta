@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import express = require("express");
+import cors = require("cors");
 import AppDataSource from "../infrastructure/database/data-source";
 import { setupSwagger } from "../infrastructure/config/swagger";
 import { errorHandler, notFoundHandler } from "../infrastructure/middlewares/errors";
@@ -21,6 +22,17 @@ import deliveryRoutes from "../infrastructure/http/routes/deliveryRoutes";
 import wsAuthRoutes from "../infrastructure/http/routes/wsAuthRoutes";
 
 const app = express();
+
+// ============================================
+// CORS Configuration (permite frontend acceder al backend)
+// ============================================
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:8080', 'http://localhost:8081'], // Frontend URLs
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 // Setup Swagger documentation

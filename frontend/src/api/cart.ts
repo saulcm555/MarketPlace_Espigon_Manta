@@ -1,0 +1,118 @@
+/**
+ * Cart API
+ * Maneja operaciones del carrito de compras
+ */
+
+import apiClient from './client';
+import type { Cart, AddToCartRequest } from '@/types/api';
+
+// ============================================
+// Cart Operations
+// ============================================
+
+/**
+ * Obtener carrito del usuario actual
+ */
+export const getMyCart = async (): Promise<Cart[]> => {
+  const response = await apiClient.get<Cart[]>('/carts');
+  return response.data;
+};
+
+/**
+ * Obtener carrito por ID
+ */
+export const getCartById = async (id: number): Promise<Cart> => {
+  const response = await apiClient.get<Cart>(`/carts/${id}`);
+  return response.data;
+};
+
+/**
+ * Obtener carrito con productos incluidos
+ */
+export const getCartWithProducts = async (id: number): Promise<Cart> => {
+  const response = await apiClient.get<Cart>(`/carts/${id}/with-products`);
+  return response.data;
+};
+
+/**
+ * Crear nuevo carrito
+ */
+export const createCart = async (clientId: number): Promise<Cart> => {
+  const response = await apiClient.post<Cart>('/carts', {
+    id_client: clientId
+  });
+  return response.data;
+};
+
+// ============================================
+// Cart Items Operations
+// ============================================
+
+/**
+ * Agregar producto al carrito
+ */
+export const addProductToCart = async (cartId: number, data: AddToCartRequest): Promise<Cart> => {
+  const response = await apiClient.post<Cart>(`/carts/${cartId}/products`, data);
+  return response.data;
+};
+
+/**
+ * Actualizar cantidad de un producto en el carrito
+ */
+export const updateCartItemQuantity = async (
+  cartId: number, 
+  productId: number, 
+  quantity: number
+): Promise<Cart> => {
+  const response = await apiClient.put<Cart>(`/carts/${cartId}/products/${productId}`, {
+    quantity
+  });
+  return response.data;
+};
+
+/**
+ * Eliminar producto del carrito
+ */
+export const removeProductFromCart = async (cartId: number, productId: number): Promise<Cart> => {
+  const response = await apiClient.delete<Cart>(`/carts/${cartId}/products/${productId}`);
+  return response.data;
+};
+
+/**
+ * Vaciar carrito (eliminar todos los productos)
+ */
+export const clearCart = async (cartId: number): Promise<void> => {
+  await apiClient.delete(`/carts/${cartId}`);
+};
+
+// ============================================
+// Helper Functions
+// ============================================
+
+/**
+ * Calcular total del carrito
+ */
+export const calculateCartTotal = (cart: Cart): number => {
+  if (!cart.products) return 0;
+  
+  return cart.products.reduce((total, item) => {
+    const price = item.product?.price || 0;
+    return total + (price * item.quantity);
+  }, 0);
+};
+
+/**
+ * Contar total de items en el carrito
+ */
+export const getCartItemCount = (cart: Cart): number => {
+  if (!cart.products) return 0;
+  
+  return cart.products.reduce((count, item) => count + item.quantity, 0);
+};
+
+/**
+ * Verificar si el carrito está vacío
+ */
+export const isCartEmpty = (cart: Cart): boolean => {
+  return !cart.products || cart.products.length === 0;
+};
