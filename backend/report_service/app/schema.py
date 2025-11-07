@@ -10,6 +10,7 @@ from app.common.entities.orders.resolvers import OrderQueries
 from app.common.entities.carts.resolvers import CartQueries
 from app.common.entities.deliveries.resolvers import DeliveryQueries
 from app.common.entities.inventories.resolvers import InventoryQueries
+from app.reports.resolvers import ReportQueries  
 
 # Combinar todas las queries (por herencia múltiple)
 @strawberry.type
@@ -24,6 +25,7 @@ class Query(
     CartQueries,
     DeliveryQueries,
     InventoryQueries,
+    ReportQueries,  # 🆕 REPORTES
 ):
     pass
 
