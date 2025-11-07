@@ -96,6 +96,16 @@ func CanJoinRoom(ctx context.Context, userID string, claims *Claims, room string
 		}
 		return false, nil
 
+	case strings.HasPrefix(room, "client-"):
+		id := strings.TrimPrefix(room, "client-")
+		if claims == nil {
+			return false, nil
+		}
+		if claims.UserID == id || claims.Role == "client" || claims.Role == "admin" {
+			return true, nil
+		}
+		return false, nil
+
 	default:
 		// para salas desconocidas, requiere admin o mismo usuario
 		if claims == nil {

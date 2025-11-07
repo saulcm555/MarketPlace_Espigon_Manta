@@ -134,7 +134,7 @@ try {
 Write-Host "`n============================================" -ForegroundColor Cyan
 
 if ($allOk) {
-    Write-Host " RESULTADO: TODO FUNCIONANDO ✅" -ForegroundColor Green
+    Write-Host " RESULTADO: TODO FUNCIONANDO" -ForegroundColor Green
     Write-Host "============================================`n" -ForegroundColor Cyan
     
     Write-Host "SERVICIOS ACTIVOS:" -ForegroundColor Green

@@ -120,11 +120,39 @@ router.get(
       return res.json({ allowed: false });
     }
 
-    // Lógica genérica: por ahora, permitir acceso
-    // Aquí podrías agregar lógica adicional según el tipo de sala
-    
+    const roomStr = room as string;
+    const userIdStr = user_id as string;
+
+    // Validación para salas de clientes (client-{id})
+    if (roomStr.startsWith("client-")) {
+      const clientId = roomStr.replace("client-", "");
+      // El usuario puede acceder a su propia sala de cliente
+      if (clientId === userIdStr) {
+        return res.json({ allowed: true });
+      }
+      return res.json({ allowed: false });
+    }
+
+    // Validación para salas de órdenes (order-{id})
+    if (roomStr.startsWith("order-")) {
+      const orderId = roomStr.replace("order-", "");
+      // Redirigir a la validación específica de órdenes
+      // (En un caso real, duplicarías la lógica aquí o harías una llamada interna)
+      return res.json({ allowed: false });
+    }
+
+    // Validación para salas de vendedores (seller-{id})
+    if (roomStr.startsWith("seller-")) {
+      const sellerId = roomStr.replace("seller-", "");
+      // El usuario puede acceder si es el vendedor
+      if (sellerId === userIdStr) {
+        return res.json({ allowed: true });
+      }
+      return res.json({ allowed: false });
+    }
+
     // Salas públicas (ejemplo: sala de administradores)
-    if (room === "admins") {
+    if (roomStr === "admins") {
       // Solo administradores (esto requeriría validar el token)
       return res.json({ allowed: false });
     }

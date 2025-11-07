@@ -22,7 +22,7 @@ Antes de empezar, asegúrate de tener:
 
 ```powershell
 # Navega a la carpeta del servicio
-cd C:\Users\Lilibeth\MarketPlace_Espigon_Manta\backend\realtime_service
+cd backend\realtime_service
 
 # Inicia los contenedores Docker
 docker compose up -d
@@ -43,7 +43,7 @@ realtime_service-redis-1     Up 10 seconds       0.0.0.0:6379->6379/tcp
 
 ```powershell
 # Abre una NUEVA terminal PowerShell
-cd C:\Users\Lilibeth\MarketPlace_Espigon_Manta\backend\rest_service
+cd backend\rest_service
 
 # Instala dependencias (solo la primera vez)
 npm install --legacy-peer-deps
@@ -66,7 +66,7 @@ npm run dev
 Ejecuta el script de verificación:
 
 ```powershell
-cd C:\Users\Lilibeth\MarketPlace_Espigon_Manta\backend\realtime_service
+cd backend\realtime_service
 .\test_backend.ps1
 ```
 
@@ -96,12 +96,12 @@ Si quieres ver notificaciones en tiempo real en un cliente WebSocket:
 
 ```powershell
 # 1. Generar token JWT
-cd C:\Users\Lilibeth\MarketPlace_Espigon_Manta\backend\realtime_service
+cd backend\realtime_service
 $env:JWT_SECRET = (Select-String -Path .env -Pattern "JWT_SECRET=(.+)" | ForEach-Object { $_.Matches.Groups[1].Value }); go run token_gen.go
 # Copia el token que aparece
 
 # 2. Conectar con wscat (reemplaza TOKEN_AQUI)
-wscat -c "ws://localhost:8080/ws?token=TOKEN_AQUI"
+wscat -c "ws://localhost:8080/ws?token="
 
 # 3. Una vez conectado, unirse a sala (envía este JSON):
 {"type":"join","payload":{"room":"client-user-123"}}
@@ -157,7 +157,7 @@ Una vez conectado, escribe:
 En **otra terminal PowerShell**, publica un mensaje de prueba directamente a Redis:
 
 ```powershell
-cd C:\Users\Lilibeth\MarketPlace_Espigon_Manta\backend\realtime_service
+cd realtime_service
 .\test_backend.ps1
 ```
 

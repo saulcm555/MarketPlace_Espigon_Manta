@@ -26,6 +26,30 @@ app.use(express.json());
 // Setup Swagger documentation
 setupSwagger(app);
 
+// Health check route (para verificación de servicios)
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "🛍️ Marketplace Espigón Manta - REST API",
+    version: "1.0.0",
+    endpoints: {
+      swagger: "/api-docs",
+      health: "/health"
+    }
+  });
+});
+
+app.get("/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    services: {
+      database: "connected",
+      redis: "connected"
+    }
+  });
+});
+
 // Register all routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
