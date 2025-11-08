@@ -4,9 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Star, ShoppingCart, Loader2, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllProducts, formatPrice } from "@/api/products";
+import { Link, useNavigate } from "react-router-dom";
 import type { Product } from "@/types/api";
 
 const FeaturedProducts = () => {
+  const navigate = useNavigate();
+  
   // Fetch products from API
   const { data: products, isLoading, isError, error } = useQuery<Product[]>({
     queryKey: ['products'],
@@ -86,7 +89,11 @@ const FeaturedProducts = () => {
           <>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {featuredProducts.map((product) => (
-                <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
+                <Card 
+                  key={product.id_product} 
+                  className="group overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/products/${product.id_product}`)}
+                >
                   <div className="relative overflow-hidden aspect-square">
                     <img 
                       src={product.image_url || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&h=500&fit=crop"}
@@ -132,6 +139,11 @@ const FeaturedProducts = () => {
                         size="sm" 
                         disabled={product.stock === 0}
                         className="gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // TODO: Agregar al carrito
+                          console.log('Agregar al carrito:', product.id_product);
+                        }}
                       >
                         <ShoppingCart className="w-4 h-4" />
                         {product.stock === 0 ? 'Agotado' : 'Agregar'}
@@ -143,9 +155,11 @@ const FeaturedProducts = () => {
             </div>
 
             <div className="text-center">
-              <Button variant="outline" size="lg">
-                Ver Todos los Productos ({products?.length || 0})
-              </Button>
+              <Link to="/products">
+                <Button variant="outline" size="lg">
+                  Ver Todos los Productos ({products?.length || 0})
+                </Button>
+              </Link>
             </div>
           </>
         )}

@@ -62,6 +62,16 @@ export const getProductsBySubcategory = async (subcategoryId: number): Promise<P
 };
 
 /**
+ * Obtener productos de un vendedor específico
+ */
+export const getProductsBySeller = async (sellerId: number): Promise<Product[]> => {
+  const response = await apiClient.get<any>('/products', {
+    params: { id_seller: sellerId }
+  });
+  return response.data.products || response.data || [];
+};
+
+/**
  * Obtener productos destacados (los más recientes o más vendidos)
  */
 export const getFeaturedProducts = async (limit: number = 8): Promise<Product[]> => {

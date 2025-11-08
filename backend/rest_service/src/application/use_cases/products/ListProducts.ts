@@ -74,7 +74,7 @@ export class ListProducts {
         const searchLower = filters.search.toLowerCase();
         return (
           product.product_name.toLowerCase().includes(searchLower) ||
-          product.description.toLowerCase().includes(searchLower)
+          (product.description && product.description.toLowerCase().includes(searchLower))
         );
       }
 

@@ -44,6 +44,12 @@ export interface User {
   phone?: number;
   address?: string;
   created_at?: string;
+  // Para sellers
+  id_seller?: number;
+  // Para clients
+  id_client?: number;
+  // Para admins
+  id_admin?: number;
 }
 
 // ============================================
@@ -51,7 +57,7 @@ export interface User {
 // ============================================
 
 export interface Product {
-  id: number;
+  id_product: number;
   product_name: string;
   description?: string;
   price: number;
@@ -72,12 +78,11 @@ export interface Product {
 
 export interface CreateProductRequest {
   product_name: string;
-  description?: string;
-  price: number;
-  stock: number;
-  image_url?: string;
+  product_description?: string;
+  product_price: number;
+  stock?: number;
+  product_image?: string;
   id_seller: number;
-  id_inventory: number;
   id_category: number;
   id_sub_category?: number;
 }
@@ -89,7 +94,7 @@ export interface UpdateProductRequest extends Partial<CreateProductRequest> {}
 // ============================================
 
 export interface Seller {
-  id: number;
+  id_seller: number;
   seller_name: string;
   seller_email: string;
   phone?: number;
@@ -115,7 +120,7 @@ export interface CreateSellerRequest {
 // ============================================
 
 export interface Category {
-  id: number;
+  id_category: number;
   category_name: string;
   description?: string;
   created_at?: string;
@@ -125,7 +130,7 @@ export interface Category {
 }
 
 export interface SubCategory {
-  id: number;
+  id_sub_category: number;
   subcategory_name: string;
   description?: string;
   id_category: number;

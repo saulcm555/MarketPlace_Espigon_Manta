@@ -85,7 +85,7 @@ const Categories = () => {
               
               return (
                 <Card 
-                  key={category.id}
+                  key={category.id_category}
                   className="group cursor-pointer hover:shadow-lg transition-shadow"
                 >
                   <CardContent className="p-6 text-center">

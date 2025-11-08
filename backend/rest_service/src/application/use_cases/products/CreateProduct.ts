@@ -16,16 +16,9 @@ export class CreateProduct {
   async execute(data: CreateProductDto): Promise<Product> {
     return new Promise((resolve, reject) => {
       // Validar datos requeridos
-      if (
-        !data.id_seller ||
-        !data.id_sub_category ||
-        !data.product_name ||
-        !data.description
-      ) {
+      if (!data.id_seller || !data.product_name || !data.id_category) {
         reject(
-          new Error(
-            "Vendedor, subcategoría, nombre y descripción son requeridos"
-          )
+          new Error("Vendedor, nombre y categoría son requeridos")
         );
         return;
       }
@@ -47,11 +40,12 @@ export class CreateProduct {
       const productData: Partial<Product> = {
         id_seller: data.id_seller,
         id_category: data.id_category,
-        id_sub_category: data.id_sub_category,
+        id_sub_category: data.id_sub_category || 1, // Subcategoría por defecto
+        id_inventory: data.id_inventory || 1, // Inventario por defecto
         product_name: data.product_name,
-        description: data.description,
-        image_url: data.image_url || "",
-        price: data.price || 0,
+        description: data.description || data.product_description || "",
+        image_url: data.image_url || data.product_image || "",
+        price: data.price || data.product_price || 0,
         stock: data.stock || 0,
       };
 

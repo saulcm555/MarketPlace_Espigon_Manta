@@ -35,6 +35,7 @@ export const loginClient = asyncHandler(async (req: Request, res: Response) => {
   const token = jwt.sign(
     {
       id: client.id_client,
+      id_client: client.id_client,
       email: client.client_email,
       role: "client",
       name: client.client_name,
@@ -48,6 +49,7 @@ export const loginClient = asyncHandler(async (req: Request, res: Response) => {
     token,
     user: {
       id: client.id_client,
+      id_client: client.id_client,
       email: client.client_email,
       name: client.client_name,
       role: "client",
@@ -80,6 +82,7 @@ export const loginSeller = asyncHandler(async (req: Request, res: Response) => {
   const token = jwt.sign(
     {
       id: seller.id_seller,
+      id_seller: seller.id_seller,
       email: seller.seller_email,
       role: "seller",
       name: seller.seller_name,
@@ -93,6 +96,7 @@ export const loginSeller = asyncHandler(async (req: Request, res: Response) => {
     token,
     user: {
       id: seller.id_seller,
+      id_seller: seller.id_seller,
       email: seller.seller_email,
       name: seller.seller_name,
       role: "seller",
@@ -125,6 +129,7 @@ export const loginAdmin = asyncHandler(async (req: Request, res: Response) => {
   const token = jwt.sign(
     {
       id: admin.id_admin,
+      id_admin: admin.id_admin,
       email: admin.admin_email,
       role: "admin",
       name: admin.admin_name,
@@ -138,6 +143,7 @@ export const loginAdmin = asyncHandler(async (req: Request, res: Response) => {
     token,
     user: {
       id: admin.id_admin,
+      id_admin: admin.id_admin,
       email: admin.admin_email,
       name: admin.admin_name,
       role: "admin",

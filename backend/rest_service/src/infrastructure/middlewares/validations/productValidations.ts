@@ -71,3 +71,49 @@ export const deleteProductValidation = [
   param('id')
     .isInt({ min: 1 }).withMessage('ID debe ser un número entero positivo')
 ];
+
+/**
+ * Validaciones para obtener producto por ID
+ */
+export const getProductByIdValidation = [
+  param('id')
+    .isInt({ min: 1 }).withMessage('ID debe ser un número entero positivo')
+];
+
+/**
+ * Validaciones para actualizar producto
+ */
+export const updateProductValidation = [
+  param('id')
+    .isInt({ min: 1 }).withMessage('ID debe ser un número entero positivo'),
+  
+  body('product_name')
+    .optional()
+    .isString().withMessage('El nombre debe ser texto')
+    .trim(),
+  
+  body('product_price')
+    .optional()
+    .isFloat({ min: 0.01 }).withMessage('El precio debe ser mayor a 0'),
+  
+  body('id_category')
+    .optional()
+    .isInt({ min: 1 }).withMessage('ID de categoría inválido'),
+  
+  body('product_description')
+    .optional()
+    .isString().withMessage('La descripción debe ser texto')
+    .trim(),
+  
+  body('product_image')
+    .optional()
+    .isString().withMessage('La imagen debe ser texto'),
+  
+  body('id_sub_category')
+    .optional()
+    .isInt({ min: 1 }).withMessage('ID de subcategoría inválido'),
+  
+  body('stock')
+    .optional()
+    .isInt({ min: 0 }).withMessage('El stock debe ser un número entero mayor o igual a 0')
+];

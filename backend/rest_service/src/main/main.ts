@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import express = require("express");
 import cors = require("cors");
+import path = require("path");
 import AppDataSource from "../infrastructure/database/data-source";
 import { setupSwagger } from "../infrastructure/config/swagger";
 import { errorHandler, notFoundHandler } from "../infrastructure/middlewares/errors";
@@ -20,6 +21,7 @@ import adminRoutes from "../infrastructure/http/routes/adminRoutes";
 import paymentMethodRoutes from "../infrastructure/http/routes/paymentMethodRoutes";
 import deliveryRoutes from "../infrastructure/http/routes/deliveryRoutes";
 import wsAuthRoutes from "../infrastructure/http/routes/wsAuthRoutes";
+import uploadRoutes from "../infrastructure/http/routes/uploadRoutes";
 
 const app = express();
 
@@ -34,6 +36,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Servir archivos estáticos (imágenes subidas)
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // Setup Swagger documentation
 setupSwagger(app);
@@ -76,6 +81,7 @@ app.use("/api/admins", adminRoutes);
 app.use("/api/payment-methods", paymentMethodRoutes);
 app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/ws", wsAuthRoutes); // 🔔 Rutas de autorización WebSocket
+app.use("/api/upload", uploadRoutes); // 📤 Rutas de subida de archivos
 
 // ============================================
 // ERROR HANDLING MIDDLEWARES

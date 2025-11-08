@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, Phone, MapPin, Shield, ArrowLeft, Save } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Shield, ArrowLeft, Save, Package, ShoppingBag } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 
 const Profile = () => {
@@ -74,6 +74,9 @@ const Profile = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       
+      {/* Espaciador para el navbar fixed */}
+      <div className="h-16"></div>
+      
       <div className="container mx-auto px-4 py-8">
         <Button
           variant="ghost"
@@ -110,6 +113,57 @@ const Profile = () => {
             <Separator />
 
             <CardContent className="mt-6">
+              {/* Quick Links */}
+              {user?.role === 'client' && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold mb-3">Acceso rápido</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      className="justify-start"
+                      onClick={() => navigate('/orders')}
+                    >
+                      <Package className="mr-2 h-4 w-4" />
+                      Mis Pedidos
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="justify-start"
+                      onClick={() => navigate('/products')}
+                    >
+                      <ShoppingBag className="mr-2 h-4 w-4" />
+                      Productos
+                    </Button>
+                  </div>
+                  <Separator className="mt-6" />
+                </div>
+              )}
+
+              {user?.role === 'seller' && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold mb-3">Mi Tienda</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      className="justify-start"
+                      onClick={() => navigate('/seller/dashboard')}
+                    >
+                      <Package className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="justify-start"
+                      onClick={() => navigate('/seller/products')}
+                    >
+                      <ShoppingBag className="mr-2 h-4 w-4" />
+                      Mis Productos
+                    </Button>
+                  </div>
+                  <Separator className="mt-6" />
+                </div>
+              )}
+
               {success && (
                 <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
                   <AlertDescription>{success}</AlertDescription>

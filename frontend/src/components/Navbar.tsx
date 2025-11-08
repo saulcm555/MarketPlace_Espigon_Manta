@@ -7,13 +7,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, ShoppingCart, User, LogOut, Settings, Package } from "lucide-react";
+import { Menu, ShoppingCart, User, LogOut, Settings, Package, ChevronDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
 import { Link, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { getAllCategories } from "@/api";
+import CartDrawer from "@/components/CartDrawer";
 
 const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuth();
+  const { itemCount, openCart } = useCart();
   const navigate = useNavigate();
+
+  // Fetch categories for dropdown
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: getAllCategories,
+  });
 
   const handleLogout = () => {
     logout();
@@ -31,12 +42,40 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            <a href="/#productos" className="text-foreground/80 hover:text-foreground transition-colors">
+            <Link to="/products" className="text-foreground/80 hover:text-foreground transition-colors">
               Productos
-            </a>
-            <a href="/#categorias" className="text-foreground/80 hover:text-foreground transition-colors">
-              Categorías
-            </a>
+            </Link>
+            
+            {/* Categorías Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1 text-foreground/80 hover:text-foreground transition-colors">
+                  Categorías
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel>Categorías</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/products" className="cursor-pointer">
+                    Ver todas las categorías
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {categories.map((category: any) => (
+                  <DropdownMenuItem key={category.id_category} asChild>
+                    <Link 
+                      to={`/products?category=${category.id_category}`}
+                      className="cursor-pointer"
+                    >
+                      {category.category_name}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <a href="/#emprendedores" className="text-foreground/80 hover:text-foreground transition-colors">
               Emprendedores
             </a>
@@ -45,11 +84,13 @@ const Navbar = () => {
           {/* Actions */}
           <div className="flex items-center gap-3">
             {isAuthenticated && (
-              <Button variant="ghost" size="icon" className="relative">
+              <Button variant="ghost" size="icon" className="relative" onClick={openCart}>
                 <ShoppingCart className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-                  0
-                </span>
+                {itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                    {itemCount}
+                  </span>
+                )}
               </Button>
             )}
 
@@ -123,6 +164,9 @@ const Navbar = () => {
           </div>
         </div>
       </div>
+
+      {/* Cart Drawer */}
+      <CartDrawer />
     </nav>
   );
 };

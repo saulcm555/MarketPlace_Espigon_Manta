@@ -1,0 +1,28 @@
+backend\report_service\app\__pycache__
+backend\report_service\app\common\__pycache__
+backend\report_service\app\reports\__pycache__
+
+# Python cache files
+_pycache_/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/

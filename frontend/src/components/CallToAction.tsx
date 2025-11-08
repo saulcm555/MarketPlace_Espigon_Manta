@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, Store } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const CallToAction = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="py-16 bg-primary text-primary-foreground">
       <div className="container mx-auto px-4">
@@ -18,6 +21,7 @@ const CallToAction = () => {
               size="lg" 
               variant="secondary"
               className="px-8"
+              onClick={() => navigate('/login')}
             >
               <ShoppingBag className="mr-2 h-5 w-5" />
               Comenzar a Comprar
@@ -25,6 +29,7 @@ const CallToAction = () => {
             <Button 
               size="lg" 
               className="px-8 bg-white text-primary border-2 border-white hover:bg-transparent hover:text-white transition-all"
+              onClick={() => navigate('/login')}
             >
               <Store className="mr-2 h-5 w-5" />
               Vender mis Productos
