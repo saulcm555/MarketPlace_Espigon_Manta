@@ -170,6 +170,22 @@ export interface AddToCartRequest {
 // Order Types
 // ============================================
 
+export interface ProductOrder {
+  id_product_order: number;
+  id_order: number;
+  id_product: number;
+  price_unit: number;
+  subtotal: number;
+  created_at: string;
+  rating?: number;
+  review_comment?: string;
+  reviewed_at?: string;
+  
+  // Relaciones
+  order?: Order;
+  product?: Product;
+}
+
 export interface Order {
   id: number;
   id_client: number;
@@ -186,6 +202,7 @@ export interface Order {
   cart?: Cart;
   payment_method?: PaymentMethod;
   delivery?: Delivery;
+  productOrders?: ProductOrder[];
 }
 
 export interface CreateOrderRequest {

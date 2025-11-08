@@ -4,7 +4,7 @@
  */
 
 import apiClient from './client';
-import type { Order, CreateOrderRequest } from '@/types/api';
+import type { Order, CreateOrderRequest, ProductOrder } from '@/types/api';
 
 // ============================================
 // Order Operations
@@ -47,6 +47,33 @@ export const updateOrderStatus = async (id: number, status: string): Promise<Ord
  */
 export const cancelOrder = async (id: number): Promise<Order> => {
   const response = await apiClient.put<Order>(`/orders/${id}/cancel`);
+  return response.data;
+};
+
+// ============================================
+// Review Operations
+// ============================================
+
+/**
+ * Agregar reseña a un producto de la orden
+ */
+export const addProductReview = async (
+  idProductOrder: number, 
+  rating: number, 
+  reviewComment?: string
+): Promise<any> => {
+  const response = await apiClient.post(
+    `/orders/product-order/${idProductOrder}/review`,
+    { rating, review_comment: reviewComment }
+  );
+  return response.data;
+};
+
+/**
+ * Obtener reseñas de un producto
+ */
+export const getProductReviews = async (idProduct: number): Promise<ProductOrder[]> => {
+  const response = await apiClient.get<ProductOrder[]>(`/orders/products/${idProduct}/reviews`);
   return response.data;
 };
 
