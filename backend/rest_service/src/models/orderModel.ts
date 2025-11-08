@@ -88,6 +88,17 @@ export class ProductOrderEntity {
 	@CreateDateColumn({ name: "created_at" })
 	created_at!: Date;
 
+	// Campos de reseña
+	@Column({ name: "rating", type: "int", nullable: true })
+	@Min(1)
+	rating?: number;
+
+	@Column({ name: "review_comment", type: "text", nullable: true })
+	review_comment?: string;
+
+	@Column({ name: "reviewed_at", type: "timestamp", nullable: true })
+	reviewed_at?: Date;
+
 	@ManyToOne(() => OrderEntity, (o) => o.productOrders)
 	@JoinColumn({ name: "id_order" })
 	order!: OrderEntity;

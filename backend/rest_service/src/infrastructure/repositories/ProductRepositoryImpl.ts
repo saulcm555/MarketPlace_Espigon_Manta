@@ -30,12 +30,37 @@ export class ProductRepositoryImpl implements IProductRepository {
   async findById(id: string): Promise<ProductEntity | null> {
     const repo = AppDataSource.getRepository(ProductEntity);
     const productId = parseInt(id, 10);
-    return await repo.findOneBy({ id_product: productId });
+    
+    // Usar QueryBuilder para hacer JOIN con seller
+    const product = await repo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.inventory', 'inventory')
+      .leftJoinAndMapOne(
+        'product.seller',
+        'seller',
+        'seller',
+        'seller.id_seller = product.id_seller'
+      )
+      .where('product.id_product = :id', { id: productId })
+      .getOne();
+    
+    return product;
   }
 
   async findAll(): Promise<ProductEntity[]> {
     const repo = AppDataSource.getRepository(ProductEntity);
-    return await repo.find();
+    
+    // Usar QueryBuilder para hacer JOIN con seller
+    return await repo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.inventory', 'inventory')
+      .leftJoinAndMapOne(
+        'product.seller',
+        'seller',
+        'seller',
+        'seller.id_seller = product.id_seller'
+      )
+      .getMany();
   }
 
   // DELETE con async/await

@@ -23,4 +23,12 @@ export class OrderService {
   async deleteOrder(id: string): Promise<boolean> {
     return await this.orderRepository.delete(id);
   }
+
+  async addReviewToProductOrder(id_product_order: number, rating: number, review_comment?: string): Promise<any> {
+    return await this.orderRepository.addReview(id_product_order, rating, review_comment);
+  }
+
+  async getProductReviews(id_product: number): Promise<any[]> {
+    return await this.orderRepository.getProductReviews(id_product);
+  }
 }

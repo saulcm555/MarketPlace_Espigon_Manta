@@ -5,7 +5,7 @@
 
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getProductById } from '@/api';
+import { getProductById, getProductReviews } from '@/api';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
@@ -48,6 +48,18 @@ const ProductDetail = () => {
     queryFn: () => getProductById(Number(id)),
     enabled: !!id,
   });
+
+  // Obtener reseñas del producto
+  const { data: reviews = [] } = useQuery({
+    queryKey: ['product-reviews', id],
+    queryFn: () => getProductReviews(Number(id)),
+    enabled: !!id,
+  });
+
+  // Calcular promedio de rating
+  const averageRating = reviews.length > 0
+    ? reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length
+    : 0;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-EC', {
@@ -217,12 +229,18 @@ const ProductDetail = () => {
                     <Star
                       key={i}
                       className={`h-5 w-5 ${
-                        i < 4 ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'
+                        i < Math.round(averageRating) 
+                          ? 'fill-yellow-400 text-yellow-400' 
+                          : 'text-muted-foreground'
                       }`}
                     />
                   ))}
-                  <span className="ml-2 text-sm font-medium">4.5</span>
-                  <span className="text-sm text-muted-foreground">(24 reseñas)</span>
+                  <span className="ml-2 text-sm font-medium">
+                    {averageRating > 0 ? averageRating.toFixed(1) : 'Sin reseñas'}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    ({reviews.length} {reviews.length === 1 ? 'reseña' : 'reseñas'})
+                  </span>
                 </div>
                 <Separator orientation="vertical" className="h-6" />
                 <Badge variant="secondary">
@@ -372,7 +390,15 @@ const ProductDetail = () => {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold mb-1">Emprendedor del Espigón</h3>
+                      <h3 className="text-lg font-semibold mb-1">
+                        {product.seller?.seller_name || 'Emprendedor del Espigón'}
+                      </h3>
+                      {product.seller?.bussines_name && (
+                        <p className="text-sm text-muted-foreground mb-2">
+                          <Store className="h-4 w-4 inline mr-1" />
+                          {product.seller.bussines_name}
+                        </p>
+                      )}
                       <div className="flex items-center gap-1 mb-3">
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
@@ -393,41 +419,47 @@ const ProductDetail = () => {
             <TabsContent value="reviews" className="mt-6">
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">Reseñas de clientes</h3>
-                  <div className="space-y-6">
-                    {/* Mock review */}
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          ))}
+                  <h3 className="text-lg font-semibold mb-4">
+                    Reseñas de clientes ({reviews.length})
+                  </h3>
+                  
+                  {reviews.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      No hay reseñas todavía. ¡Sé el primero en dejar una!
+                    </p>
+                  ) : (
+                    <div className="space-y-6">
+                      {reviews.map((review, index) => (
+                        <div key={review.id_product_order}>
+                          {index > 0 && <Separator />}
+                          <div className="space-y-2 pt-4">
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star 
+                                    key={i} 
+                                    className={`h-4 w-4 ${
+                                      i < (review.rating || 0)
+                                        ? 'fill-yellow-400 text-yellow-400'
+                                        : 'text-muted-foreground'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-sm text-muted-foreground">
+                                {review.reviewed_at && new Date(review.reviewed_at).toLocaleDateString('es-EC')}
+                              </span>
+                            </div>
+                            {review.review_comment && (
+                              <p className="text-sm text-muted-foreground">
+                                {review.review_comment}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <span className="font-medium">María González</span>
-                        <span className="text-sm text-muted-foreground">Hace 2 días</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Excelente producto, llegó en perfectas condiciones. El vendedor fue muy atento. 
-                        ¡Totalmente recomendado!
-                      </p>
+                      ))}
                     </div>
-                    <Separator />
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                          {[...Array(4)].map((_, i) => (
-                            <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          ))}
-                          <Star className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <span className="font-medium">Carlos Mendoza</span>
-                        <span className="text-sm text-muted-foreground">Hace 1 semana</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Buen producto, aunque tardó un poco en llegar. Pero la calidad es excelente.
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

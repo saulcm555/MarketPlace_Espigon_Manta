@@ -10,6 +10,9 @@ export interface ProductOrder {
 	price_unit: number;
 	subtotal: number;
 	created_at: Date;
+	rating?: number;
+	review_comment?: string;
+	reviewed_at?: Date;
 	order?: Order;
 	product?: Product;
 }

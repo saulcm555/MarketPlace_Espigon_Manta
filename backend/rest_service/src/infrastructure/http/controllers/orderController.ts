@@ -58,3 +58,30 @@ export const deleteOrder = asyncHandler(async (req: Request, res: Response) => {
   
   res.json({ message: "Orden eliminada correctamente" });
 });
+
+// Agregar/actualizar reseña en un producto de la orden
+export const addReview = asyncHandler(async (req: Request, res: Response) => {
+  const { id_product_order } = req.params;
+  const { rating, review_comment } = req.body;
+  
+  const updated = await orderService.addReviewToProductOrder(
+    Number(id_product_order),
+    rating,
+    review_comment
+  );
+  
+  if (!updated) {
+    throw new NotFoundError("Producto en orden");
+  }
+  
+  res.json({ message: "Reseña agregada correctamente", data: updated });
+});
+
+// Obtener reseñas de un producto
+export const getProductReviews = asyncHandler(async (req: Request, res: Response) => {
+  const { id_product } = req.params;
+  
+  const reviews = await orderService.getProductReviews(Number(id_product));
+  
+  res.json(reviews);
+});

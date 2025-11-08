@@ -1,6 +1,7 @@
 import type { Inventory } from "./inventory";
 import { Order } from "./order";
 import type { SubCategoryProduct } from "./sub_category";
+import type { Seller } from "./seller";
 
 
 
@@ -17,6 +18,7 @@ export interface Product {
 	image_url: string;
 	created_at: Date;
 	inventory: Inventory;
+	seller?: Seller;
 	subCategoryProducts?: SubCategoryProduct[];
 	productOrders?: Order[];
 	ProductCart?: any[];
