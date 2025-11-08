@@ -773,3 +773,62 @@ async def get_dashboard_stats():
         month_revenue=month_revenue,
         month_orders=len(month_orders)
     )
+
+# ======================= PRODUCTOS MEJOR VALORADOS =======================
+
+async def get_top_rated_products_report(limit: int = 20):
+    """
+    Genera reporte de productos mejor valorados basado en reseñas
+    """
+    from app.reports.schema import TopRatedProductsReport, TopRatedProductItem
+    
+    # Obtener todos los productos
+    products = await fetch_data("/products")
+    if not isinstance(products, list):
+        products = []
+    
+    # Obtener categorías para nombres
+    categories = await fetch_data("/categories")
+    if not isinstance(categories, list):
+        categories = []
+    category_map = {c["id_category"]: c["category_name"] for c in categories}
+    
+    # Para cada producto, obtener sus reseñas
+    product_ratings = []
+    for product in products:
+        try:
+            product_id = product["id_product"]
+            # Obtener reseñas del producto
+            reviews = await fetch_data(f"/orders/products/{product_id}/reviews")
+            
+            if not isinstance(reviews, list) or len(reviews) == 0:
+                continue
+            
+            # Calcular promedio de rating
+            ratings = [r.get("rating", 0) for r in reviews if r.get("rating")]
+            if not ratings:
+                continue
+                
+            avg_rating = sum(ratings) / len(ratings)
+            
+            product_ratings.append(TopRatedProductItem(
+                product_id=product_id,
+                product_name=product.get("product_name", "Sin nombre"),
+                category_name=category_map.get(product.get("id_category"), "Sin categoría"),
+                average_rating=round(avg_rating, 2),
+                total_reviews=len(reviews),
+                units_sold=0  # Podríamos calcularlo desde product_order si es necesario
+            ))
+        except (KeyError, TypeError, ValueError) as e:
+            continue
+    
+    # Ordenar por rating promedio (descendente) y luego por número de reseñas
+    product_ratings.sort(key=lambda x: (x.average_rating, x.total_reviews), reverse=True)
+    
+    # Limitar resultados
+    top_products = product_ratings[:limit]
+    
+    return TopRatedProductsReport(
+        top_products=top_products
+    )
+

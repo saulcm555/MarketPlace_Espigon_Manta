@@ -1,7 +1,11 @@
 import strawberry
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import httpx
+
+if TYPE_CHECKING:
+    from app.common.entities.products.schema import ProductType
+    from app.common.entities.orders.schema import OrderType
 
 BASE_URL = "http://127.0.0.1:3000/api"
 
@@ -13,10 +17,13 @@ class ProductOrderType:
     price_unit: float
     subtotal: float
     created_at: datetime
+    rating: Optional[int] = None
+    review_comment: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
     
     # Relaciones
     @strawberry.field
-    async def product(self) -> Optional[strawberry.LazyType["ProductType", "app.common.entities.products.schema"]]:
+    async def product(self) -> Optional["ProductType"]:
         """Obtiene el producto"""
         try:
             async with httpx.AsyncClient() as client:
@@ -42,7 +49,7 @@ class ProductOrderType:
             return None
     
     @strawberry.field
-    async def order(self) -> Optional[strawberry.LazyType["OrderType", "app.common.entities.orders.schema"]]:
+    async def order(self) -> Optional["OrderType"]:
         """Obtiene la orden"""
         try:
             async with httpx.AsyncClient() as client:

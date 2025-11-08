@@ -60,6 +60,21 @@ class BestProductsReport:
     best_products: List[ProductSalesItem]
 
 @strawberry.type
+class TopRatedProductItem:
+    """Item de producto mejor valorado"""
+    product_id: int
+    product_name: str
+    category_name: str
+    average_rating: float
+    total_reviews: int
+    units_sold: int
+
+@strawberry.type
+class TopRatedProductsReport:
+    """Reporte de productos mejor valorados"""
+    top_products: List[TopRatedProductItem]
+
+@strawberry.type
 class CategorySalesItem:
     """Ventas por categoría"""
     category_id: int

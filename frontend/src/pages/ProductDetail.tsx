@@ -5,10 +5,11 @@
 
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getProductById, getProductReviews } from '@/api';
+import { getProductById, getProductReviews, getMyOrders } from '@/api';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
+import ReviewDialog from '@/components/ReviewDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
@@ -30,18 +32,23 @@ import {
   Truck,
   Shield,
   ChevronRight,
+  MessageSquare,
+  AlertCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Product } from '@/types/api';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addItem } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedProductOrderId, setSelectedProductOrderId] = useState<number | null>(null);
+  const [hoverStar, setHoverStar] = useState(0);
 
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
@@ -55,6 +62,50 @@ const ProductDetail = () => {
     queryFn: () => getProductReviews(Number(id)),
     enabled: !!id,
   });
+
+  // Obtener órdenes del usuario para verificar si compró este producto
+  const { data: myOrders = [] } = useQuery({
+    queryKey: ['myOrders'],
+    queryFn: getMyOrders,
+    enabled: isAuthenticated && user?.role === 'client',
+  });
+
+  // Verificar si el usuario compró este producto y si ya lo valoró
+  const purchaseInfo = useMemo(() => {
+    if (!isAuthenticated || !product || !myOrders.length) {
+      return { hasPurchased: false, canReview: false, productOrderId: null, alreadyReviewed: false };
+    }
+
+    // Buscar si el usuario compró este producto
+    let productOrderId: number | null = null;
+    let alreadyReviewed = false;
+
+    for (const order of myOrders) {
+      // Solo considerar órdenes completadas
+      if (order.status === 'completed' && order.productOrders) {
+        for (const productOrder of order.productOrders) {
+          if (productOrder.id_product === product.id_product) {
+            // Encontramos que el usuario compró este producto
+            productOrderId = productOrder.id_product_order;
+            
+            // Verificar si ya tiene rating
+            if (productOrder.rating && productOrder.rating > 0) {
+              alreadyReviewed = true;
+            }
+            break;
+          }
+        }
+      }
+      if (productOrderId) break;
+    }
+
+    return {
+      hasPurchased: productOrderId !== null,
+      canReview: productOrderId !== null && !alreadyReviewed,
+      productOrderId,
+      alreadyReviewed,
+    };
+  }, [isAuthenticated, product, myOrders]);
 
   // Calcular promedio de rating
   const averageRating = reviews.length > 0
@@ -101,6 +152,55 @@ const ProductDetail = () => {
         description: "No se pudo agregar el producto al carrito",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleReviewClick = () => {
+    // 1. Verificar autenticación
+    if (!isAuthenticated) {
+      toast({
+        title: "⭐ Inicia sesión para valorar",
+        description: "Debes tener una cuenta para dejar tu opinión sobre este producto",
+        variant: "destructive",
+      });
+      // Esperar un poco antes de redirigir para que se vea el mensaje
+      setTimeout(() => navigate('/login'), 1000);
+      return;
+    }
+
+    // 2. Verificar que sea un cliente
+    if (user?.role !== 'client') {
+      toast({
+        title: "Solo clientes pueden valorar",
+        description: "Las valoraciones solo están disponibles para cuentas de cliente",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 3. Verificar que haya comprado el producto
+    if (!purchaseInfo.hasPurchased) {
+      toast({
+        title: "🛒 Compra requerida",
+        description: "Solo puedes valorar productos que hayas comprado y recibido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 4. Verificar que no haya valorado ya
+    if (purchaseInfo.alreadyReviewed) {
+      toast({
+        title: "✅ Ya valoraste este producto",
+        description: "Solo puedes dejar una valoración por compra. ¡Gracias por tu opinión!",
+      });
+      return;
+    }
+
+    // 5. Todo OK - Abrir el diálogo
+    if (purchaseInfo.productOrderId) {
+      setSelectedProductOrderId(purchaseInfo.productOrderId);
+      setReviewDialogOpen(true);
     }
   };
 
@@ -220,32 +320,86 @@ const ProductDetail = () => {
 
           {/* Product Info */}
           <div className="space-y-6">
-            {/* Title and rating */}
+            {/* Title and stock badge */}
             <div>
-              <h1 className="text-3xl font-bold mb-3">{product.product_name}</h1>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-5 w-5 ${
-                        i < Math.round(averageRating) 
-                          ? 'fill-yellow-400 text-yellow-400' 
-                          : 'text-muted-foreground'
-                      }`}
-                    />
-                  ))}
-                  <span className="ml-2 text-sm font-medium">
-                    {averageRating > 0 ? averageRating.toFixed(1) : 'Sin reseñas'}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    ({reviews.length} {reviews.length === 1 ? 'reseña' : 'reseñas'})
-                  </span>
-                </div>
-                <Separator orientation="vertical" className="h-6" />
+              <div className="flex items-center justify-between mb-3">
+                <h1 className="text-3xl font-bold">{product.product_name}</h1>
                 <Badge variant="secondary">
                   {product.stock} disponibles
                 </Badge>
+              </div>
+              
+              {/* Sección de valoración interactiva */}
+              <div className="space-y-3">
+                <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium mb-1">
+                          {purchaseInfo.canReview 
+                            ? '¿Qué te pareció este producto?' 
+                            : purchaseInfo.alreadyReviewed
+                              ? 'Ya valoraste este producto'
+                              : !isAuthenticated
+                                ? 'Inicia sesión para valorar'
+                                : 'Compra este producto para valorar'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {purchaseInfo.canReview 
+                            ? 'Haz clic para dejar tu calificación' 
+                            : !isAuthenticated
+                              ? 'Solo usuarios registrados pueden valorar'
+                              : purchaseInfo.hasPurchased
+                                ? 'Gracias por tu opinión'
+                                : 'Solo puedes valorar productos que hayas comprado'}
+                        </p>
+                      </div>
+                      
+                      {/* Estrellas interactivas */}
+                      <div 
+                        className="flex items-center gap-1"
+                        onMouseLeave={() => setHoverStar(0)}
+                      >
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            onClick={handleReviewClick}
+                            onMouseEnter={() => purchaseInfo.canReview && setHoverStar(star)}
+                            disabled={!purchaseInfo.canReview && isAuthenticated && purchaseInfo.hasPurchased}
+                            className={`transition-all focus:outline-none focus:ring-2 focus:ring-primary rounded ${
+                              purchaseInfo.canReview 
+                                ? 'hover:scale-125 cursor-pointer animate-pulse' 
+                                : isAuthenticated && purchaseInfo.hasPurchased
+                                  ? 'cursor-not-allowed opacity-50'
+                                  : 'cursor-pointer hover:scale-110'
+                            }`}
+                            title={
+                              purchaseInfo.canReview 
+                                ? 'Haz clic para valorar' 
+                                : !isAuthenticated
+                                  ? 'Inicia sesión para valorar'
+                                  : purchaseInfo.alreadyReviewed
+                                    ? 'Ya valoraste este producto'
+                                    : 'Compra este producto para valorar'
+                            }
+                          >
+                            <Star
+                              className={`h-7 w-7 transition-all ${
+                                purchaseInfo.canReview
+                                  ? hoverStar >= star
+                                    ? 'fill-yellow-400 text-yellow-400 drop-shadow-lg'
+                                    : 'text-primary'
+                                  : purchaseInfo.alreadyReviewed
+                                    ? 'fill-green-500 text-green-500'
+                                    : 'text-muted-foreground'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
 
@@ -347,7 +501,7 @@ const ProductDetail = () => {
             <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
               <TabsTrigger value="details">Detalles</TabsTrigger>
               <TabsTrigger value="seller">Vendedor</TabsTrigger>
-              <TabsTrigger value="reviews">Reseñas (24)</TabsTrigger>
+              <TabsTrigger value="reviews">Reseñas ({reviews.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="details" className="mt-6">
@@ -394,17 +548,11 @@ const ProductDetail = () => {
                         {product.seller?.seller_name || 'Emprendedor del Espigón'}
                       </h3>
                       {product.seller?.bussines_name && (
-                        <p className="text-sm text-muted-foreground mb-2">
+                        <p className="text-sm text-muted-foreground mb-3">
                           <Store className="h-4 w-4 inline mr-1" />
                           {product.seller.bussines_name}
                         </p>
                       )}
-                      <div className="flex items-center gap-1 mb-3">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        ))}
-                        <span className="ml-2 text-sm text-muted-foreground">5.0 (120 ventas)</span>
-                      </div>
                       <p className="text-sm text-muted-foreground mb-4">
                         Vendedor verificado del Parque El Espigón en Manta, Ecuador. 
                         Ofrecemos productos de calidad con atención personalizada.
@@ -419,14 +567,58 @@ const ProductDetail = () => {
             <TabsContent value="reviews" className="mt-6">
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-4">
-                    Reseñas de clientes ({reviews.length})
-                  </h3>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-semibold">
+                      Reseñas de clientes ({reviews.length})
+                    </h3>
+                    
+                    {/* Botón para valorar */}
+                    {isAuthenticated && user?.role === 'client' && (
+                      <Button 
+                        onClick={handleReviewClick}
+                        disabled={!purchaseInfo.canReview}
+                        className="gap-2"
+                      >
+                        <Star className="h-4 w-4" />
+                        {purchaseInfo.alreadyReviewed 
+                          ? 'Ya valoraste' 
+                          : purchaseInfo.hasPurchased 
+                            ? 'Valorar producto'
+                            : 'Compra para valorar'}
+                      </Button>
+                    )}
+                    
+                    {!isAuthenticated && (
+                      <Button 
+                        onClick={handleReviewClick}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        <Star className="h-4 w-4" />
+                        Inicia sesión para valorar
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Mensaje informativo */}
+                  {isAuthenticated && user?.role === 'client' && !purchaseInfo.hasPurchased && (
+                    <Alert className="mb-6">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        Compra este producto para poder dejar una valoración
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   
                   {reviews.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      No hay reseñas todavía. ¡Sé el primero en dejar una!
-                    </p>
+                    <div className="text-center py-12">
+                      <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                        <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <p className="text-muted-foreground">
+                        No hay reseñas todavía. ¡Sé el primero en dejar una!
+                      </p>
+                    </div>
                   ) : (
                     <div className="space-y-6">
                       {reviews.map((review, index) => (
@@ -446,12 +638,23 @@ const ProductDetail = () => {
                                   />
                                 ))}
                               </div>
+                              <span className="text-sm font-medium">
+                                {review.rating === 5 && 'Excelente'}
+                                {review.rating === 4 && 'Bueno'}
+                                {review.rating === 3 && 'Regular'}
+                                {review.rating === 2 && 'Malo'}
+                                {review.rating === 1 && 'Muy malo'}
+                              </span>
                               <span className="text-sm text-muted-foreground">
-                                {review.reviewed_at && new Date(review.reviewed_at).toLocaleDateString('es-EC')}
+                                • {review.reviewed_at && new Date(review.reviewed_at).toLocaleDateString('es-EC', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
                               </span>
                             </div>
                             {review.review_comment && (
-                              <p className="text-sm text-muted-foreground">
+                              <p className="text-sm text-muted-foreground pl-1">
                                 {review.review_comment}
                               </p>
                             )}
@@ -466,6 +669,17 @@ const ProductDetail = () => {
           </Tabs>
         </div>
       </div>
+
+      {/* Review Dialog */}
+      {selectedProductOrderId && product && (
+        <ReviewDialog
+          open={reviewDialogOpen}
+          onOpenChange={setReviewDialogOpen}
+          productOrderId={selectedProductOrderId}
+          productId={product.id_product}
+          productName={product.product_name}
+        />
+      )}
     </div>
   );
 };

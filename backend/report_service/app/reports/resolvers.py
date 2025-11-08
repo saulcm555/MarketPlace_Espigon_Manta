@@ -9,6 +9,7 @@ from app.reports.schema import (
     SalesReport,
     TopSellersReport,
     BestProductsReport,
+    TopRatedProductsReport,
     CategorySalesReport,
     ClientsReport,
     InventoryReport,
@@ -22,6 +23,7 @@ from app.reports.service import (
     get_sales_report,
     get_top_sellers_report,
     get_best_products_report,
+    get_top_rated_products_report,
     get_category_sales_report,
     get_clients_report,
     get_inventory_report,
@@ -89,6 +91,17 @@ class ReportQueries:
             start_date = end_date - timedelta(days=30)
         
         return await get_best_products_report(start_date, end_date, limit)
+    
+    @strawberry.field
+    async def top_rated_products_report(
+        self,
+        limit: int = 20
+    ) -> TopRatedProductsReport:
+        """
+        Reporte de productos mejor valorados basado en las reseñas de los clientes.
+        Ordena por rating promedio y número de reseñas.
+        """
+        return await get_top_rated_products_report(limit)
     
     @strawberry.field
     async def category_sales_report(

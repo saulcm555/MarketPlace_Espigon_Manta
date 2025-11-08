@@ -31,7 +31,10 @@ async def get_all_product_orders() -> List[ProductOrderType]:
                 id_product=po["id_product"],
                 price_unit=safe_float(po.get("price_unit")),
                 subtotal=safe_float(po.get("subtotal")),
-                created_at=parse_iso_datetime(po.get("created_at"))
+                created_at=parse_iso_datetime(po.get("created_at")),
+                rating=po.get("rating"),
+                review_comment=po.get("review_comment"),
+                reviewed_at=parse_iso_datetime(po.get("reviewed_at")) if po.get("reviewed_at") else None
             ))
         except KeyError as e:
             logger.warning(f"⚠️ Campo faltante en producto-orden: {e}")
