@@ -79,6 +79,14 @@ const Navbar = () => {
             <a href="/#emprendedores" className="text-foreground/80 hover:text-foreground transition-colors">
               Emprendedores
             </a>
+
+            {/* Mi Tienda - Solo para vendedores */}
+            {isAuthenticated && user?.role === 'seller' && (
+              <Link to="/seller/dashboard" className="flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors">
+                <Package className="h-4 w-4" />
+                Mi Tienda
+              </Link>
+            )}
           </div>
 
           {/* Actions */}

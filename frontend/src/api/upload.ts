@@ -24,6 +24,14 @@ export const uploadProductImage = async (file: File): Promise<string> => {
     }
   );
 
-  // Retornar la URL completa de la imagen
-  return `http://localhost:3000${response.data.imageUrl}`;
+  // Retornar la URL de la imagen (puede ser de Supabase o local)
+  const imageUrl = response.data.imageUrl;
+  
+  // Si la URL ya es completa (https://...), retornarla tal cual
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  
+  // Si es una ruta local, agregar el dominio del backend
+  return `http://localhost:3000${imageUrl}`;
 };

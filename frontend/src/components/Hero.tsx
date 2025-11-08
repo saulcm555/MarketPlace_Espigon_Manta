@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, Store } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/espigon-hero.jpg";
 
 const Hero = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="relative min-h-screen flex items-center justify-center">
       {/* Background Image */}
@@ -32,6 +35,7 @@ const Hero = () => {
             <Button 
               size="lg" 
               className="px-8 py-6 text-base"
+              onClick={() => navigate('/products')}
             >
               <ShoppingBag className="mr-2 h-5 w-5" />
               Explorar Productos
@@ -39,6 +43,7 @@ const Hero = () => {
             <Button 
               size="lg" 
               className="px-8 py-6 text-base bg-white text-primary border-2 border-white hover:bg-transparent hover:text-white transition-all"
+              onClick={() => navigate('/register-seller')}
             >
               <Store className="mr-2 h-5 w-5" />
               Vender mis Productos

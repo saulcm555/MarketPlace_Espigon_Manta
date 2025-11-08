@@ -44,7 +44,7 @@ export interface User {
   phone?: number;
   address?: string;
   created_at?: string;
-  // Para sellers
+ // Para sellers
   id_seller?: number;
   // Para clients
   id_client?: number;
