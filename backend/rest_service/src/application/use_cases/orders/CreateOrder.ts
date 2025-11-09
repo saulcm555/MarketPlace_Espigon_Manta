@@ -65,7 +65,7 @@ export class CreateOrder {
         ? "payment_pending_verification" 
         : "pending";
       
-      const newOrder = orderRepo.create({
+      const orderData: any = {
         id_client: data.id_client,
         id_cart: data.id_cart,
         id_payment_method: data.id_payment_method,
@@ -73,10 +73,21 @@ export class CreateOrder {
         total_amount,
         order_date: new Date(),
         status: initialStatus,
-        payment_receipt_url: data.payment_receipt_url || undefined,
-      });
+      };
 
-      const savedOrder = await queryRunner.manager.save(OrderEntity, newOrder);
+      // Solo agregar payment_receipt_url si existe
+      if (data.payment_receipt_url) {
+        orderData.payment_receipt_url = data.payment_receipt_url;
+      }
+      
+      const newOrder = orderRepo.create(orderData);
+
+      const savedOrderResult = await queryRunner.manager.save(OrderEntity, newOrder);
+      const savedOrder = Array.isArray(savedOrderResult) ? savedOrderResult[0] : savedOrderResult;
+
+      if (!savedOrder) {
+        throw new Error("Error al guardar la orden");
+      }
 
       // Si se proporcionan productOrders, crearlos en la tabla transaccional
       if (data.productOrders && data.productOrders.length > 0) {

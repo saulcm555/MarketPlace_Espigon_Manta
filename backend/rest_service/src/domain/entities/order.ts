@@ -1,6 +1,7 @@
 import type { Client } from "./client";
 import type { PaymentMethod } from "./payment_method";
 import type { Product } from "./product";
+import type { Cart } from "./cart";
 
 // Relación transaccional product_order
 export interface ProductOrder {
@@ -30,6 +31,7 @@ export interface Order {
 	payment_receipt_url?: string; // URL del comprobante de pago en Supabase Storage
 	payment_verified_at?: Date; // Fecha de verificación del pago
 	client?: Client;
+	cart?: Cart; // Relación con el carrito
 	paymentMethod: PaymentMethod;
 	productOrders?: ProductOrder[];
 }

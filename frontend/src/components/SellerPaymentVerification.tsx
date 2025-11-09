@@ -120,7 +120,7 @@ const SellerPaymentVerification = () => {
             <Clock className="h-5 w-5" />
             Pagos Pendientes de Verificación
             {pendingOrders.length > 0 && (
-              <Badge variant="warning" className="ml-2">
+              <Badge variant="secondary" className="ml-2 bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
                 {pendingOrders.length}
               </Badge>
             )}
@@ -152,7 +152,7 @@ const SellerPaymentVerification = () => {
                             {formatDate(order.order_date)}
                           </div>
                         </div>
-                        <Badge variant="warning">
+                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
                           <Clock className="h-3 w-3 mr-1" />
                           Pendiente
                         </Badge>

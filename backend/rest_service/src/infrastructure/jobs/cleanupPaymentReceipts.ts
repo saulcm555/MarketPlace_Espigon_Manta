@@ -72,11 +72,16 @@ export class PaymentReceiptCleanup {
             const deleted = await deleteFromSupabase(filePath, 'payment-receipts');
             
             if (deleted) {
-              // Actualizar la orden: limpiar URL y cambiar estado
-              await orderRepo.update(order.id_order, {
-                payment_receipt_url: null,
-                status: 'expired' // Estado para órdenes con pago expirado
-              });
+              // Actualizar la orden: limpiar URL y cambiar estado usando query builder
+              await orderRepo
+                .createQueryBuilder()
+                .update(OrderEntity)
+                .set({
+                  payment_receipt_url: () => 'NULL',
+                  status: 'expired'
+                })
+                .where("id_order = :id", { id: order.id_order })
+                .execute();
               
               deletedCount++;
               console.log(`   ✓ Orden #${order.id_order}: Comprobante eliminado (${RETENTION_DAYS}+ días sin verificar)`);
@@ -128,10 +133,15 @@ export class PaymentReceiptCleanup {
             const deleted = await deleteFromSupabase(filePath, 'payment-receipts');
             
             if (deleted) {
-              // Actualizar la orden: solo limpiar URL (mantener registro de orden)
-              await orderRepo.update(order.id_order, {
-                payment_receipt_url: null
-              });
+              // Actualizar la orden: solo limpiar URL (mantener registro de orden) usando query builder
+              await orderRepo
+                .createQueryBuilder()
+                .update(OrderEntity)
+                .set({
+                  payment_receipt_url: () => 'NULL'
+                })
+                .where("id_order = :id", { id: order.id_order })
+                .execute();
               
               deletedCount++;
               console.log(`   ✓ Orden #${order.id_order}: Comprobante archivado (${RETENTION_DAYS}+ días verificado)`);

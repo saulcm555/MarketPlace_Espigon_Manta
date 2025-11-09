@@ -7,6 +7,7 @@ import { CartService } from "../../../domain/services/CartService";
 import { OrderRepositoryImpl } from "../../repositories/OrderRepositoryImpl";
 import { CartRepositoryImpl } from "../../repositories/CartRepositoryImpl";
 import { asyncHandler, NotFoundError } from "../../middlewares/errors";
+import type { ProductCart } from "../../../domain/entities/cart";
 
 // Instancias de dependencias
 const orderRepository = new OrderRepositoryImpl();
@@ -95,6 +96,10 @@ export const updatePaymentReceipt = asyncHandler(async (req: Request, res: Respo
   const { id } = req.params;
   const { payment_receipt_url } = req.body;
 
+  if (!id) {
+    return res.status(400).json({ message: "ID de orden requerido" });
+  }
+
   if (!payment_receipt_url) {
     return res.status(400).json({ 
       message: "La URL del comprobante es requerida" 
@@ -108,7 +113,7 @@ export const updatePaymentReceipt = asyncHandler(async (req: Request, res: Respo
   }
 
   // Actualizar la orden con el comprobante y cambiar status
-  const updatedOrder = await orderService.updateOrder(Number(id), {
+  const updatedOrder = await orderService.updateOrder(id, {
     payment_receipt_url,
     status: 'payment_pending_verification'
   });
@@ -127,6 +132,10 @@ export const updatePaymentReceipt = asyncHandler(async (req: Request, res: Respo
 export const verifyPayment = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { approved } = req.body; // true = aprobado, false = rechazado
+
+  if (!id) {
+    return res.status(400).json({ message: "ID de orden requerido" });
+  }
 
   // Verificar que la orden existe
   const order = await orderService.getOrderById(id);
@@ -152,7 +161,7 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
         payment_verified_at: new Date()
       };
 
-  const updatedOrder = await orderService.updateOrder(Number(id), updateData);
+  const updatedOrder = await orderService.updateOrder(id, updateData);
 
   res.json({
     message: approved 
@@ -181,7 +190,7 @@ export const getSellerPendingPayments = asyncHandler(async (req: Request, res: R
   const sellerPendingOrders = allPendingOrders.filter(order => {
     if (!order.cart?.products) return false;
     
-    return order.cart.products.some(cartProduct => {
+    return order.cart.products.some((cartProduct: ProductCart) => {
       return cartProduct.product?.id_seller === sellerId;
     });
   });

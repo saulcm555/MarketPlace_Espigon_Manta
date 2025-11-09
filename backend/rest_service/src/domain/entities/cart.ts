@@ -21,6 +21,7 @@ export interface Cart {
 	id_product: number;
 	quantity: number;
 	product?: Product;
+	products?: ProductCart[]; // Array de productos en el carrito
     order?: Order;
     client: Client;
 	// Relación con tabla transaccional

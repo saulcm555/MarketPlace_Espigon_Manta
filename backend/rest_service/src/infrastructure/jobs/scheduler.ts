@@ -38,7 +38,6 @@ export class CleanupScheduler {
         console.error('❌ [SCHEDULER] Error en limpieza programada:', error);
       }
     }, {
-      scheduled: true,
       timezone: "America/Guayaquil" // Ecuador timezone
     });
 
@@ -86,7 +85,7 @@ export class CleanupScheduler {
     const parts = schedule.split(' ');
     if (parts.length === 5) {
       const [minute, hour] = parts;
-      return `Todos los días a las ${hour}:${minute.padStart(2, '0')}`;
+      return `Todos los días a las ${hour}:${minute?.padStart(2, '0') || '00'}`;
     }
     return schedule;
   }
