@@ -7,10 +7,6 @@ export const addProductToCartValidation = [
   param('id')
     .isInt({ min: 1 }).withMessage('ID del carrito debe ser un número entero positivo'),
   
-  body('id_cart')
-    .notEmpty().withMessage('El ID del carrito es requerido')
-    .isInt({ min: 1 }).withMessage('ID de carrito inválido'),
-  
   body('id_product')
     .notEmpty().withMessage('El ID del producto es requerido')
     .isInt({ min: 1 }).withMessage('ID de producto inválido'),
@@ -50,4 +46,15 @@ export const createCartValidation = [
 export const getCartByIdValidation = [
   param('id')
     .isInt({ min: 1 }).withMessage('ID debe ser un número entero positivo')
+];
+
+/**
+ * Validaciones para eliminar producto del carrito
+ */
+export const removeProductFromCartValidation = [
+  param('id')
+    .isInt({ min: 1 }).withMessage('ID del carrito debe ser un número entero positivo'),
+  
+  param('productId')
+    .isInt({ min: 1 }).withMessage('ID del producto debe ser un número entero positivo')
 ];

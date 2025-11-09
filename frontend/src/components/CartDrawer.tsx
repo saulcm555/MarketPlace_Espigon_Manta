@@ -52,7 +52,7 @@ const CartDrawer = () => {
     return null;
   }
 
-  const cartItems = cart?.products || [];
+  const cartItems = cart?.products || cart?.productCarts || [];
   const isEmpty = cartItems.length === 0;
 
   return (

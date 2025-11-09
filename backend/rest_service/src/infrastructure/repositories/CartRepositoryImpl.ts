@@ -3,16 +3,10 @@ import { CartEntity } from "../../models/cartModel";
 import AppDataSource from "../database/data-source";
 
 export class CartRepositoryImpl implements ICartRepository {
-  create(
-    cart: Partial<CartEntity>,
-    callback: (error: Error | null, result?: CartEntity) => void
-  ): void {
+  async create(cart: Partial<CartEntity>): Promise<CartEntity> {
     const repo = AppDataSource.getRepository(CartEntity);
     const newCart = repo.create(cart);
-    repo
-      .save(newCart)
-      .then((saved) => callback(null, saved))
-      .catch((err) => callback(err));
+    return await repo.save(newCart);
   }
 
   async update(id: string, data: Partial<CartEntity>): Promise<CartEntity> {

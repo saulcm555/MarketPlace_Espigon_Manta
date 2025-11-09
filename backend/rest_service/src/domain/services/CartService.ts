@@ -4,8 +4,8 @@ import { ICartRepository } from "@domain/repositories/ICartRepository";
 export class CartService {
   constructor(private cartRepository: ICartRepository) {}
 
-  createCart(cart: Cart, callback: (err: Error | null, result?: Cart) => void): void {
-    this.cartRepository.create(cart, callback);
+  async createCart(cart: Cart): Promise<Cart> {
+    return await this.cartRepository.create(cart);
   }
 
   updateCart(id: string, data: Partial<Cart>): Promise<Cart> {

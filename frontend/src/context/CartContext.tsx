@@ -6,7 +6,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { 
-  getMyCart, 
+  getMyCart,
+  getMyCartWithProducts, 
   createCart, 
   addProductToCart, 
   updateCartItemQuantity, 
@@ -40,10 +41,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // Obtener carrito del usuario
+  // Obtener carrito del usuario con productos incluidos
   const { data: carts = [], isLoading } = useQuery({
     queryKey: ['cart', user?.id],
-    queryFn: getMyCart,
+    queryFn: getMyCartWithProducts,
     enabled: isAuthenticated && !!user,
   });
 
@@ -110,15 +111,23 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     // Crear carrito si no existe
     if (!currentCart) {
-      const newCart = await createCartMutation.mutateAsync(user.id);
-      currentCart = newCart;
+      try {
+        const newCart = await createCartMutation.mutateAsync(user.id);
+        currentCart = newCart;
+      } catch (error) {
+        throw error;
+      }
     }
 
     if (currentCart) {
-      await addItemMutation.mutateAsync({
-        cartId: currentCart.id,
-        data: { id_product: productId, quantity },
-      });
+      try {
+        await addItemMutation.mutateAsync({
+          cartId: currentCart.id_cart,
+          data: { id_product: productId, quantity },
+        });
+      } catch (error) {
+        throw error;
+      }
     }
   };
 
@@ -131,7 +140,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
 
     await updateQuantityMutation.mutateAsync({
-      cartId: cart.id,
+      cartId: cart.id_cart,
       productId,
       quantity,
     });
@@ -141,14 +150,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (!cart) return;
 
     await removeItemMutation.mutateAsync({
-      cartId: cart.id,
+      cartId: cart.id_cart,
       productId,
     });
   };
 
   const clear = async () => {
     if (!cart) return;
-    await clearCartMutation.mutateAsync(cart.id);
+    await clearCartMutation.mutateAsync(cart.id_cart);
   };
 
   const openCart = () => setIsCartOpen(true);

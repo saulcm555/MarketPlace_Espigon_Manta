@@ -146,10 +146,20 @@ const ProductDetail = () => {
         description: `${quantity} ${quantity === 1 ? 'producto agregado' : 'productos agregados'} al carrito`,
       });
       setQuantity(1); // Reset quantity
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error agregando al carrito:', error);
+      
+      let errorMessage = "No se pudo agregar el producto al carrito";
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: "No se pudo agregar el producto al carrito",
+        description: errorMessage,
         variant: "destructive",
       });
     }

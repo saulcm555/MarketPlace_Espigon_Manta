@@ -31,6 +31,12 @@ export class GetCartWithProducts {
       return null;
     }
 
-    return cart as unknown as Cart;
+    // Transformar productCarts a products para compatibilidad con frontend
+    const transformedCart = {
+      ...cart,
+      products: cart.productCarts || []
+    };
+
+    return transformedCart as unknown as Cart;
   }
 }

@@ -21,7 +21,7 @@ const CallToAction = () => {
               size="lg" 
               variant="secondary"
               className="px-8"
-              onClick={() => navigate('/products')}
+              onClick={() => navigate('/login')}
             >
               <ShoppingBag className="mr-2 h-5 w-5" />
               Comenzar a Comprar

@@ -14,7 +14,7 @@ import type { Order, CreateOrderRequest, ProductOrder } from '@/types/api';
  * Obtener todos los pedidos del usuario actual
  */
 export const getMyOrders = async (): Promise<Order[]> => {
-  const response = await apiClient.get<Order[]>('/orders');
+  const response = await apiClient.get<Order[]>('/orders/my-orders');
   return response.data;
 };
 
@@ -145,9 +145,10 @@ export const calculateOrderTotal = (order: Order): number => {
   if (order.total_amount) return order.total_amount;
   
   // Si tiene carrito con productos, calcularlo
-  if (!order.cart?.products) return 0;
+  const products = order.cart?.products || order.cart?.productCarts || [];
+  if (products.length === 0) return 0;
   
-  return order.cart.products.reduce((total, item) => {
+  return products.reduce((total, item) => {
     const price = item.product?.price || 0;
     return total + (price * item.quantity);
   }, 0);

@@ -25,23 +25,13 @@ export class AddToCart {
     }
 
     // Crear el item en el carrito
-    return new Promise((resolve, reject) => {
-      const cartData: Partial<Cart> = {
-        id_client: data.id_client,
-        id_product: data.id_product,
-        quantity: data.quantity,
-        status: "active",
-      };
+    const cartData: Partial<Cart> = {
+      id_client: data.id_client,
+      id_product: data.id_product,
+      quantity: data.quantity,
+      status: "active",
+    };
 
-      this.cartService.createCart(cartData as Cart, (error, result) => {
-        if (error) {
-          reject(error);
-        } else if (result) {
-          resolve(result);
-        } else {
-          reject(new Error("Error al agregar producto al carrito"));
-        }
-      });
-    });
+    return await this.cartService.createCart(cartData as Cart);
   }
 }

@@ -43,13 +43,20 @@ export class CreateOrder {
       throw new Error(`Carrito con ID ${data.id_cart} no encontrado`);
     }
 
-    // Si se proporcionan productOrders, calcular el total desde ahí
-    let total_amount = 0;
-    if (data.productOrders && data.productOrders.length > 0) {
-      total_amount = data.productOrders.reduce(
-        (sum, item) => sum + item.price_unit * item.quantity,
-        0
-      );
+    // Validar que el carrito no esté vacío
+    if (!data.productOrders || data.productOrders.length === 0) {
+      throw new Error("No se pueden crear órdenes sin productos");
+    }
+
+    // Calcular el total desde productOrders
+    const total_amount = data.productOrders.reduce(
+      (sum, item) => sum + item.price_unit * item.quantity,
+      0
+    );
+
+    // Validar que el total sea mayor a 0
+    if (total_amount <= 0) {
+      throw new Error("El total de la orden debe ser mayor a $0");
     }
 
     const queryRunner = AppDataSource.createQueryRunner();
@@ -106,8 +113,18 @@ export class CreateOrder {
 
           if (product.stock < item.quantity) {
             throw new Error(
-              `Stock insuficiente para producto ${product.product_name}. Disponible: ${product.stock}, solicitado: ${item.quantity}`
+              `⚠️ Stock insuficiente para "${product.product_name}". Disponible: ${product.stock} unidades, solicitado: ${item.quantity} unidades`
             );
+          }
+
+          // Validar que la cantidad sea positiva
+          if (item.quantity <= 0) {
+            throw new Error(`La cantidad debe ser mayor a 0 para el producto ${product.product_name}`);
+          }
+
+          // Validar que el precio sea positivo
+          if (item.price_unit <= 0) {
+            throw new Error(`El precio debe ser mayor a $0 para el producto ${product.product_name}`);
           }
 
           // Crear el ProductOrder

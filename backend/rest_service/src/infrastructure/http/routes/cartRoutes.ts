@@ -6,7 +6,8 @@ import {
   createCartValidation,
   getCartByIdValidation,
   addProductToCartValidation,
-  updateCartItemValidation
+  updateCartItemValidation,
+  removeProductFromCartValidation
 } from "../../middlewares/validations/cartValidations";
 import { 
   getCarts, 
@@ -43,6 +44,6 @@ router.post("/:id/products", getCartByIdValidation, addProductToCartValidation, 
 router.put("/:id/products/:productId", getCartByIdValidation, updateCartItemValidation, validateRequest, authMiddleware, roleMiddleware("client"), updateCartItemQuantity);
 
 // Quitar un producto del carrito
-router.delete("/:id/products/:productId", getCartByIdValidation, updateCartItemValidation, validateRequest, authMiddleware, roleMiddleware("client"), removeProductFromCart);
+router.delete("/:id/products/:productId", removeProductFromCartValidation, validateRequest, authMiddleware, roleMiddleware("client"), removeProductFromCart);
 
 export default router;

@@ -66,7 +66,8 @@ const Checkout = () => {
       return;
     }
 
-    if (!cart || cart.products?.length === 0) {
+    const products = cart?.products || cart?.productCarts || [];
+    if (!cart || products.length === 0) {
       navigate('/products');
       return;
     }
@@ -162,11 +163,32 @@ const Checkout = () => {
 
     if (!cart || !user) return;
 
-    // Validaciones
+    // Validaciones básicas
     if (!deliveryAddress.street || !deliveryAddress.phone) {
       toast({
         title: "Faltan datos",
         description: "Por favor completa la dirección de entrega y teléfono",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validar que el carrito tenga productos
+    if (!cartItems || cartItems.length === 0) {
+      toast({
+        title: "Carrito vacío",
+        description: "No hay productos en tu carrito para procesar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validar que todos los productos tengan precio
+    const invalidProducts = cartItems.filter(item => !item.product?.price || item.product.price <= 0);
+    if (invalidProducts.length > 0) {
+      toast({
+        title: "Error en productos",
+        description: "Algunos productos no tienen precio válido",
         variant: "destructive",
       });
       return;
@@ -204,13 +226,22 @@ const Checkout = () => {
       // 2. Crear la orden
       const addressString = `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.province}${deliveryAddress.zipCode ? `, ${deliveryAddress.zipCode}` : ''}. Tel: ${deliveryAddress.phone}${deliveryAddress.notes ? `. Notas: ${deliveryAddress.notes}` : ''}`;
 
+      // Construir productOrders desde el carrito
+      const productOrders = cartItems.map(item => ({
+        id_product: item.product?.id_product || 0,
+        quantity: item.quantity,
+        price_unit: item.product?.price || 0
+      }));
+
       const orderData = {
         id_client: user.id,
-        id_cart: cart.id,
+        id_cart: cart.id_cart,
         id_payment_method: parseInt(paymentMethod),
-        total_amount: totalAmount,
+        total_amount: total,
+        delivery_type: 'home_delivery', // Por defecto entrega a domicilio
         delivery_address: addressString,
         payment_receipt_url: receiptUrl,
+        productOrders: productOrders
       };
 
       const newOrder = await createOrder(orderData);
@@ -231,13 +262,38 @@ const Checkout = () => {
         });
       }
 
-      // Redirigir a la página de confirmación
-      navigate(`/orders/${newOrder.id}`);
+      // Redirigir a la página de éxito (tu compañero creó esta página)
+      navigate(`/order-success/${newOrder.id}`);
     } catch (error: any) {
       console.error('Error al crear orden:', error);
+      
+      // Determinar el mensaje de error específico
+      let errorMessage = "No se pudo procesar el pedido";
+      let errorTitle = "Error al procesar pedido";
+      
+      if (error.response?.data?.message) {
+        const message = error.response.data.message;
+        
+        // Casos específicos de error
+        if (message.includes('Stock insuficiente')) {
+          errorTitle = "Stock insuficiente";
+          errorMessage = message.replace('⚠️ ', '');
+        } else if (message.includes('no encontrado')) {
+          errorTitle = "Producto no disponible";
+          errorMessage = "Algunos productos ya no están disponibles";
+        } else if (message.includes('carrito')) {
+          errorTitle = "Problema con el carrito";
+          errorMessage = message;
+        } else {
+          errorMessage = message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Error",
-        description: error.response?.data?.message || "No se pudo procesar el pedido",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -247,7 +303,7 @@ const Checkout = () => {
 
   if (!cart) return null;
 
-  const cartItems = cart.products || [];
+  const cartItems = cart.products || cart.productCarts || [];
   const shipping = 3; // $3 de envío fijo
   const total = totalAmount + shipping;
 
@@ -584,11 +640,14 @@ const Checkout = () => {
                     disabled={isProcessing}
                   >
                     {isProcessing ? (
-                      'Procesando...'
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Procesando pedido...
+                      </>
                     ) : (
                       <>
                         <CheckCircle className="mr-2 h-5 w-5" />
-                        Confirmar pedido
+                        Confirmar pedido por {formatPrice(total)}
                       </>
                     )}
                   </Button>

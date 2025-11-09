@@ -14,6 +14,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getAllCategories } from "@/api";
 import CartDrawer from "@/components/CartDrawer";
+import logoEspigon from "@/assets/logo.jpg";
 
 const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -36,12 +37,17 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center">
+          <Link to="/" className="flex items-center gap-3">
+            <img src={logoEspigon} alt="El Espigón" className="h-10 w-10 rounded-full object-cover" />
             <span className="text-xl font-bold">El Espigón</span>
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
+            <Link to="/" className="text-foreground/80 hover:text-foreground transition-colors">
+              Inicio
+            </Link>
+            
             <Link to="/products" className="text-foreground/80 hover:text-foreground transition-colors">
               Productos
             </Link>
@@ -76,9 +82,9 @@ const Navbar = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <a href="/#emprendedores" className="text-foreground/80 hover:text-foreground transition-colors">
+            <Link to="/entrepreneurs" className="text-foreground/80 hover:text-foreground transition-colors">
               Emprendedores
-            </a>
+            </Link>
 
             {/* Mi Tienda - Solo para vendedores */}
             {isAuthenticated && user?.role === 'seller' && (
@@ -148,19 +154,14 @@ const Navbar = () => {
               </DropdownMenu>
             ) : (
               <>
-                <Link to="/register-seller" className="hidden md:block">
+                <Link to="/login">
                   <Button variant="outline" size="sm">
-                    Vender
+                    Iniciar sesión
                   </Button>
                 </Link>
-                <Link to="/login">
-                  <Button variant="ghost" size="icon" className="hidden md:flex">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link to="/login">
-                  <Button className="hidden md:inline-flex">
-                    Comenzar
+                <Link to="/register">
+                  <Button>
+                    Registrarse
                   </Button>
                 </Link>
               </>

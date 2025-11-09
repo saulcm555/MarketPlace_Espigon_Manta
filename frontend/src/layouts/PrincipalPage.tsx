@@ -8,9 +8,11 @@ import { CartProvider } from "@/context/CartContext";
 import Index from "@/pages/Index";
 import Products from "@/pages/Products";
 import ProductDetail from "@/pages/ProductDetail";
+import Entrepreneurs from "@/pages/Entrepreneurs";
 import Checkout from "@/pages/Checkout";
 import Orders from "@/pages/Orders";
 import OrderDetail from "@/pages/OrderDetail";
+import OrderSuccess from "@/pages/OrderSuccess";
 import SellerDashboard from "@/pages/SellerDashboard";
 import SellerProducts from "@/pages/SellerProducts";
 import ProductForm from "@/pages/ProductForm";
@@ -37,6 +39,7 @@ const PrincipalPage = () => (
               <Route path="/" element={<Index />} />
               <Route path="/products" element={<Products />} />
               <Route path="/products/:id" element={<ProductDetail />} />
+              <Route path="/entrepreneurs" element={<Entrepreneurs />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/register-seller" element={<RegisterSeller />} />
@@ -71,6 +74,14 @@ const PrincipalPage = () => (
                 element={
                   <ProtectedRoute>
                     <OrderDetail />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/order-success/:id" 
+                element={
+                  <ProtectedRoute>
+                    <OrderSuccess />
                   </ProtectedRoute>
                 } 
               />

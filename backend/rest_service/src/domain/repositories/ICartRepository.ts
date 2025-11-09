@@ -1,5 +1,5 @@
 export interface ICartRepository {
-  create(cart: any, callback: (error: Error | null, result?: any) => void): void;
+  create(cart: any): Promise<any>;
   update(id: string, data: Partial<any>): Promise<any>;
   findById(id: string): Promise<any | null>;
   findAll(): Promise<any[]>;

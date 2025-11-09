@@ -1,10 +1,24 @@
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, Store } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { getStatistics } from "@/api";
 import heroImage from "@/assets/espigon-hero.jpg";
 
 const Hero = () => {
   const navigate = useNavigate();
+  
+  // Obtener estadísticas reales del marketplace
+  const { data: stats } = useQuery({
+    queryKey: ['statistics'],
+    queryFn: getStatistics,
+    // Valores por defecto mientras carga
+    placeholderData: {
+      sellers: 0,
+      products: 0,
+      local: 100
+    }
+  });
 
   return (
     <section className="relative min-h-screen flex items-center justify-center">
@@ -50,12 +64,21 @@ const Hero = () => {
             </Button>
           </div>
 
-          {/* Stats */}
+          {/* Stats - Ahora con datos reales */}
           <div className="grid grid-cols-3 gap-4 pt-12 max-w-2xl mx-auto">
             {[
-              { value: "50+", label: "Emprendedores" },
-              { value: "200+", label: "Productos" },
-              { value: "100%", label: "Local" }
+              { 
+                value: stats?.sellers ? `${stats.sellers}+` : "0", 
+                label: "Emprendedores" 
+              },
+              { 
+                value: stats?.products ? `${stats.products}+` : "0", 
+                label: "Productos" 
+              },
+              { 
+                value: "100%", 
+                label: "Local" 
+              }
             ].map((stat, index) => (
               <div 
                 key={index}

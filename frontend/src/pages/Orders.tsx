@@ -201,14 +201,17 @@ const Orders = () => {
                   )}
 
                   {/* Products Count */}
-                  {order.cart?.products && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">
-                        {order.cart.products.length} {order.cart.products.length === 1 ? 'producto' : 'productos'}
-                      </span>
-                    </div>
-                  )}
+                  {(() => {
+                    const products = order.cart?.products || order.cart?.productCarts || [];
+                    return products.length > 0 && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          {products.length} {products.length === 1 ? 'producto' : 'productos'}
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   {/* Total */}
                   <div className="pt-2 border-t flex justify-between items-center">

@@ -19,6 +19,18 @@ export const getMyCart = async (): Promise<Cart[]> => {
 };
 
 /**
+ * Obtener carrito del usuario actual con productos incluidos
+ */
+export const getMyCartWithProducts = async (): Promise<Cart[]> => {
+  const carts = await getMyCart();
+  if (carts.length === 0) return [];
+  
+  // Obtener el primer carrito con productos
+  const cartWithProducts = await getCartWithProducts(carts[0].id_cart);
+  return [cartWithProducts];
+};
+
+/**
  * Obtener carrito por ID
  */
 export const getCartById = async (id: number): Promise<Cart> => {
@@ -93,9 +105,10 @@ export const clearCart = async (cartId: number): Promise<void> => {
  * Calcular total del carrito
  */
 export const calculateCartTotal = (cart: Cart): number => {
-  if (!cart.products) return 0;
+  const products = cart.products || cart.productCarts || [];
+  if (products.length === 0) return 0;
   
-  return cart.products.reduce((total, item) => {
+  return products.reduce((total, item) => {
     const price = item.product?.price || 0;
     return total + (price * item.quantity);
   }, 0);
@@ -105,14 +118,16 @@ export const calculateCartTotal = (cart: Cart): number => {
  * Contar total de items en el carrito
  */
 export const getCartItemCount = (cart: Cart): number => {
-  if (!cart.products) return 0;
+  const products = cart.products || cart.productCarts || [];
+  if (products.length === 0) return 0;
   
-  return cart.products.reduce((count, item) => count + item.quantity, 0);
+  return products.reduce((count, item) => count + item.quantity, 0);
 };
 
 /**
  * Verificar si el carrito está vacío
  */
 export const isCartEmpty = (cart: Cart): boolean => {
-  return !cart.products || cart.products.length === 0;
+  const products = cart.products || cart.productCarts || [];
+  return products.length === 0;
 };

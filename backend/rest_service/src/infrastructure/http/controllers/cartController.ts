@@ -13,9 +13,20 @@ const cartRepository = new CartRepositoryImpl();
 const cartService = new CartService(cartRepository);
 
 export const getCarts = asyncHandler(async (req: Request, res: Response) => {
-  // Para admin - obtener todos los carritos
-  const carts = await cartService.getAllCarts();
-  res.json(carts);
+  // Si es admin, obtener todos los carritos
+  // Si es cliente, obtener solo sus carritos
+  const userId = (req as any).user?.id;
+  const userRole = (req as any).user?.role;
+  
+  if (userRole === 'admin') {
+    const carts = await cartService.getAllCarts();
+    res.json(carts);
+  } else {
+    // Cliente obtiene solo sus carritos
+    const carts = await cartService.getAllCarts();
+    const userCarts = carts.filter(cart => cart.id_client === userId);
+    res.json(userCarts);
+  }
 });
 
 export const getCartById = asyncHandler(async (req: Request, res: Response) => {
@@ -37,16 +48,8 @@ export const createCart = asyncHandler(async (req: Request, res: Response) => {
     id_product: req.body.id_product || 0
   };
   
-  return new Promise<void>((resolve, reject) => {
-    cartService.createCart(cartData, (err, cart) => {
-      if (err) {
-        reject(err);
-      } else {
-        res.status(201).json(cart);
-        resolve();
-      }
-    });
-  });
+  const cart = await cartService.createCart(cartData);
+  res.status(201).json(cart);
 });
 
 export const updateCart = asyncHandler(async (req: Request, res: Response) => {
@@ -93,17 +96,20 @@ export const addProductToCart = asyncHandler(async (req: Request, res: Response)
 
 export const removeProductFromCart = asyncHandler(async (req: Request, res: Response) => {
   const removeProductUseCase = new RemoveProductFromCart();
+  const getCartUseCase = new GetCartWithProducts();
   const id_cart = Number(req.params.id);
   const id_product = Number(req.params.productId);
   
-  // Buscar el ProductCart por id_cart y id_product
+  // Eliminar el producto del carrito
   const success = await removeProductUseCase.execute({ id_cart, id_product });
   
   if (!success) {
     throw new NotFoundError("Producto en el carrito");
   }
   
-  res.json({ message: "Producto eliminado del carrito correctamente" });
+  // Devolver el carrito actualizado
+  const updatedCart = await getCartUseCase.execute(id_cart);
+  res.json(updatedCart);
 });
 
 export const updateCartItemQuantity = asyncHandler(async (req: Request, res: Response) => {

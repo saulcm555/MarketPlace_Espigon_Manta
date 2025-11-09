@@ -1,3 +1,4 @@
+/// <reference path="../../../types/express.d.ts" />
 import { Request, Response } from "express";
 import { CreateOrder } from "../../../application/use_cases/orders/CreateOrder";
 import { UpdateOrderStatus } from "../../../application/use_cases/orders/UpdateOrderStatus";
@@ -18,6 +19,18 @@ const cartService = new CartService(cartRepository);
 export const getOrders = asyncHandler(async (req: Request, res: Response) => {
   // Para listar todas las órdenes (ADMIN), usamos directamente el servicio
   const orders = await orderService.getAllOrders();
+  res.json(orders);
+});
+
+export const getMyOrders = asyncHandler(async (req: Request, res: Response) => {
+  // Para clientes - obtener solo sus órdenes
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    throw new Error("Usuario no autenticado");
+  }
+
+  const queryOrdersUseCase = new QueryOrders(orderService);
+  const orders = await queryOrdersUseCase.getClientOrders({ id_client: userId });
   res.json(orders);
 });
 

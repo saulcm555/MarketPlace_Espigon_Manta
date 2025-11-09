@@ -142,7 +142,6 @@ const FeaturedProducts = () => {
                         onClick={(e) => {
                           e.stopPropagation();
                           // TODO: Agregar al carrito
-                          console.log('Agregar al carrito:', product.id_product);
                         }}
                       >
                         <ShoppingCart className="w-4 h-4" />

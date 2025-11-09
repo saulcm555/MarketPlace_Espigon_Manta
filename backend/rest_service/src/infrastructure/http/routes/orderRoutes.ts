@@ -17,12 +17,14 @@ import {
   getProductReviews,
   updatePaymentReceipt,
   verifyPayment,
-  getSellerPendingPayments
+  getSellerPendingPayments,
+  getMyOrders
 } from "../controllers/orderController";
 
 const router = Router();
 
 router.get("/", authMiddleware, roleMiddleware("admin"), getOrders); // Solo admin ve todas
+router.get("/my-orders", authMiddleware, roleMiddleware("client"), getMyOrders); // Cliente ve sus órdenes
 router.get("/:id", getOrderByIdValidation, validateRequest, authMiddleware, getOrderById); // Cliente ve su orden
 router.post("/", createOrderValidation, validateRequest, authMiddleware, roleMiddleware("client"), createOrder); // Solo cliente crea orden
 router.put("/:id", getOrderByIdValidation, updateOrderValidation, validateRequest, authMiddleware, roleMiddleware("admin"), updateOrder); // Solo admin actualiza

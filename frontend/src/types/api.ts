@@ -223,13 +223,17 @@ export interface SubCategory {
 // ============================================
 
 export interface Cart {
-  id: number;
+  id_cart: number;
   id_client: number;
+  status: string;
+  id_product: number;
+  quantity: number;
   created_at?: string;
   
   // Relaciones
   client?: User;
   products?: CartProduct[];
+  productCarts?: CartProduct[]; // Backend usa esta propiedad
 }
 
 export interface CartProduct {
@@ -255,6 +259,7 @@ export interface ProductOrder {
   id_product_order: number;
   id_order: number;
   id_product: number;
+  quantity: number;
   price_unit: number;
   subtotal: number;
   created_at: string;
@@ -294,8 +299,15 @@ export interface CreateOrderRequest {
   id_payment_method: number;
   id_delivery?: number;
   total_amount: number;
-  delivery_address?: string;
+  delivery_type: string; // 'home_delivery', 'pickup', etc.
+  delivery_address?: string; // Dirección de entrega si es delivery
   payment_receipt_url?: string;
+  // Productos de la orden (tabla transaccional ProductOrder)
+  productOrders?: {
+    id_product: number;
+    quantity: number;
+    price_unit: number;
+  }[];
 }
 
 // Interfaz específica para panel de verificación de pagos del seller
