@@ -88,13 +88,24 @@ export const deleteFromSupabase = async (
 /**
  * Extrae el nombre del archivo de una URL de Supabase
  * @param url - URL completa de Supabase
+ * @param bucket - Nombre del bucket (opcional, detecta automáticamente)
  * @returns Nombre del archivo o null
  */
-export const extractFilePathFromUrl = (url: string): string | null => {
+export const extractFilePathFromUrl = (url: string, bucket?: string): string | null => {
   try {
     // Ejemplo de URL: https://xxx.supabase.co/storage/v1/object/public/products/folder/image.jpg
-    const match = url.match(/\/products\/(.+)$/);
-    return match && match[1] ? match[1] : null;
+    // O: https://xxx.supabase.co/storage/v1/object/public/payment-receipts/orders/123/receipt.jpg
+    
+    if (bucket) {
+      // Si se especifica el bucket, buscar específicamente
+      const regex = new RegExp(`\/${bucket}\/(.+)$`);
+      const match = url.match(regex);
+      return match && match[1] ? match[1] : null;
+    } else {
+      // Detectar automáticamente (después de /public/)
+      const match = url.match(/\/public\/[^\/]+\/(.+)$/);
+      return match && match[1] ? match[1] : null;
+    }
   } catch (error) {
     return null;
   }

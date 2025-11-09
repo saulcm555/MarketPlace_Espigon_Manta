@@ -4,14 +4,17 @@
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { getOrderById, getOrderStatusColor, getOrderStatusText } from '@/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getOrderById, getOrderStatusColor, getOrderStatusText, uploadPaymentReceipt, updateOrderPaymentReceipt } from '@/api';
+import { compressImage, validateImageFile, formatFileSize } from '@/lib/imageCompression';
+import { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
   Package,
@@ -20,17 +23,115 @@ import {
   CreditCard,
   User,
   Phone,
+  FileText,
+  Upload,
+  X,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const { data: order, isLoading, error } = useQuery({
     queryKey: ['order', id],
     queryFn: () => getOrderById(Number(id)),
     enabled: !!id,
   });
+
+  const uploadReceiptMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedFile || !order) throw new Error('No file selected');
+      
+      const uploadResult = await uploadPaymentReceipt(selectedFile);
+      await updateOrderPaymentReceipt(order.id, uploadResult.url);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+      toast({
+        title: "Comprobante actualizado",
+        description: "El comprobante ha sido subido exitosamente",
+      });
+      setSelectedFile(null);
+      setFilePreview(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "No se pudo subir el comprobante",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      toast({
+        title: "Archivo inválido",
+        description: validation.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsCompressing(true);
+
+      let processedFile = file;
+      if (file.type.startsWith('image/')) {
+        processedFile = await compressImage(file, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+        });
+        
+        toast({
+          title: "Imagen comprimida",
+          description: `Tamaño: ${formatFileSize(file.size)} → ${formatFileSize(processedFile.size)}`,
+        });
+      }
+
+      setSelectedFile(processedFile);
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFilePreview(reader.result as string);
+      };
+      reader.readAsDataURL(processedFile);
+
+    } catch (error) {
+      console.error('Error al procesar archivo:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo procesar el archivo",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCompressing(false);
+    }
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+  };
+
+  const handleUploadReceipt = () => {
+    uploadReceiptMutation.mutate();
+  };
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-EC', {
@@ -190,6 +291,157 @@ const OrderDetail = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm">{order.delivery_address}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Payment Receipt Section */}
+            {(order.payment_receipt_url || order.status === 'payment_rejected') && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Comprobante de pago
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Status Badge */}
+                  {order.status === 'payment_pending_verification' && (
+                    <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                      <Clock className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                          Esperando verificación
+                        </p>
+                        <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                          Tu comprobante está siendo revisado por el vendedor
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {order.payment_verified_at && (
+                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                          Pago verificado
+                        </p>
+                        <p className="text-xs text-green-700 dark:text-green-300">
+                          Verificado el {formatDate(order.payment_verified_at)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {order.status === 'payment_rejected' && (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                      <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                          Pago rechazado
+                        </p>
+                        <p className="text-xs text-red-700 dark:text-red-300">
+                          Por favor, sube un nuevo comprobante válido
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Receipt Image */}
+                  {order.payment_receipt_url && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="relative group">
+                        {order.payment_receipt_url.toLowerCase().endsWith('.pdf') ? (
+                          <div className="aspect-video bg-muted flex items-center justify-center">
+                            <FileText className="h-16 w-16 text-muted-foreground" />
+                          </div>
+                        ) : (
+                          <img
+                            src={order.payment_receipt_url}
+                            alt="Comprobante de pago"
+                            className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => setShowReceiptModal(true)}
+                          />
+                        )}
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="absolute bottom-2 right-2"
+                          onClick={() => window.open(order.payment_receipt_url, '_blank')}
+                        >
+                          Ver completo
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload new receipt if rejected */}
+                  {order.status === 'payment_rejected' && (
+                    <div className="space-y-3">
+                      <Separator />
+                      <p className="text-sm font-medium">Subir nuevo comprobante:</p>
+                      
+                      {!selectedFile ? (
+                        <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                          <input
+                            id="new-receipt"
+                            type="file"
+                            accept="image/*,application/pdf"
+                            onChange={handleFileChange}
+                            disabled={isCompressing}
+                            className="hidden"
+                          />
+                          <label htmlFor="new-receipt" className="cursor-pointer">
+                            <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                            <p className="text-sm font-medium">
+                              {isCompressing ? 'Comprimiendo...' : 'Seleccionar archivo'}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              JPG, PNG, WEBP o PDF (máx. 5 MB)
+                            </p>
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="border rounded-lg p-3 space-y-3">
+                          <div className="flex items-start gap-3">
+                            {filePreview && selectedFile.type.startsWith('image/') ? (
+                              <img
+                                src={filePreview}
+                                alt="Preview"
+                                className="w-16 h-16 object-cover rounded"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 bg-muted rounded flex items-center justify-center">
+                                <FileText className="h-8 w-8 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{selectedFile.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatFileSize(selectedFile.size)}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={removeFile}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <Button
+                            onClick={handleUploadReceipt}
+                            disabled={uploadReceiptMutation.isPending}
+                            className="w-full"
+                          >
+                            {uploadReceiptMutation.isPending ? 'Subiendo...' : 'Actualizar comprobante'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

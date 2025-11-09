@@ -7,7 +7,18 @@ import {
   updateOrderValidation,
   getOrderByIdValidation
 } from "../../middlewares/validations/orderValidations";
-import { getOrders, getOrderById, createOrder, updateOrder, deleteOrder, addReview, getProductReviews } from "../controllers/orderController";
+import { 
+  getOrders, 
+  getOrderById, 
+  createOrder, 
+  updateOrder, 
+  deleteOrder, 
+  addReview, 
+  getProductReviews,
+  updatePaymentReceipt,
+  verifyPayment,
+  getSellerPendingPayments
+} from "../controllers/orderController";
 
 const router = Router();
 
@@ -20,5 +31,10 @@ router.delete("/:id", getOrderByIdValidation, validateRequest, authMiddleware, r
 // Rutas para reseñas
 router.post("/product-order/:id_product_order/review", authMiddleware, roleMiddleware("client"), addReview); // Cliente agrega reseña
 router.get("/products/:id_product/reviews", getProductReviews); // Público - obtener reseñas de un producto
+
+// Rutas para pagos por transferencia
+router.patch("/:id/payment-receipt", authMiddleware, roleMiddleware("client"), updatePaymentReceipt); // Cliente sube comprobante
+router.patch("/:id/verify-payment", authMiddleware, roleMiddleware("seller"), verifyPayment); // Vendedor verifica pago
+router.get("/seller/pending-payments", authMiddleware, roleMiddleware("seller"), getSellerPendingPayments); // Vendedor ve pagos pendientes
 
 export default router;

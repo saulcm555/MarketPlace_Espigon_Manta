@@ -19,6 +19,8 @@ import {
   MapPin,
   CreditCard,
   ShoppingBag,
+  FileCheck,
+  Clock,
 } from 'lucide-react';
 import type { Order } from '@/types/api';
 
@@ -176,6 +178,27 @@ const Orders = () => {
                       {order.payment_method?.method_name || 'Método de pago'}
                     </span>
                   </div>
+
+                  {/* Payment Receipt Status */}
+                  {order.payment_receipt_url && (
+                    <div className="flex items-center gap-2 text-sm">
+                      {order.status === 'payment_pending_verification' ? (
+                        <>
+                          <Clock className="h-4 w-4 text-yellow-600" />
+                          <span className="text-yellow-600 font-medium">
+                            Comprobante enviado - Esperando verificación
+                          </span>
+                        </>
+                      ) : order.payment_verified_at ? (
+                        <>
+                          <FileCheck className="h-4 w-4 text-green-600" />
+                          <span className="text-green-600 font-medium">
+                            Pago verificado
+                          </span>
+                        </>
+                      ) : null}
+                    </div>
+                  )}
 
                   {/* Products Count */}
                   {order.cart?.products && (

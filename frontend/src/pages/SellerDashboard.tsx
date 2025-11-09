@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { getProductsBySeller } from '@/api';
 import Navbar from '@/components/Navbar';
+import SellerPaymentVerification from '@/components/SellerPaymentVerification';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -293,9 +294,13 @@ const SellerDashboard = () => {
           </TabsContent>
 
           <TabsContent value="orders" className="space-y-4">
+            {/* Payment Verification */}
+            <SellerPaymentVerification />
+
+            {/* Orders List */}
             <Card>
               <CardHeader>
-                <CardTitle>Pedidos Recibidos</CardTitle>
+                <CardTitle>Todos los Pedidos</CardTitle>
                 <CardDescription>
                   Gestiona los pedidos de tus clientes
                 </CardDescription>
@@ -311,7 +316,7 @@ const SellerDashboard = () => {
                   </p>
                   <Button onClick={() => navigate('/seller/orders')}>
                     <Eye className="mr-2 h-4 w-4" />
-                    Ver Pedidos
+                    Ver Todos los Pedidos
                   </Button>
                 </div>
               </CardContent>

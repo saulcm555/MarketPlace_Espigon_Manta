@@ -27,8 +27,9 @@ export interface Order {
 	id_client: number;
 	id_cart: number;
 	id_payment_method: number;
+	payment_receipt_url?: string; // URL del comprobante de pago en Supabase Storage
+	payment_verified_at?: Date; // Fecha de verificación del pago
 	client?: Client;
 	paymentMethod: PaymentMethod;
-	// Relación con tabla transaccional
 	productOrders?: ProductOrder[];
 }

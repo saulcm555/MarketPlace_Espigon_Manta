@@ -44,6 +44,12 @@ export class OrderEntity {
 	@Column({ name: "id_payment_method" })
 	id_payment_method!: number;
 
+	// Nuevos campos para sistema de pago por transferencia
+	@Column({ name: "payment_receipt_url", type: "text", nullable: true })
+	payment_receipt_url?: string;
+
+	@Column({ name: "payment_verified_at", type: "timestamp", nullable: true })
+	payment_verified_at?: Date;
 
 	@OneToMany(() => PaymentMethodEntity, (pm) => pm.orders)
 	@JoinColumn({ name: "id_payment_method" })

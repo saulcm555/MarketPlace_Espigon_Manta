@@ -7,6 +7,7 @@ export interface CreateOrderDto {
   id_payment_method: number;
   delivery_type: string; // 'home_delivery', 'pickup', etc.
   delivery_address?: string; // Dirección de entrega si es delivery
+  payment_receipt_url?: string; // URL del comprobante de pago (para transferencias)
   // Productos de la orden (tabla transaccional ProductOrder)
   productOrders?: {
     id_product: number;

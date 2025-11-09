@@ -116,6 +116,87 @@ export interface CreateSellerRequest {
 }
 
 // ============================================
+// Client Types
+// ============================================
+
+export interface Client {
+  id_client: number;
+  client_name: string;
+  email: string;
+  phone?: number;
+  address?: string;
+  created_at?: string;
+  
+  // Relaciones
+  orders?: Order[];
+  cart?: Cart;
+}
+
+export interface CreateClientRequest {
+  client_name: string;
+  email: string;
+  password: string;
+  phone?: number;
+  address?: string;
+}
+
+export interface UpdateClientRequest {
+  client_name?: string;
+  email?: string;
+  phone?: number;
+  address?: string;
+}
+
+// ============================================
+// Admin Types
+// ============================================
+
+export interface Admin {
+  id_admin: number;
+  admin_name: string;
+  admin_email: string;
+  created_at?: string;
+}
+
+export interface CreateAdminRequest {
+  admin_name: string;
+  admin_email: string;
+  admin_password: string;
+}
+
+export interface UpdateAdminRequest {
+  admin_name?: string;
+  admin_email?: string;
+}
+
+// ============================================
+// Inventory Types
+// ============================================
+
+export interface Inventory {
+  id_inventory: number;
+  inventory_name: string;
+  location?: string;
+  id_seller: number;
+  created_at?: string;
+  
+  // Relaciones
+  seller?: Seller;
+  products?: Product[];
+}
+
+export interface CreateInventoryRequest {
+  inventory_name: string;
+  location?: string;
+  id_seller: number;
+}
+
+export interface UpdateInventoryRequest {
+  inventory_name?: string;
+  location?: string;
+}
+
+// ============================================
 // Category Types
 // ============================================
 
@@ -193,9 +274,11 @@ export interface Order {
   id_payment_method: number;
   id_delivery?: number;
   total_amount: number;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled';
+  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'payment_pending_verification' | 'payment_confirmed' | 'payment_rejected' | 'expired';
   order_date: string;
   delivery_address?: string;
+  payment_receipt_url?: string;
+  payment_verified_at?: string;
   
   // Relaciones
   client?: User;
@@ -212,6 +295,30 @@ export interface CreateOrderRequest {
   id_delivery?: number;
   total_amount: number;
   delivery_address?: string;
+  payment_receipt_url?: string;
+}
+
+// Interfaz específica para panel de verificación de pagos del seller
+export interface PendingPaymentOrder {
+  id: number;
+  order_date: string;
+  total_amount: number;
+  payment_receipt_url: string;
+  delivery_address?: string;
+  client: {
+    id: number;
+    name: string;
+    email: string;
+    phone?: string;
+  };
+  products: Array<{
+    id_product: number;
+    product_name: string;
+    quantity: number;
+    price_unit: number;
+    subtotal: number;
+    image_url?: string;
+  }>;
 }
 
 // ============================================
@@ -222,6 +329,12 @@ export interface PaymentMethod {
   id: number;
   method_name: string;
   description?: string;
+  details?: {
+    banco?: string;
+    numero_cuenta?: string;
+    tipo_cuenta?: string;
+    titular?: string;
+  };
 }
 
 // ============================================

@@ -6,6 +6,7 @@ import AppDataSource from "../infrastructure/database/data-source";
 import { setupSwagger } from "../infrastructure/config/swagger";
 import { errorHandler, notFoundHandler } from "../infrastructure/middlewares/errors";
 import { connectRedis, disconnectRedis } from "../infrastructure/clients/redisClient";
+import { startCleanupScheduler, stopCleanupScheduler } from "../infrastructure/jobs/scheduler";
 
 // Import all routes
 import authRoutes from "../infrastructure/http/routes/authRoutes";
@@ -101,6 +102,9 @@ AppDataSource.initialize()
     // Inicializar Redis para notificaciones en tiempo real
     await connectRedis();
     
+    // Iniciar scheduler de limpieza automática de comprobantes
+    startCleanupScheduler();
+    
     const server = app.listen(3000, () => {
       console.log("🚀 Servidor Express corriendo en puerto 3000");
     });
@@ -108,6 +112,9 @@ AppDataSource.initialize()
     // Graceful shutdown
     const shutdown = async () => {
       console.log("\n⚠️  Cerrando servidor...");
+      
+      // Detener scheduler de limpieza
+      stopCleanupScheduler();
       
       // Cerrar servidor HTTP
       server.close(() => {

@@ -20,6 +20,10 @@ export class OrderService {
     return await this.orderRepository.findAll();
   }
 
+  async getOrdersByStatus(status: string): Promise<Order[]> {
+    return await this.orderRepository.findByStatus(status);
+  }
+
   async deleteOrder(id: string): Promise<boolean> {
     return await this.orderRepository.delete(id);
   }

@@ -51,6 +51,62 @@ export const cancelOrder = async (id: number): Promise<Order> => {
 };
 
 // ============================================
+// Payment Receipt Operations
+// ============================================
+
+/**
+ * Subir comprobante de pago
+ */
+export const uploadPaymentReceipt = async (file: File): Promise<{ url: string }> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await apiClient.post<{ url: string }>('/upload/payment-receipt', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  
+  return response.data;
+};
+
+/**
+ * Actualizar comprobante de pago de una orden
+ */
+export const updateOrderPaymentReceipt = async (
+  orderId: number, 
+  receiptUrl: string
+): Promise<Order> => {
+  const response = await apiClient.patch<Order>(
+    `/orders/${orderId}/payment-receipt`,
+    { payment_receipt_url: receiptUrl }
+  );
+  return response.data;
+};
+
+/**
+ * Verificar pago (aprobar o rechazar) - Solo para sellers
+ */
+export const verifyPayment = async (
+  orderId: number, 
+  approved: boolean
+): Promise<Order> => {
+  const response = await apiClient.patch<Order>(
+    `/orders/${orderId}/verify-payment`,
+    { approved }
+  );
+  return response.data;
+};
+
+/**
+ * Obtener órdenes pendientes de verificación de pago - Para sellers
+ */
+export const getPendingPaymentOrders = async (): Promise<Order[]> => {
+  const response = await apiClient.get<Order[]>('/orders/seller/pending-payments');
+  return response.data;
+};
+
+// ============================================
 // Review Operations
 // ============================================
 
@@ -107,6 +163,10 @@ export const getOrderStatusColor = (status: string): string => {
     shipped: 'primary',
     delivered: 'success',
     cancelled: 'destructive',
+    payment_pending_verification: 'warning',
+    payment_confirmed: 'success',
+    payment_rejected: 'destructive',
+    expired: 'secondary',
   };
   
   return colors[status] || 'secondary';
@@ -122,6 +182,10 @@ export const getOrderStatusText = (status: string): string => {
     shipped: 'Enviado',
     delivered: 'Entregado',
     cancelled: 'Cancelado',
+    payment_pending_verification: 'Esperando verificación de pago',
+    payment_confirmed: 'Pago confirmado',
+    payment_rejected: 'Pago rechazado',
+    expired: 'Expirado',
   };
   
   return texts[status] || status;

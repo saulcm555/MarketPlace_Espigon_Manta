@@ -85,3 +85,106 @@ export const getProductReviews = asyncHandler(async (req: Request, res: Response
   
   res.json(reviews);
 });
+
+/**
+ * PATCH /api/orders/:id/payment-receipt
+ * Actualizar comprobante de pago de una orden
+ * Cambia el status a 'payment_pending_verification'
+ */
+export const updatePaymentReceipt = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { payment_receipt_url } = req.body;
+
+  if (!payment_receipt_url) {
+    return res.status(400).json({ 
+      message: "La URL del comprobante es requerida" 
+    });
+  }
+
+  // Verificar que la orden existe
+  const order = await orderService.getOrderById(id);
+  if (!order) {
+    throw new NotFoundError("Orden");
+  }
+
+  // Actualizar la orden con el comprobante y cambiar status
+  const updatedOrder = await orderService.updateOrder(Number(id), {
+    payment_receipt_url,
+    status: 'payment_pending_verification'
+  });
+
+  res.json({
+    message: "Comprobante de pago actualizado correctamente",
+    order: updatedOrder
+  });
+});
+
+/**
+ * PATCH /api/orders/:id/verify-payment
+ * Verificar el pago de una orden (solo vendedor/admin)
+ * Cambia el status a 'payment_confirmed' y registra la fecha de verificación
+ */
+export const verifyPayment = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { approved } = req.body; // true = aprobado, false = rechazado
+
+  // Verificar que la orden existe
+  const order = await orderService.getOrderById(id);
+  if (!order) {
+    throw new NotFoundError("Orden");
+  }
+
+  // Verificar que tiene comprobante de pago
+  if (!order.payment_receipt_url) {
+    return res.status(400).json({
+      message: "Esta orden no tiene un comprobante de pago adjunto"
+    });
+  }
+
+  // Actualizar según la decisión
+  const updateData = approved 
+    ? {
+        status: 'payment_confirmed',
+        payment_verified_at: new Date()
+      }
+    : {
+        status: 'payment_rejected',
+        payment_verified_at: new Date()
+      };
+
+  const updatedOrder = await orderService.updateOrder(Number(id), updateData);
+
+  res.json({
+    message: approved 
+      ? "Pago verificado y aprobado correctamente" 
+      : "Pago rechazado",
+    order: updatedOrder
+  });
+});
+
+/**
+ * Obtener órdenes pendientes de verificación de pago para el seller
+ * Solo muestra órdenes de productos que pertenecen al seller
+ */
+export const getSellerPendingPayments = asyncHandler(async (req: Request, res: Response) => {
+  const sellerId = req.user?.id_seller || req.user?.id;
+  
+  if (!sellerId) {
+    return res.status(401).json({ message: "No se pudo identificar el vendedor" });
+  }
+
+  // Obtener órdenes con estado payment_pending_verification
+  // Filtrar solo aquellas que contengan productos del seller
+  const allPendingOrders = await orderService.getOrdersByStatus('payment_pending_verification');
+  
+  // Filtrar órdenes que contengan al menos un producto del seller
+  const sellerPendingOrders = allPendingOrders.filter(order => {
+    if (!order.cart?.products) return false;
+    
+    return order.cart.products.some(cartProduct => {
+      return cartProduct.product?.id_seller === sellerId;
+    });
+  });
+
+  res.json(sellerPendingOrders);
+});

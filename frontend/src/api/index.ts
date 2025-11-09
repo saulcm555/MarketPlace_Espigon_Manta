@@ -7,10 +7,16 @@
 export * from './auth';
 export * from './products';
 export * from './categories';
+export * from './subcategories';
 export * from './cart';
 export * from './orders';
 export * from './sellers';
+export * from './clients';
+export * from './admins';
+export * from './inventories';
 export * from './upload';
+export * from './paymentMethods';
+export * from './deliveries';
 
 // Export the base client
 export { default as apiClient } from './client';

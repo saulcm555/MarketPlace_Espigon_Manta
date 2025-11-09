@@ -59,6 +59,12 @@ export class CreateOrder {
     try {
       // Crear la orden
       const orderRepo = queryRunner.manager.getRepository(OrderEntity);
+      
+      // Determinar el estado inicial según si hay comprobante de pago
+      const initialStatus = data.payment_receipt_url 
+        ? "payment_pending_verification" 
+        : "pending";
+      
       const newOrder = orderRepo.create({
         id_client: data.id_client,
         id_cart: data.id_cart,
@@ -66,7 +72,8 @@ export class CreateOrder {
         delivery_type: data.delivery_type,
         total_amount,
         order_date: new Date(),
-        status: "pending",
+        status: initialStatus,
+        payment_receipt_url: data.payment_receipt_url || undefined,
       });
 
       const savedOrder = await queryRunner.manager.save(OrderEntity, newOrder);
