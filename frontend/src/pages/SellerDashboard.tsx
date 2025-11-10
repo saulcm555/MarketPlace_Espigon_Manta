@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { getProductsBySeller } from '@/api';
+import { getSellerOrders } from '@/api/orders';
 import Navbar from '@/components/Navbar';
 import SellerPaymentVerification from '@/components/SellerPaymentVerification';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,48 @@ const SellerDashboard = () => {
     queryFn: () => getProductsBySeller(sellerId!),
     enabled: !!sellerId && isAuthenticated && user?.role === 'seller',
   });
+
+  // Obtener pedidos del vendedor (ya filtrados por el backend)
+  const { data: myOrders = [], isLoading: isLoadingOrders, error: ordersError } = useQuery({
+    queryKey: ['orders', 'seller', sellerId],
+    queryFn: getSellerOrders,
+    enabled: isAuthenticated && user?.role === 'seller',
+    retry: 1,
+  });
+
+  // Calcular estadísticas reales con manejo de errores
+  let stats = {
+    totalProducts: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    pendingOrders: 0,
+  };
+
+  try {
+    stats = {
+      totalProducts: myProducts?.length || 0,
+      totalOrders: myOrders?.length || 0,
+      totalRevenue: Array.isArray(myOrders) ? myOrders.reduce((sum, order) => {
+        try {
+          const sellerRevenue = order.productOrders
+            ?.filter(po => myProducts.some(p => p.id_product === po.id_product))
+            .reduce((total, po) => {
+              const subtotal = po.subtotal || (po.price_unit * po.quantity);
+              return total + (Number(subtotal) || 0);
+            }, 0) || 0;
+          return sum + sellerRevenue;
+        } catch (err) {
+          console.error('Error calculando revenue de orden:', order, err);
+          return sum;
+        }
+      }, 0) : 0,
+      pendingOrders: Array.isArray(myOrders) ? myOrders.filter(order => 
+        order.status === 'pending' || order.status === 'payment_pending_verification'
+      ).length : 0,
+    };
+  } catch (error) {
+    console.error('Error calculando estadísticas:', error);
+  }
 
   // Productos destacados (últimos 6)
   const featuredProducts = myProducts.slice(0, 6);
@@ -76,14 +119,6 @@ const SellerDashboard = () => {
     );
   }
 
-  // Mock data - En producción, esto vendría de la API
-  const stats = {
-    totalProducts: myProducts.length,
-    totalOrders: 45,
-    totalRevenue: 1250.50,
-    pendingOrders: 8,
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -118,7 +153,7 @@ const SellerDashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="grid gap-4 md:grid-cols-3 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -158,25 +193,10 @@ const SellerDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ${stats.totalRevenue.toFixed(2)}
+                ${(stats.totalRevenue || 0).toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Este mes
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Crecimiento
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+12.5%</div>
-              <p className="text-xs text-muted-foreground">
-                vs mes anterior
               </p>
             </CardContent>
           </Card>
@@ -302,23 +322,95 @@ const SellerDashboard = () => {
               <CardHeader>
                 <CardTitle>Todos los Pedidos</CardTitle>
                 <CardDescription>
-                  Gestiona los pedidos de tus clientes
+                  Pedidos que incluyen tus productos ({myOrders.length})
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    Lista de pedidos
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    Revisa y actualiza el estado de los pedidos
-                  </p>
-                  <Button onClick={() => navigate('/seller/orders')}>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Ver Todos los Pedidos
-                  </Button>
-                </div>
+                {isLoadingOrders ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : myOrders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">
+                      No hay pedidos aún
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Los pedidos que incluyan tus productos aparecerán aquí
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {myOrders.slice(0, 10).map((order) => {
+                      // Calcular el total de productos del vendedor en este pedido
+                      const sellerItems = order.productOrders?.filter(po => 
+                        myProducts.some(p => p.id_product === po.id_product)
+                      ) || [];
+                      
+                      const sellerTotal = Number(sellerItems.reduce((sum, item) => {
+                        const subtotal = item.subtotal || (item.price_unit * item.quantity);
+                        return sum + (Number(subtotal) || 0);
+                      }, 0)) || 0;
+
+                      return (
+                        <div
+                          key={order.id_order}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                          onClick={() => navigate(`/orders/${order.id_order}`)}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold">Pedido #{order.id_order}</h4>
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                order.status === 'payment_pending_verification' ? 'bg-blue-100 text-blue-800' :
+                                order.status === 'payment_confirmed' ? 'bg-green-100 text-green-800' :
+                                order.status === 'processing' ? 'bg-purple-100 text-purple-800' :
+                                order.status === 'completed' ? 'bg-green-200 text-green-900' :
+                                order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                order.status === 'payment_rejected' ? 'bg-red-200 text-red-900' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {order.status === 'pending' ? 'Pendiente' :
+                                 order.status === 'payment_pending_verification' ? 'Verificando Pago' :
+                                 order.status === 'payment_confirmed' ? 'Pago Confirmado' :
+                                 order.status === 'processing' ? 'En Proceso' :
+                                 order.status === 'completed' ? 'Completado' :
+                                 order.status === 'cancelled' ? 'Cancelado' :
+                                 order.status === 'payment_rejected' ? 'Pago Rechazado' :
+                                 order.status === 'expired' ? 'Expirado' :
+                                 order.status}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {new Date(order.order_date).toLocaleDateString('es-EC', { 
+                                day: '2-digit', 
+                                month: 'long', 
+                                year: 'numeric' 
+                              })}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {sellerItems.length} producto{sellerItems.length !== 1 ? 's' : ''} tuyos en este pedido
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-lg">${sellerTotal.toFixed(2)}</p>
+                            <p className="text-xs text-muted-foreground">Tu ganancia</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {myOrders.length > 10 && (
+                      <div className="text-center pt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Mostrando 10 de {myOrders.length} pedidos totales
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

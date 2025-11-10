@@ -34,6 +34,11 @@ const Orders = () => {
     enabled: isAuthenticated,
   });
 
+  // Ordenar pedidos por fecha (más recientes primero)
+  const sortedOrders = [...orders].sort((a: Order, b: Order) => 
+    new Date(b.order_date).getTime() - new Date(a.order_date).getTime()
+  );
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-EC', {
       style: 'currency',
@@ -121,7 +126,7 @@ const Orders = () => {
           </p>
         </div>
 
-        {orders.length === 0 ? (
+  {orders.length === 0 ? (
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6 text-center">
               <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
@@ -137,18 +142,18 @@ const Orders = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {orders.map((order: Order) => (
+          <div className="grid gap-4">
+            {sortedOrders.slice(0, 5).map((order: Order) => (
               <Card 
-                key={order.id}
+                key={order.id_order}
                 className="hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => navigate(`/orders/${order.id}`)}
+                onClick={() => navigate(`/orders/${order.id_order}`)}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="text-lg">
-                        Pedido #{order.id}
+                        Pedido #{order.id_order}
                       </CardTitle>
                       <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
@@ -229,7 +234,7 @@ const Orders = () => {
                       className="flex-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/orders/${order.id}`);
+                        navigate(`/orders/${order.id_order}`);
                       }}
                     >
                       Ver detalles

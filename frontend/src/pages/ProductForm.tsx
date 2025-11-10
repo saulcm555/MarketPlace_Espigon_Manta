@@ -97,9 +97,25 @@ const ProductForm = () => {
       navigate('/seller/products');
     },
     onError: (error: any) => {
+      console.error('❌ Error al actualizar producto:', error);
+      console.error('Respuesta del servidor:', error.response?.data);
+      
+      let errorMessage = "No se pudo actualizar el producto";
+      
+      if (error.response?.data?.errors) {
+        // Si hay errores de validación
+        errorMessage = error.response.data.errors.map((e: any) => 
+          `${e.path || e.field}: ${e.msg || e.message}`
+        ).join(', ');
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: "Error",
-        description: error.response?.data?.message || "No se pudo actualizar el producto",
+        title: "Error al actualizar",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -108,6 +124,7 @@ const ProductForm = () => {
   // Cargar datos del producto al editar
   useEffect(() => {
     if (product && isEditing) {
+      console.log('📦 Cargando producto para editar:', product);
       setFormData({
         product_name: product.product_name,
         description: product.description || '',
@@ -208,6 +225,9 @@ const ProductForm = () => {
         id_seller: user?.id_seller || user?.id || 0,
         product_image: imageUrl || undefined,
       };
+
+      console.log('📦 Enviando datos del producto:', productData);
+      console.log('🔧 Modo:', isEditing ? 'Editar' : 'Crear');
 
       if (isEditing) {
         updateMutation.mutate({ id: Number(id), data: productData });

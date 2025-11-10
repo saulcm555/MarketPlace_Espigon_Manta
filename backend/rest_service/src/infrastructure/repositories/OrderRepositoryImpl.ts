@@ -1,5 +1,6 @@
 import { IOrderRepository } from "../../domain/repositories/IOrderRepository";
 import { OrderEntity, ProductOrderEntity } from "../../models/orderModel";
+import { PaymentMethodEntity } from "../../models/paymentMethodModel";
 import AppDataSource from "../database/data-source";
 import { Not, IsNull } from "typeorm";
 
@@ -27,26 +28,72 @@ export class OrderRepositoryImpl implements IOrderRepository {
 
   async findById(id: string): Promise<OrderEntity | null> {
     const repo = AppDataSource.getRepository(OrderEntity);
+    const paymentMethodRepo = AppDataSource.getRepository(PaymentMethodEntity);
     const orderId = parseInt(id, 10);
-    return await repo.findOne({
+    
+    const order = await repo.findOne({
       where: { id_order: orderId },
       relations: ["productOrders", "productOrders.product"]
     });
+    
+    // Cargar manualmente el método de pago si existe
+    if (order && order.id_payment_method) {
+      const paymentMethod = await paymentMethodRepo.findOne({
+        where: { id_payment_method: order.id_payment_method }
+      });
+      if (paymentMethod) {
+        (order as any).paymentMethod = paymentMethod;
+      }
+    }
+    
+    return order;
   }
 
   async findAll(): Promise<OrderEntity[]> {
     const repo = AppDataSource.getRepository(OrderEntity);
-    return await repo.find({
-  relations: ["productOrders", "productOrders.product", "cart", "cart.productCarts", "cart.productCarts.product", "paymentMethod"]
+    const paymentMethodRepo = AppDataSource.getRepository(PaymentMethodEntity);
+    
+    const orders = await repo.find({
+      relations: ["productOrders", "productOrders.product", "cart", "cart.productCarts", "cart.productCarts.product"]
     });
+    
+    // Cargar manualmente los métodos de pago
+    for (const order of orders) {
+      if (order.id_payment_method) {
+        const paymentMethod = await paymentMethodRepo.findOne({
+          where: { id_payment_method: order.id_payment_method }
+        });
+        if (paymentMethod) {
+          (order as any).paymentMethod = paymentMethod;
+        }
+      }
+    }
+    
+    return orders;
   }
 
   async findByStatus(status: string): Promise<OrderEntity[]> {
     const repo = AppDataSource.getRepository(OrderEntity);
-    return await repo.find({
+    const paymentMethodRepo = AppDataSource.getRepository(PaymentMethodEntity);
+    
+    const orders = await repo.find({
       where: { status },
-  relations: ["productOrders", "productOrders.product", "cart", "cart.productCarts", "cart.productCarts.product", "paymentMethod"]
+      relations: ["productOrders", "productOrders.product", "cart", "cart.productCarts", "cart.productCarts.product"]
     });
+    
+    // Cargar manualmente los métodos de pago
+    for (const order of orders) {
+      if (order.id_payment_method) {
+        const paymentMethod = await paymentMethodRepo.findOne({
+          where: { id_payment_method: order.id_payment_method }
+        });
+        if (paymentMethod) {
+          (order as any).paymentMethod = paymentMethod;
+        }
+      }
+    }
+    
+    return orders;
   }
 
   async delete(id: string): Promise<boolean> {

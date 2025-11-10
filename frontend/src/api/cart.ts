@@ -93,8 +93,21 @@ export const removeProductFromCart = async (cartId: number, productId: number): 
 /**
  * Vaciar carrito (eliminar todos los productos)
  */
-export const clearCart = async (cartId: number): Promise<void> => {
-  await apiClient.delete(`/carts/${cartId}`);
+export const clearCart = async (cartId: number, products?: Array<{ id_product: number }>): Promise<void> => {
+  if (!products || products.length === 0) {
+    return;
+  }
+  
+  try {
+    await Promise.all(
+      products.map((item) => {
+        return apiClient.delete(`/carts/${cartId}/products/${item.id_product}`);
+      })
+    );
+  } catch (error) {
+    console.error('Error al eliminar productos del carrito:', error);
+    throw error;
+  }
 };
 
 // ============================================

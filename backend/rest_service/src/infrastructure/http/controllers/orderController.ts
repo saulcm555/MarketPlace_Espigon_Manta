@@ -202,3 +202,37 @@ export const getSellerPendingPayments = asyncHandler(async (req: Request, res: R
   });
   res.json(sellerPendingOrders);
 });
+
+/**
+ * Obtener todas las órdenes del vendedor
+ * Muestra todas las órdenes que contienen productos del vendedor
+ */
+export const getSellerOrders = asyncHandler(async (req: Request, res: Response) => {
+  const sellerId = req.user?.id_seller || req.user?.id;
+  if (!sellerId) {
+    return res.status(401).json({ message: "No se pudo identificar el vendedor" });
+  }
+  
+  const allOrders = await orderService.getAllOrders();
+  
+  // Filtrar órdenes que contienen productos del vendedor
+  const sellerOrders = allOrders.filter(order => {
+    // Verificar en productOrders (relación directa)
+    if (order.productOrders && order.productOrders.length > 0) {
+      return order.productOrders.some((productOrder: any) => {
+        return productOrder.product?.id_seller === sellerId;
+      });
+    }
+    
+    // Fallback: verificar en cart.productCarts
+    if (order.cart?.productCarts) {
+      return order.cart.productCarts.some((cartProduct: ProductCart) => {
+        return cartProduct.product?.id_seller === sellerId;
+      });
+    }
+    
+    return false;
+  });
+  
+  res.json(sellerOrders);
+});

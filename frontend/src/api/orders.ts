@@ -107,6 +107,15 @@ export const getPendingPaymentOrders = async (): Promise<Order[]> => {
   return response.data;
 };
 
+/**
+ * Obtener todas las órdenes del vendedor - Para sellers
+ * Incluye todas las órdenes que contienen productos del vendedor
+ */
+export const getSellerOrders = async (): Promise<Order[]> => {
+  const response = await apiClient.get<Order[]>('/orders/seller/orders');
+  return response.data;
+};
+
 // ============================================
 // Review Operations
 // ============================================

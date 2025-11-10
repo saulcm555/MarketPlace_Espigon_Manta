@@ -51,9 +51,10 @@ export class OrderEntity {
 	@Column({ name: "payment_verified_at", type: "timestamp", nullable: true })
 	payment_verified_at?: Date;
 
-	@OneToMany(() => PaymentMethodEntity, (pm) => pm.orders)
-	@JoinColumn({ name: "id_payment_method" })
-	paymentMethod!: PaymentMethodEntity;
+	// Relación con método de pago (comentada porque causa problemas con foreign key)
+	// @ManyToOne(() => PaymentMethodEntity)
+	// @JoinColumn({ name: "id_payment_method" })
+	// paymentMethod?: PaymentMethodEntity;
 
 	@ManyToOne(() => CartEntity, (c) => c.order)
 	@JoinColumn({ name: "id_cart" })

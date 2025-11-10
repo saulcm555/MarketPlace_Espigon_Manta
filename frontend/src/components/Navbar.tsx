@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   DropdownMenu,
@@ -7,16 +8,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, ShoppingCart, User, LogOut, Settings, Package, ChevronDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Menu, ShoppingCart, User, LogOut, Settings, Package, ChevronDown, Receipt, Clock } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getAllCategories } from "@/api";
+import { getAllCategories, getMyOrders } from "@/api";
 import CartDrawer from "@/components/CartDrawer";
 import logoEspigon from "@/assets/logo.jpg";
 
 const Navbar = () => {
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
   const { itemCount, openCart } = useCart();
   const navigate = useNavigate();
@@ -26,6 +29,50 @@ const Navbar = () => {
     queryKey: ['categories'],
     queryFn: getAllCategories,
   });
+
+  // Fetch recent orders (últimos 5 pedidos)
+  const { data: orders = [] } = useQuery({
+    queryKey: ['orders'],
+    queryFn: getMyOrders,
+    enabled: isAuthenticated && user?.role === 'client',
+  });
+
+  // Obtener solo los últimos 5 pedidos ordenados por fecha (más recientes primero)
+  const recentOrders = [...orders]
+    .sort((a: any, b: any) => new Date(b.order_date).getTime() - new Date(a.order_date).getTime())
+    .slice(0, 5);
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('es-EC', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(price);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('es-EC', {
+      day: 'numeric',
+      month: 'short',
+    }).format(date);
+  };
+
+  const getOrderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return { variant: 'secondary' as const, text: 'Pendiente' };
+      case 'payment_pending_verification':
+        return { variant: 'default' as const, text: 'Verificando pago' };
+      case 'processing':
+        return { variant: 'default' as const, text: 'Procesando' };
+      case 'completed':
+        return { variant: 'default' as const, text: 'Completado' };
+      case 'cancelled':
+        return { variant: 'destructive' as const, text: 'Cancelado' };
+      default:
+        return { variant: 'secondary' as const, text: status };
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -97,7 +144,94 @@ const Navbar = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            {isAuthenticated && (
+            {isAuthenticated && user?.role === 'client' && (
+              <>
+                {/* Menú de Pedidos Recientes */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Receipt className="h-5 w-5" />
+                      {recentOrders.length > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center">
+                          {recentOrders.length}
+                        </span>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80">
+                    <DropdownMenuLabel className="flex items-center justify-between">
+                      <span>Pedidos recientes</span>
+                      {orders.length > 5 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {orders.length} total
+                        </Badge>
+                      )}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    
+                    {recentOrders.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-muted-foreground">
+                        <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No tienes pedidos aún</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="max-h-96 overflow-y-auto">
+                          {recentOrders.map((order: any) => {
+                            const statusInfo = getOrderStatusBadge(order.status);
+                            return (
+                              <DropdownMenuItem
+                                key={order.id_order}
+                                className="cursor-pointer flex-col items-start p-3 h-auto"
+                                onClick={() => navigate(`/orders/${order.id_order}`)}
+                              >
+                                <div className="w-full flex items-start justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <Receipt className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-semibold">Pedido #{order.id_order}</span>
+                                  </div>
+                                  <Badge variant={statusInfo.variant} className="text-xs">
+                                    {statusInfo.text}
+                                  </Badge>
+                                </div>
+                                <div className="w-full flex items-center justify-between text-xs text-muted-foreground">
+                                  <div className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {formatDate(order.order_date)}
+                                  </div>
+                                  <span className="font-semibold text-foreground">
+                                    {formatPrice(order.total_amount)}
+                                  </span>
+                                </div>
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </div>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="cursor-pointer justify-center text-primary font-medium"
+                          onClick={() => navigate('/orders')}
+                        >
+                          Ver todos los pedidos
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Carrito */}
+                <Button variant="ghost" size="icon" className="relative" onClick={openCart}>
+                  <ShoppingCart className="h-5 w-5" />
+                  {itemCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                      {itemCount}
+                    </span>
+                  )}
+                </Button>
+              </>
+            )}
+
+            {isAuthenticated && user?.role !== 'client' && (
               <Button variant="ghost" size="icon" className="relative" onClick={openCart}>
                 <ShoppingCart className="h-5 w-5" />
                 {itemCount > 0 && (
@@ -159,11 +293,23 @@ const Navbar = () => {
                     Iniciar sesión
                   </Button>
                 </Link>
-                <Link to="/register">
-                  <Button>
-                    Registrarse
-                  </Button>
-                </Link>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button>
+                      Registrarse
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuLabel>Registrarse como...</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/register')}>
+                      Cliente
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/register-seller')}>
+                      Vendedor
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )}
             

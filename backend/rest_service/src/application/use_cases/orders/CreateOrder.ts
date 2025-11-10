@@ -5,6 +5,7 @@ import { Order } from "../../../domain/entities/order";
 import AppDataSource from "../../../infrastructure/database/data-source";
 import { OrderEntity, ProductOrderEntity } from "../../../models/orderModel";
 import { ProductEntity } from "../../../models/productModel";
+import { PaymentMethodEntity } from "../../../models/paymentMethodModel";
 import { notifyOrderCreated } from "../../../infrastructure/clients/notificationClient";
 
 /**
@@ -151,6 +152,17 @@ export class CreateOrder {
         where: { id_order: savedOrder.id_order },
         relations: ["productOrders", "productOrders.product"],
       });
+      
+      // Cargar manualmente el método de pago
+      if (orderWithProducts && savedOrder.id_payment_method) {
+        const paymentMethodRepo = queryRunner.manager.getRepository(PaymentMethodEntity);
+        const paymentMethod = await paymentMethodRepo.findOne({
+          where: { id_payment_method: savedOrder.id_payment_method }
+        });
+        if (paymentMethod) {
+          (orderWithProducts as any).paymentMethod = paymentMethod;
+        }
+      }
 
       // 🔔 NOTIFICACIÓN: Enviar notificación de orden creada
       // Nota: Esto se hace DESPUÉS del commit para asegurar que la orden existe

@@ -14,8 +14,9 @@ export class PaymentMethodEntity {
 	@Column({ name: "details_payment", type: "text", nullable: true })
 	details_payment!: string;
 
-	@ManyToOne(() => OrderEntity, (o) => o.paymentMethod)
-	orders!: OrderEntity[];
+	// Relación comentada porque causa problemas de foreign key
+	// @ManyToOne(() => OrderEntity, (o) => o.paymentMethod)
+	// orders!: OrderEntity[];
 }
 
 

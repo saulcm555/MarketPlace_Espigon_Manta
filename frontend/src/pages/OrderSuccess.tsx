@@ -19,7 +19,8 @@ import {
   MapPin,
   ArrowRight,
   Home,
-  Receipt
+  Receipt,
+  CreditCard
 } from 'lucide-react';
 
 const OrderSuccess = () => {
@@ -109,6 +110,14 @@ const OrderSuccess = () => {
                   Pendiente
                 </Badge>
 
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Método de pago:</span>
+                </div>
+                <span className="font-medium">
+                  {order.payment_method?.method_name || 'No especificado'}
+                </span>
+
                 {order.delivery_address && (
                   <>
                     <div className="flex items-center gap-2">
@@ -166,8 +175,17 @@ const OrderSuccess = () => {
                   ¿Qué sigue ahora?
                 </h3>
                 <p className="text-blue-800 text-sm mb-4">
-                  Hemos notificado al vendedor sobre tu pedido. Te contactaremos pronto 
-                  para coordinar la entrega.
+                  {order.delivery_type === 'pickup' ? (
+                    <>
+                      Hemos notificado al vendedor sobre tu pedido. Te contactaremos pronto 
+                      para coordinar el retiro en el puesto.
+                    </>
+                  ) : (
+                    <>
+                      Hemos notificado al vendedor sobre tu pedido. Te contactaremos pronto 
+                      para coordinar la entrega.
+                    </>
+                  )}
                 </p>
                 <p className="text-blue-700 text-xs">
                   Tiempo estimado de preparación: 24-48 horas

@@ -95,7 +95,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   // Mutation para vaciar carrito
   const clearCartMutation = useMutation({
-    mutationFn: (cartId: number) => clearCart(cartId),
+    mutationFn: async ({ cartId, products }: { cartId: number; products: Array<{ id_product: number }> }) => {
+      await clearCart(cartId, products);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
     },
@@ -157,7 +159,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clear = async () => {
     if (!cart) return;
-    await clearCartMutation.mutateAsync(cart.id_cart);
+    const products = cart.products || cart.productCarts || [];
+    if (products.length === 0) return;
+    
+    await clearCartMutation.mutateAsync({ cartId: cart.id_cart, products });
+    
+    // Dar tiempo para que las queries se actualicen
+    await new Promise(resolve => setTimeout(resolve, 500));
   };
 
   const openCart = () => setIsCartOpen(true);

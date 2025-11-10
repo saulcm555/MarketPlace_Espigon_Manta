@@ -36,16 +36,18 @@ import {
 import type { Product, Category } from '@/types/api';
 
 const Products = () => {
+
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   // Estados de filtros
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
+  const [selectedSeller, setSelectedSeller] = useState(searchParams.get('seller') || 'all');
   const [priceRange, setPriceRange] = useState([0, 1000]);
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(true);
-  
+
   // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
@@ -55,12 +57,10 @@ const Products = () => {
     queryKey: ['products'],
     queryFn: getAllProducts,
   });
-
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: getAllCategories,
   });
-
   // Aplicar filtros
   const filteredProducts = allProducts
     .filter((product: Product) => {
@@ -68,15 +68,15 @@ const Products = () => {
       const matchesSearch = searchQuery === '' ||
         product.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.description?.toLowerCase().includes(searchQuery.toLowerCase());
-
       // Filtro de categoría
       const matchesCategory = selectedCategory === 'all' ||
         product.id_category.toString() === selectedCategory;
-
+      // Filtro de vendedor
+      const matchesSeller = selectedSeller === 'all' ||
+        product.id_seller?.toString() === selectedSeller;
       // Filtro de precio
       const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
-
-      return matchesSearch && matchesCategory && matchesPrice;
+      return matchesSearch && matchesCategory && matchesSeller && matchesPrice;
     })
     .sort((a: Product, b: Product) => {
       switch (sortBy) {
@@ -104,13 +104,15 @@ const Products = () => {
     const params: Record<string, string> = {};
     if (searchQuery) params.search = searchQuery;
     if (selectedCategory !== 'all') params.category = selectedCategory;
+    if (selectedSeller !== 'all') params.seller = selectedSeller;
     if (sortBy !== 'newest') params.sort = sortBy;
     setSearchParams(params);
-  }, [searchQuery, selectedCategory, sortBy, setSearchParams]);
+  }, [searchQuery, selectedCategory, selectedSeller, sortBy, setSearchParams]);
 
   const handleResetFilters = () => {
     setSearchQuery('');
     setSelectedCategory('all');
+    setSelectedSeller('all');
     setPriceRange([0, 1000]);
     setSortBy('newest');
     setCurrentPage(1);
@@ -127,24 +129,20 @@ const Products = () => {
   const activeFiltersCount = 
     (searchQuery ? 1 : 0) + 
     (selectedCategory !== 'all' ? 1 : 0) + 
+    (selectedSeller !== 'all' ? 1 : 0) +
     (priceRange[0] !== 0 || priceRange[1] !== 1000 ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-
       {/* Espaciador para el navbar fixed */}
       <div className="h-16"></div>
-
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Productos</h1>
-          <p className="text-muted-foreground">
-            Descubre los mejores productos del Parque El Espigón
-          </p>
+          <p className="text-muted-foreground">Descubre los mejores productos del Parque El Espigón</p>
         </div>
-
         {/* Barra de búsqueda y controles */}
         <div className="mb-6 space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
@@ -161,7 +159,6 @@ const Products = () => {
                 className="pl-10"
               />
             </div>
-
             {/* Ordenar */}
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-full md:w-[200px]">
@@ -175,7 +172,6 @@ const Products = () => {
                 <SelectItem value="name-desc">Nombre: Z-A</SelectItem>
               </SelectContent>
             </Select>
-
             {/* Toggle filtros */}
             <Button
               variant="outline"
@@ -190,7 +186,6 @@ const Products = () => {
                 </Badge>
               )}
             </Button>
-
             {/* Toggle vista */}
             <div className="hidden md:flex gap-2">
               <Button
@@ -209,7 +204,6 @@ const Products = () => {
               </Button>
             </div>
           </div>
-
           {/* Filtros activos */}
           {activeFiltersCount > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
@@ -229,6 +223,15 @@ const Products = () => {
                   <X
                     className="h-3 w-3 cursor-pointer"
                     onClick={() => setSelectedCategory('all')}
+                  />
+                </Badge>
+              )}
+              {selectedSeller !== 'all' && (
+                <Badge variant="secondary" className="gap-1">
+                  Vendedor específico
+                  <X
+                    className="h-3 w-3 cursor-pointer"
+                    onClick={() => setSelectedSeller('all')}
                   />
                 </Badge>
               )}
@@ -252,7 +255,6 @@ const Products = () => {
             </div>
           )}
         </div>
-
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar de filtros */}
           {showFilters && (
@@ -289,7 +291,6 @@ const Products = () => {
                       </Select>
                     )}
                   </div>
-
                   {/* Rango de precio */}
                   <div className="space-y-3">
                     <Label className="text-base font-semibold">Rango de precio</Label>
@@ -315,7 +316,6 @@ const Products = () => {
               </Card>
             </aside>
           )}
-
           {/* Grid de productos */}
           <main className="flex-1">
             {/* Contador de resultados */}
@@ -330,7 +330,6 @@ const Products = () => {
                 )}
               </p>
             </div>
-
             {/* Loading state */}
             {isLoadingProducts ? (
               <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'} gap-6`}>
@@ -352,9 +351,7 @@ const Products = () => {
                   <Search className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">No se encontraron productos</h3>
-                <p className="text-muted-foreground mb-4">
-                  Intenta ajustar los filtros o búsqueda
-                </p>
+                <p className="text-muted-foreground mb-4">Intenta ajustar los filtros o búsqueda</p>
                 <Button onClick={handleResetFilters}>Limpiar filtros</Button>
               </Card>
             ) : (
@@ -375,7 +372,6 @@ const Products = () => {
                     />
                   ))}
                 </div>
-
                 {/* Paginación */}
                 {totalPages > 1 && (
                   <div className="mt-8 flex items-center justify-center gap-2">
@@ -387,7 +383,6 @@ const Products = () => {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-
                     <div className="flex gap-2">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
                         if (
@@ -411,7 +406,6 @@ const Products = () => {
                         return null;
                       })}
                     </div>
-
                     <Button
                       variant="outline"
                       size="icon"

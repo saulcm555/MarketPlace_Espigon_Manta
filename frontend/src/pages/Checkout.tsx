@@ -37,7 +37,7 @@ import {
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { cart, totalAmount, clear, isLoading: isLoadingCart } = useCart();
+  const { cart, totalAmount, clear, closeCart, isLoading: isLoadingCart } = useCart();
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -55,6 +55,7 @@ const Checkout = () => {
     notes: '',
   });
   const [paymentMethod, setPaymentMethod] = useState('1'); // 1 = Efectivo por defecto
+  const [deliveryType, setDeliveryType] = useState('home_delivery'); // Opciones: home_delivery, pickup
   
   // Payment receipt states
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -190,14 +191,26 @@ const Checkout = () => {
 
     if (!cart || !user) return;
 
-    // Validaciones básicas
-    if (!deliveryAddress.street || !deliveryAddress.phone) {
-      toast({
-        title: "Faltan datos",
-        description: "Por favor completa la dirección de entrega y teléfono",
-        variant: "destructive",
-      });
-      return;
+    // Validaciones básicas - Solo requerir dirección si es envío a domicilio
+    if (deliveryType === 'home_delivery') {
+      if (!deliveryAddress.street || !deliveryAddress.phone) {
+        toast({
+          title: "Faltan datos",
+          description: "Por favor completa la dirección de entrega y teléfono",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      // Para retiro en el puesto, solo validar teléfono
+      if (!deliveryAddress.phone) {
+        toast({
+          title: "Falta teléfono",
+          description: "Por favor ingresa un número de contacto",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     // Validar que el carrito tenga productos
@@ -268,7 +281,15 @@ const Checkout = () => {
       }
 
       // 2. Crear la orden
-      const addressString = `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.province}${deliveryAddress.zipCode ? `, ${deliveryAddress.zipCode}` : ''}. Tel: ${deliveryAddress.phone}${deliveryAddress.notes ? `. Notas: ${deliveryAddress.notes}` : ''}`;
+      // Construir la dirección según el tipo de entrega
+      let addressString: string;
+      if (deliveryType === 'pickup') {
+        // Para retiro en el puesto, solo incluir teléfono y notas
+        addressString = `Retiro en el puesto. Tel: ${deliveryAddress.phone}${deliveryAddress.notes ? `. Notas: ${deliveryAddress.notes}` : ''}`;
+      } else {
+        // Para envío a domicilio, incluir dirección completa
+        addressString = `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.province}${deliveryAddress.zipCode ? `, ${deliveryAddress.zipCode}` : ''}. Tel: ${deliveryAddress.phone}${deliveryAddress.notes ? `. Notas: ${deliveryAddress.notes}` : ''}`;
+      }
 
       // Construir productOrders desde el carrito
       const productOrders = cartItems.map((item) => {
@@ -286,7 +307,7 @@ const Checkout = () => {
         id_client: user.id,
         id_cart: cart.id_cart,
         id_payment_method: parseInt(paymentMethod),
-        delivery_type: 'home_delivery', // Por defecto entrega a domicilio
+        delivery_type: deliveryType,
         delivery_address: addressString,
         payment_receipt_url: receiptUrl,
         productOrders: productOrders
@@ -294,6 +315,10 @@ const Checkout = () => {
 
       const newOrder = await createOrder(orderData);
       const orderId = (newOrder as any).id_order || newOrder.id;
+
+      // Limpiar el carrito antes de mostrar el mensaje de éxito
+      await clear();
+      closeCart();
 
       // Mostrar mensaje según el método de pago
       if (isTransfer) {
@@ -307,6 +332,7 @@ const Checkout = () => {
           description: `Tu pedido #${orderId} ha sido creado exitosamente`,
         });
       }
+      
       navigate(`/order-success/${orderId}`);
     } catch (error: any) {
       let errorMessage = "No se pudo procesar el pedido";
@@ -384,7 +410,9 @@ const Checkout = () => {
   }
 
   const cartItems = cart.products || cart.productCarts || [];
-  const shipping = 3; // $3 de envío fijo
+  
+  // Calcular costo de envío basado en el tipo de entrega
+  const shipping = deliveryType === 'pickup' ? 0 : 3; // $0 para retiro, $3 para envío a domicilio
   const total = totalAmount + shipping;
 
   return (
@@ -416,28 +444,98 @@ const Checkout = () => {
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Left Column - Forms */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Delivery Address */}
+              {/* Delivery Type Selector */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Dirección de entrega
+                    <Truck className="h-5 w-5" />
+                    Tipo de entrega
                   </CardTitle>
                   <CardDescription>
-                    ¿Dónde quieres recibir tu pedido?
+                    Elige cómo recibirás tu pedido
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="street">Calle y número *</Label>
-                    <Input
-                      id="street"
-                      placeholder="Av. Principal 123"
-                      value={deliveryAddress.street}
-                      onChange={(e) => setDeliveryAddress({ ...deliveryAddress, street: e.target.value })}
-                      required
-                    />
-                  </div>
+                <CardContent>
+                  <RadioGroup value={deliveryType} onValueChange={setDeliveryType}>
+                    <div className="flex items-center space-x-3 border rounded-lg p-4 mb-2">
+                      <RadioGroupItem value="home_delivery" id="delivery-home" />
+                      <Label htmlFor="delivery-home" className="flex-1 cursor-pointer">
+                        Envío a domicilio
+                        <span className="block text-xs text-muted-foreground">Recibe tu pedido en la dirección que indiques</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 border rounded-lg p-4">
+                      <RadioGroupItem value="pickup" id="delivery-pickup" />
+                      <Label htmlFor="delivery-pickup" className="flex-1 cursor-pointer">
+                        Retiro en el puesto
+                        <span className="block text-xs text-muted-foreground">Retira tu pedido directamente en el local del emprendimiento</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </CardContent>
+              </Card>
+              
+              {/* Teléfono de contacto - Mostrar siempre para retiro en el puesto */}
+              {deliveryType === 'pickup' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Phone className="h-5 w-5" />
+                      Información de contacto
+                    </CardTitle>
+                    <CardDescription>
+                      Ingresa un teléfono para coordinar el retiro
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone-pickup">Teléfono de contacto *</Label>
+                      <Input
+                        id="phone-pickup"
+                        type="tel"
+                        placeholder="0999999999"
+                        value={deliveryAddress.phone}
+                        onChange={(e) => setDeliveryAddress({ ...deliveryAddress, phone: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="notes-pickup">Notas adicionales (opcional)</Label>
+                      <Textarea
+                        id="notes-pickup"
+                        placeholder="Ej: Prefiero retirar en la tarde"
+                        value={deliveryAddress.notes}
+                        onChange={(e) => setDeliveryAddress({ ...deliveryAddress, notes: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Delivery Address - Solo mostrar si es envío a domicilio */}
+              {deliveryType === 'home_delivery' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5" />
+                      Dirección de entrega
+                    </CardTitle>
+                    <CardDescription>
+                      ¿Dónde quieres recibir tu pedido?
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="street">Calle y número *</Label>
+                      <Input
+                        id="street"
+                        placeholder="Av. Principal 123"
+                        value={deliveryAddress.street}
+                        onChange={(e) => setDeliveryAddress({ ...deliveryAddress, street: e.target.value })}
+                        required
+                      />
+                    </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -493,6 +591,7 @@ const Checkout = () => {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
               {/* Payment Method */}
               <Card>
@@ -723,8 +822,16 @@ const Checkout = () => {
                       <span className="font-medium">{formatPrice(totalAmount)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Envío</span>
-                      <span className="font-medium">{formatPrice(shipping)}</span>
+                      <span className="text-muted-foreground">
+                        Envío {deliveryType === 'pickup' && '(Retiro en el puesto)'}
+                      </span>
+                      <span className="font-medium">
+                        {shipping === 0 ? (
+                          <span className="text-green-600">Gratis</span>
+                        ) : (
+                          formatPrice(shipping)
+                        )}
+                      </span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
@@ -756,7 +863,11 @@ const Checkout = () => {
                   <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
                     <Truck className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     <p>
-                      Tu pedido será preparado y enviado en las próximas 24-48 horas
+                      {deliveryType === 'pickup' ? (
+                        'Tu pedido será preparado en las próximas 24-48 horas y podrás retirarlo en el puesto'
+                      ) : (
+                        'Tu pedido será preparado y enviado en las próximas 24-48 horas'
+                      )}
                     </p>
                   </div>
                 </CardContent>

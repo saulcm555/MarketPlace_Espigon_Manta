@@ -269,6 +269,9 @@ const SellerProducts = () => {
                   {myProducts.filter((p: Product) => p.stock > 0).length}
                 </div>
                 <p className="text-xs text-muted-foreground">En stock</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  ({myProducts.reduce((sum: number, p: Product) => sum + (p.stock || 0), 0)} unidades totales)
+                </p>
               </CardContent>
             </Card>
             <Card>

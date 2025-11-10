@@ -273,7 +273,8 @@ export interface ProductOrder {
 }
 
 export interface Order {
-  id: number;
+  id?: number; // Alias para compatibilidad
+  id_order: number; // ID real del backend
   id_client: number;
   id_cart: number;
   id_payment_method: number;
@@ -282,6 +283,7 @@ export interface Order {
   status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'payment_pending_verification' | 'payment_confirmed' | 'payment_rejected' | 'expired';
   order_date: string;
   delivery_address?: string;
+  delivery_type?: 'home_delivery' | 'pickup';
   payment_receipt_url?: string;
   payment_verified_at?: string;
   
