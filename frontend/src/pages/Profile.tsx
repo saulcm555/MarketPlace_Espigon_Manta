@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { updateClient } from '@/api/clients';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,8 +19,9 @@ import Navbar from '@/components/Navbar';
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
@@ -38,10 +40,65 @@ const Profile = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setIsSubmitting(true);
 
-    // TODO: Implementar actualización de perfil cuando esté disponible en el backend
-    setSuccess('Perfil actualizado correctamente');
-    setIsEditing(false);
+    try {
+      if (!user?.id) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      // Validar datos antes de enviar
+      if (formData.name && formData.name.trim().length < 3) {
+        throw new Error('El nombre debe tener al menos 3 caracteres');
+      }
+
+      if (formData.phone && formData.phone.trim().length > 0 && !/^[\d\s\+\-\(\)]+$/.test(formData.phone)) {
+        throw new Error('El teléfono solo puede contener números, espacios y símbolos (+, -, (, ))');
+      }
+
+      if (formData.address && formData.address.trim().length > 0 && formData.address.trim().length < 3) {
+        throw new Error('La dirección debe tener al menos 3 caracteres');
+      }
+
+      // Preparar datos para enviar - solo incluir campos que tienen valor
+      const dataToUpdate: any = {};
+      
+      if (formData.name && formData.name.trim()) {
+        dataToUpdate.client_name = formData.name.trim();
+      }
+      
+      if (formData.phone && formData.phone.trim()) {
+        dataToUpdate.phone = formData.phone.trim(); // Enviar como string
+      }
+      
+      if (formData.address && formData.address.trim()) {
+        dataToUpdate.address = formData.address.trim();
+      }
+
+      // Verificar que hay algo que actualizar
+      if (Object.keys(dataToUpdate).length === 0) {
+        throw new Error('No hay cambios para guardar');
+      }
+
+      // Actualizar en el backend
+      const updatedClient = await updateClient(user.id, dataToUpdate);
+
+      // Actualizar el contexto de autenticación con los nuevos datos
+      updateUser({
+        ...user,
+        name: updatedClient.client_name,
+        phone: updatedClient.phone,
+        address: updatedClient.address,
+      });
+
+      setSuccess('Perfil actualizado correctamente');
+      setIsEditing(false);
+    } catch (err: any) {
+      console.error('Error al actualizar perfil:', err);
+      setError(err.message || err.response?.data?.message || 'No se pudo actualizar el perfil');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getRoleBadgeVariant = (role: string) => {
@@ -286,9 +343,10 @@ const Profile = () => {
                       <Button
                         type="submit"
                         className="flex-1 gap-2"
+                        disabled={isSubmitting}
                       >
                         <Save className="w-4 h-4" />
-                        Guardar cambios
+                        {isSubmitting ? 'Guardando...' : 'Guardar cambios'}
                       </Button>
                     </>
                   )}

@@ -33,7 +33,14 @@ export class OrderRepositoryImpl implements IOrderRepository {
     
     const order = await repo.findOne({
       where: { id_order: orderId },
-      relations: ["productOrders", "productOrders.product"]
+      relations: [
+        "client",
+        "productOrders", 
+        "productOrders.product",
+        "cart",
+        "cart.productCarts",
+        "cart.productCarts.product"
+      ]
     });
     
     // Cargar manualmente el método de pago si existe
@@ -42,7 +49,7 @@ export class OrderRepositoryImpl implements IOrderRepository {
         where: { id_payment_method: order.id_payment_method }
       });
       if (paymentMethod) {
-        (order as any).paymentMethod = paymentMethod;
+        (order as any).payment_method = paymentMethod;
       }
     }
     
@@ -54,7 +61,14 @@ export class OrderRepositoryImpl implements IOrderRepository {
     const paymentMethodRepo = AppDataSource.getRepository(PaymentMethodEntity);
     
     const orders = await repo.find({
-      relations: ["productOrders", "productOrders.product", "cart", "cart.productCarts", "cart.productCarts.product"]
+      relations: [
+        "client",
+        "productOrders", 
+        "productOrders.product", 
+        "cart", 
+        "cart.productCarts", 
+        "cart.productCarts.product"
+      ]
     });
     
     // Cargar manualmente los métodos de pago
@@ -64,7 +78,7 @@ export class OrderRepositoryImpl implements IOrderRepository {
           where: { id_payment_method: order.id_payment_method }
         });
         if (paymentMethod) {
-          (order as any).paymentMethod = paymentMethod;
+          (order as any).payment_method = paymentMethod;
         }
       }
     }
@@ -78,7 +92,14 @@ export class OrderRepositoryImpl implements IOrderRepository {
     
     const orders = await repo.find({
       where: { status },
-      relations: ["productOrders", "productOrders.product", "cart", "cart.productCarts", "cart.productCarts.product"]
+      relations: [
+        "client",
+        "productOrders", 
+        "productOrders.product", 
+        "cart", 
+        "cart.productCarts", 
+        "cart.productCarts.product"
+      ]
     });
     
     // Cargar manualmente los métodos de pago
@@ -88,7 +109,7 @@ export class OrderRepositoryImpl implements IOrderRepository {
           where: { id_payment_method: order.id_payment_method }
         });
         if (paymentMethod) {
-          (order as any).paymentMethod = paymentMethod;
+          (order as any).payment_method = paymentMethod;
         }
       }
     }

@@ -32,6 +32,6 @@ export interface Order {
 	payment_verified_at?: Date; // Fecha de verificación del pago
 	client?: Client;
 	cart?: Cart; // Relación con el carrito
-	paymentMethod: PaymentMethod;
+	payment_method?: PaymentMethod; // Cambiado de paymentMethod a payment_method para consistencia
 	productOrders?: ProductOrder[];
 }

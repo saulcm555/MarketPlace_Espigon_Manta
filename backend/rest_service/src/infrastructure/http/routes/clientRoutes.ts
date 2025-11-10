@@ -14,7 +14,7 @@ const router = Router();
 router.get("/", authMiddleware, roleMiddleware("admin"), getClients); // Solo admin
 router.get("/:id", getClientByIdValidation, validateRequest, authMiddleware, getClientById); // Cliente autenticado
 router.post("/", createClientValidation, validateRequest, createClient); // Público para registro
-router.put("/:id", getClientByIdValidation, updateClientValidation, validateRequest, authMiddleware, roleMiddleware("client"), updateClient); // Solo el cliente
+router.put("/:id", getClientByIdValidation, updateClientValidation, validateRequest, authMiddleware, updateClient); // Cualquier usuario autenticado puede actualizar su perfil
 router.delete("/:id", getClientByIdValidation, validateRequest, authMiddleware, roleMiddleware("admin"), deleteClient); // Solo admin
 
 export default router;

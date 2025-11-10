@@ -4,7 +4,7 @@ import { LoginClient } from "../../../application/use_cases/clients/LoginClient"
 import { UpdateClientProfile } from "../../../application/use_cases/clients/UpdateClientProfile";
 import { ClientService } from "../../../domain/services/ClientService";
 import { ClientRepositoryImpl } from "../../repositories/ClientRepositoryImpl";
-import { asyncHandler, NotFoundError, BadRequestError } from "../../middlewares/errors";
+import { asyncHandler, NotFoundError, BadRequestError, ForbiddenError } from "../../middlewares/errors";
 
 // Instancias de dependencias
 const clientRepository = new ClientRepositoryImpl();
@@ -34,6 +34,13 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
 export const updateClient = asyncHandler(async (req: Request, res: Response) => {
   const updateClientProfileUseCase = new UpdateClientProfile(clientService);
   const id = Number(req.params.id);
+  const userId = (req as any).user?.id;
+  const userRole = (req as any).user?.role;
+  
+  // Validar que el usuario solo pueda actualizar su propio perfil (excepto admin)
+  if (userRole !== 'admin' && userId !== id) {
+    throw new ForbiddenError("Solo puedes actualizar tu propio perfil");
+  }
   
   const client = await updateClientProfileUseCase.execute({
     id_client: id,

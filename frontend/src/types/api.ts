@@ -142,8 +142,8 @@ export interface CreateClientRequest {
 
 export interface UpdateClientRequest {
   client_name?: string;
-  email?: string;
-  phone?: number;
+  client_email?: string;
+  phone?: string; // Cambiado de number a string para coincidir con el backend
   address?: string;
 }
 

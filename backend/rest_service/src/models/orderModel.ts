@@ -38,6 +38,11 @@ export class OrderEntity {
 	@Column({ name: "id_client" })
 	id_client!: number;
 
+	// Relación con cliente (sin foreign key constraint por problemas de compatibilidad)
+	@ManyToOne(() => ClientEntity, { createForeignKeyConstraints: false })
+	@JoinColumn({ name: "id_client" })
+	client?: ClientEntity;
+
 	@Column({ name: "id_cart" })
 	id_cart!: number;
 
