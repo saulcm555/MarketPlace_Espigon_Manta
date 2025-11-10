@@ -24,6 +24,15 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { AdminLayout } from "@/layouts/AdminLayout";
+import { AdminDashboard } from "@/pages/admin/AdminDashboard";
+import { AdminCategories } from "@/pages/admin/AdminCategories";
+import { AdminProducts } from "@/pages/admin/AdminProducts";
+import { AdminSellers } from "@/pages/admin/AdminSellers";
+import { AdminOrders } from "@/pages/admin/AdminOrders";
+import { AdminPayments } from "@/pages/admin/AdminPayments";
+import { AdminReports } from "@/pages/admin/AdminReports";
+import { AdminSettings } from "@/pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
 
@@ -117,6 +126,26 @@ const PrincipalPage = () => (
                   </ProtectedRoute>
                 } 
               />
+
+              {/* Admin Routes */}
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="categories" element={<AdminCategories />} />
+                <Route path="products" element={<AdminProducts />} />
+                <Route path="sellers" element={<AdminSellers />} />
+                <Route path="orders" element={<AdminOrders />} />
+                <Route path="payments" element={<AdminPayments />} />
+                <Route path="reports" element={<AdminReports />} />
+                <Route path="settings" element={<AdminSettings />} />
+              </Route>
+
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
