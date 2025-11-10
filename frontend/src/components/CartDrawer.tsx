@@ -94,7 +94,7 @@ const CartDrawer = () => {
             <ScrollArea className="flex-1 -mx-6 px-6">
               <div className="space-y-4 py-4">
                 {cartItems.map((item) => (
-                  <div key={item.id} className="flex gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div key={`cart-item-${item.id_product}-${item.id || Math.random()}`} className="flex gap-4 p-4 bg-muted/50 rounded-lg">
                     <div className="relative w-20 h-20 bg-background rounded-md overflow-hidden flex-shrink-0">
                       {item.product?.image_url ? (
                         <img

@@ -3,7 +3,7 @@
  * Página de proceso de pago con dirección, método de pago y confirmación
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -37,12 +37,13 @@ import {
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { cart, totalAmount, clear } = useCart();
+  const { cart, totalAmount, clear, isLoading: isLoadingCart } = useCart();
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoadingMethods, setIsLoadingMethods] = useState(true);
+  const hasLoadedMethods = useRef(false);
 
   // Form states
   const [deliveryAddress, setDeliveryAddress] = useState({
@@ -60,34 +61,60 @@ const Checkout = () => {
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
 
+  // Efecto para verificar autenticación
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Efecto para verificar carrito y cargar métodos de pago
+  useEffect(() => {
+    if (!isAuthenticated || isLoadingCart) {
       return;
     }
 
     const products = cart?.products || cart?.productCarts || [];
+    
     if (!cart || products.length === 0) {
+      toast({
+        title: "Carrito vacío",
+        description: "No tienes productos en tu carrito",
+        variant: "destructive",
+      });
       navigate('/products');
       return;
     }
 
-    // Cargar métodos de pago
-    loadPaymentMethods();
-  }, [isAuthenticated, cart, navigate]);
+    // Cargar métodos de pago solo una vez
+    if (!hasLoadedMethods.current) {
+      hasLoadedMethods.current = true;
+      loadPaymentMethods();
+    }
+  }, [isAuthenticated, cart, isLoadingCart]);
 
   const loadPaymentMethods = async () => {
     try {
       setIsLoadingMethods(true);
       const methods = await getPaymentMethods();
       setPaymentMethods(methods);
+      
+      // Si no hay métodos de pago, usar uno por defecto
+      if (methods.length === 0) {
+        toast({
+          title: "Aviso",
+          description: "No hay métodos de pago disponibles. Contacta al administrador.",
+          variant: "default",
+        });
+      }
     } catch (error) {
-      console.error('Error al cargar métodos de pago:', error);
       toast({
         title: "Error",
         description: "No se pudieron cargar los métodos de pago",
         variant: "destructive",
       });
+      // Continuar aunque falle, permitir que el usuario vea el checkout
+      setPaymentMethods([]);
     } finally {
       setIsLoadingMethods(false);
     }
@@ -195,7 +222,9 @@ const Checkout = () => {
     }
 
     // Si seleccionó transferencia bancaria, validar que tenga comprobante
-    const selectedMethod = paymentMethods.find(m => m.id === parseInt(paymentMethod));
+    const selectedMethod = paymentMethods.find(m => 
+      (m.id_payment_method || m.id) === parseInt(paymentMethod)
+    );
     const isTransfer = selectedMethod?.method_name?.toLowerCase().includes('transferencia');
     
     if (isTransfer && !selectedFile) {
@@ -214,30 +243,49 @@ const Checkout = () => {
 
       // 1. Si hay archivo, subirlo primero
       if (selectedFile) {
-        toast({
-          title: "Subiendo comprobante...",
-          description: "Por favor espera",
-        });
+        try {
+          toast({
+            title: "Subiendo comprobante...",
+            description: "Por favor espera",
+          });
 
-        const uploadResult = await uploadPaymentReceipt(selectedFile);
-        receiptUrl = uploadResult.url;
+          const uploadResult = await uploadPaymentReceipt(selectedFile);
+          receiptUrl = uploadResult.url;
+        } catch (uploadError: any) {
+          console.error('Error al subir comprobante:', uploadError);
+          
+          // Si falla la subida del comprobante, informar al usuario
+          toast({
+            title: "Error al subir comprobante",
+            description: uploadError.response?.data?.message || 
+                        "No se pudo subir el comprobante. Verifica tu conexión o intenta con otro archivo.",
+            variant: "destructive",
+          });
+          
+          setIsProcessing(false);
+          return; // Detener el proceso si falla la subida
+        }
       }
 
       // 2. Crear la orden
       const addressString = `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.province}${deliveryAddress.zipCode ? `, ${deliveryAddress.zipCode}` : ''}. Tel: ${deliveryAddress.phone}${deliveryAddress.notes ? `. Notas: ${deliveryAddress.notes}` : ''}`;
 
       // Construir productOrders desde el carrito
-      const productOrders = cartItems.map(item => ({
-        id_product: item.product?.id_product || 0,
-        quantity: item.quantity,
-        price_unit: item.product?.price || 0
-      }));
+      const productOrders = cartItems.map((item) => {
+        const priceUnit = typeof item.product?.price === 'string' 
+          ? parseFloat(item.product.price) 
+          : (item.product?.price || 0);
+        return {
+          id_product: item.product?.id_product || 0,
+          quantity: item.quantity,
+          price_unit: priceUnit
+        };
+      });
 
       const orderData = {
         id_client: user.id,
         id_cart: cart.id_cart,
         id_payment_method: parseInt(paymentMethod),
-        total_amount: total,
         delivery_type: 'home_delivery', // Por defecto entrega a domicilio
         delivery_address: addressString,
         payment_receipt_url: receiptUrl,
@@ -245,36 +293,32 @@ const Checkout = () => {
       };
 
       const newOrder = await createOrder(orderData);
-
-      // Limpiar carrito después de crear orden
-      await clear();
+      const orderId = (newOrder as any).id_order || newOrder.id;
 
       // Mostrar mensaje según el método de pago
       if (isTransfer) {
         toast({
           title: "¡Pedido creado!",
-          description: `Tu pedido #${newOrder.id} está esperando verificación del pago`,
+          description: `Tu pedido #${orderId} está esperando verificación del pago`,
         });
       } else {
         toast({
           title: "¡Pedido realizado!",
-          description: `Tu pedido #${newOrder.id} ha sido creado exitosamente`,
+          description: `Tu pedido #${orderId} ha sido creado exitosamente`,
         });
       }
-
-      // Redirigir a la página de éxito (tu compañero creó esta página)
-      navigate(`/order-success/${newOrder.id}`);
+      navigate(`/order-success/${orderId}`);
     } catch (error: any) {
-      console.error('Error al crear orden:', error);
-      
-      // Determinar el mensaje de error específico
       let errorMessage = "No se pudo procesar el pedido";
       let errorTitle = "Error al procesar pedido";
-      
-      if (error.response?.data?.message) {
+      const errors = error.response?.data?.errors || error.errors;
+      if (errors && Array.isArray(errors)) {
+        errorTitle = "Errores de validación";
+        errorMessage = errors.map((err: any) => 
+          `${err.path || err.field || err.param || ''}: ${err.msg || err.message || JSON.stringify(err)}`
+        ).join('\n');
+      } else if (error.response?.data?.message) {
         const message = error.response.data.message;
-        
-        // Casos específicos de error
         if (message.includes('Stock insuficiente')) {
           errorTitle = "Stock insuficiente";
           errorMessage = message.replace('⚠️ ', '');
@@ -290,7 +334,6 @@ const Checkout = () => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
       toast({
         title: errorTitle,
         description: errorMessage,
@@ -301,7 +344,44 @@ const Checkout = () => {
     }
   };
 
-  if (!cart) return null;
+  // Mostrar loading mientras carga el carrito
+  if (isLoadingCart) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="h-16"></div>
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <p className="text-muted-foreground">Cargando checkout...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Si después de cargar no hay carrito, mostrar mensaje
+  if (!cart) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="h-16"></div>
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Carrito vacío</h2>
+              <p className="text-muted-foreground mb-4">No tienes productos en tu carrito</p>
+              <Button onClick={() => navigate('/products')}>
+                Ver Productos
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const cartItems = cart.products || cart.productCarts || [];
   const shipping = 3; // $3 de envío fijo
@@ -433,13 +513,33 @@ const Checkout = () => {
                   ) : (
                     <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
                       {paymentMethods.map((method) => {
+                        const methodId = method.id_payment_method || method.id;
                         const isTransfer = method.method_name?.toLowerCase().includes('transferencia');
                         
+                        // Parsear details_payment si viene como string JSON
+                        let details = method.details;
+                        if (typeof method.details_payment === 'string' && method.details_payment) {
+                          try {
+                            // Intentar parsear solo si parece ser JSON (empieza con { o [)
+                            const trimmed = method.details_payment.trim();
+                            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                              details = JSON.parse(method.details_payment);
+                            } else {
+                              // Si no es JSON, usar como descripción
+                              details = { description: method.details_payment };
+                            }
+                          } catch (e) {
+                            console.error('Error parsing details_payment for method:', method.method_name, e);
+                            // Si falla el parseo, usar el texto como descripción
+                            details = { description: method.details_payment };
+                          }
+                        }
+                        
                         return (
-                          <div key={method.id} className="space-y-3">
+                          <div key={methodId} className="space-y-3">
                             <div className="flex items-center space-x-3 space-y-0 border rounded-lg p-4 hover:bg-accent/50 transition-colors">
-                              <RadioGroupItem value={method.id.toString()} id={`method-${method.id}`} />
-                              <Label htmlFor={`method-${method.id}`} className="flex-1 cursor-pointer">
+                              <RadioGroupItem value={methodId?.toString() || ''} id={`method-${methodId}`} />
+                              <Label htmlFor={`method-${methodId}`} className="flex-1 cursor-pointer">
                                 <div className="font-medium">{method.method_name}</div>
                                 <div className="text-sm text-muted-foreground">
                                   {method.description}
@@ -448,49 +548,49 @@ const Checkout = () => {
                             </div>
 
                             {/* Mostrar detalles bancarios si es transferencia y está seleccionado */}
-                            {isTransfer && paymentMethod === method.id.toString() && method.details && (
+                            {isTransfer && paymentMethod === methodId?.toString() && details && (
                               <div className="ml-9 border-l-2 border-primary pl-4 space-y-3">
                                 <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                                   <p className="text-sm font-semibold text-primary mb-3">
                                     Realiza la transferencia a esta cuenta:
                                   </p>
                                   
-                                  {method.details.banco && (
+                                  {details.banco && (
                                     <div className="flex items-start gap-2">
                                       <Building2 className="h-4 w-4 mt-0.5 text-muted-foreground" />
                                       <div>
                                         <p className="text-xs text-muted-foreground">Banco</p>
-                                        <p className="text-sm font-medium">{method.details.banco}</p>
+                                        <p className="text-sm font-medium">{details.banco}</p>
                                       </div>
                                     </div>
                                   )}
                                   
-                                  {method.details.tipo_cuenta && (
+                                  {details.tipo_cuenta && (
                                     <div className="flex items-start gap-2">
                                       <CreditCard className="h-4 w-4 mt-0.5 text-muted-foreground" />
                                       <div>
                                         <p className="text-xs text-muted-foreground">Tipo de cuenta</p>
-                                        <p className="text-sm font-medium">{method.details.tipo_cuenta}</p>
+                                        <p className="text-sm font-medium">{details.tipo_cuenta}</p>
                                       </div>
                                     </div>
                                   )}
                                   
-                                  {method.details.numero_cuenta && (
+                                  {details.numero_cuenta && (
                                     <div className="flex items-start gap-2">
                                       <FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
                                       <div>
                                         <p className="text-xs text-muted-foreground">Número de cuenta</p>
-                                        <p className="text-sm font-mono font-bold">{method.details.numero_cuenta}</p>
+                                        <p className="text-sm font-mono font-bold">{details.numero_cuenta}</p>
                                       </div>
                                     </div>
                                   )}
                                   
-                                  {method.details.titular && (
+                                  {details.titular && (
                                     <div className="flex items-start gap-2">
                                       <User className="h-4 w-4 mt-0.5 text-muted-foreground" />
                                       <div>
                                         <p className="text-xs text-muted-foreground">Titular</p>
-                                        <p className="text-sm font-medium">{method.details.titular}</p>
+                                        <p className="text-sm font-medium">{details.titular}</p>
                                       </div>
                                     </div>
                                   )}

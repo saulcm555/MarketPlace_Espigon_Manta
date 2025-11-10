@@ -297,8 +297,6 @@ export interface CreateOrderRequest {
   id_client: number;
   id_cart: number;
   id_payment_method: number;
-  id_delivery?: number;
-  total_amount: number;
   delivery_type: string; // 'home_delivery', 'pickup', etc.
   delivery_address?: string; // Dirección de entrega si es delivery
   payment_receipt_url?: string;
@@ -338,10 +336,13 @@ export interface PendingPaymentOrder {
 // ============================================
 
 export interface PaymentMethod {
-  id: number;
+  id_payment_method: number;
+  id?: number; // Alias para compatibilidad
   method_name: string;
   description?: string;
+  details_payment?: string; // JSON string desde backend
   details?: {
+    description?: string; // Descripción general
     banco?: string;
     numero_cuenta?: string;
     tipo_cuenta?: string;

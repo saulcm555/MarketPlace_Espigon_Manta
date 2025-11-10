@@ -16,14 +16,37 @@ export const createOrderValidation = [
     .notEmpty().withMessage('El método de pago es requerido')
     .isInt({ min: 1 }).withMessage('ID de método de pago inválido'),
   
-  body('id_delivery')
-    .notEmpty().withMessage('El método de entrega es requerido')
-    .isInt({ min: 1 }).withMessage('ID de método de entrega inválido'),
+  body('delivery_type')
+    .notEmpty().withMessage('El tipo de entrega es requerido')
+    .isString().withMessage('El tipo de entrega debe ser texto')
+    .isIn(['home_delivery', 'pickup', 'store_pickup'])
+    .withMessage('Tipo de entrega inválido. Debe ser: home_delivery, pickup o store_pickup'),
   
-  body('order_notes')
+  body('delivery_address')
     .optional()
-    .isString().withMessage('Las notas deben ser texto')
-    .trim()
+    .isString().withMessage('La dirección debe ser texto')
+    .trim(),
+  
+  body('payment_receipt_url')
+    .optional()
+    .isString().withMessage('La URL del comprobante debe ser texto'),
+  
+  body('productOrders')
+    .optional()
+    .isArray().withMessage('productOrders debe ser un array')
+    .custom((value) => {
+      if (value && value.length > 0) {
+        return value.every((item: any) => 
+          item.id_product && 
+          item.quantity && 
+          item.price_unit &&
+          typeof item.id_product === 'number' &&
+          typeof item.quantity === 'number' &&
+          typeof item.price_unit === 'number'
+        );
+      }
+      return true;
+    }).withMessage('Cada producto debe tener id_product, quantity y price_unit válidos')
 ];
 
 /**

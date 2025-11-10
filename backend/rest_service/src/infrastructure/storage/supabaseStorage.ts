@@ -25,9 +25,14 @@ export const uploadToSupabase = async (
   try {
     // Verificar que Supabase esté configurado
     if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase no configurado. No se puede subir el archivo.');
+      console.error('❌ Supabase no configurado. URL:', supabaseUrl, 'Key:', supabaseKey ? 'exists' : 'missing');
       return null;
     }
+
+    console.log('📤 Intentando subir archivo a Supabase...');
+    console.log('   Bucket:', bucket);
+    console.log('   Nombre:', fileName);
+    console.log('   Tamaño:', file.length, 'bytes');
 
     // Subir archivo a Supabase Storage
     const { data, error } = await supabase.storage
@@ -38,18 +43,23 @@ export const uploadToSupabase = async (
       });
 
     if (error) {
-      console.error('Error al subir archivo a Supabase:', error.message);
+      console.error('❌ Error al subir archivo a Supabase:', error.message);
+      console.error('   Error completo:', JSON.stringify(error, null, 2));
       return null;
     }
+
+    console.log('✅ Archivo subido exitosamente:', data.path);
 
     // Obtener URL pública del archivo
     const { data: publicUrlData } = supabase.storage
       .from(bucket)
       .getPublicUrl(data.path);
 
+    console.log('🔗 URL pública generada:', publicUrlData.publicUrl);
+
     return publicUrlData.publicUrl;
   } catch (error) {
-    console.error('Error en uploadToSupabase:', error);
+    console.error('💥 Error en uploadToSupabase:', error);
     return null;
   }
 };

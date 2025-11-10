@@ -190,23 +190,15 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
  */
 export const getSellerPendingPayments = asyncHandler(async (req: Request, res: Response) => {
   const sellerId = req.user?.id_seller || req.user?.id;
-  
   if (!sellerId) {
     return res.status(401).json({ message: "No se pudo identificar el vendedor" });
   }
-
-  // Obtener órdenes con estado payment_pending_verification
-  // Filtrar solo aquellas que contengan productos del seller
   const allPendingOrders = await orderService.getOrdersByStatus('payment_pending_verification');
-  
-  // Filtrar órdenes que contengan al menos un producto del seller
   const sellerPendingOrders = allPendingOrders.filter(order => {
-    if (!order.cart?.products) return false;
-    
-    return order.cart.products.some((cartProduct: ProductCart) => {
+    if (!order.cart?.productCarts) return false;
+    return order.cart.productCarts.some((cartProduct: ProductCart) => {
       return cartProduct.product?.id_seller === sellerId;
     });
   });
-
   res.json(sellerPendingOrders);
 });

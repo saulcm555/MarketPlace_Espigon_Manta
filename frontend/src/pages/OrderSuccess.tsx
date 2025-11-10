@@ -79,7 +79,7 @@ const OrderSuccess = () => {
               ¡Pedido realizado con éxito!
             </h1>
             <p className="text-muted-foreground">
-              Tu pedido #{order.id} ha sido confirmado y está siendo procesado
+              Tu pedido #{(order as any).id_order || order.id} ha sido confirmado y está siendo procesado
             </p>
           </div>
 
@@ -179,7 +179,7 @@ const OrderSuccess = () => {
           {/* Acciones */}
           <div className="flex flex-col sm:flex-row gap-3">
             <Button 
-              onClick={() => navigate(`/orders/${order.id}`)}
+              onClick={() => navigate(`/orders/${(order as any).id_order || order.id}`)}
               className="flex-1"
             >
               <Receipt className="w-4 h-4 mr-2" />

@@ -59,15 +59,16 @@ export const cancelOrder = async (id: number): Promise<Order> => {
  */
 export const uploadPaymentReceipt = async (file: File): Promise<{ url: string }> => {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('receipt', file); // El backend espera 'receipt', no 'file'
   
-  const response = await apiClient.post<{ url: string }>('/upload/payment-receipt', formData, {
+  const response = await apiClient.post<{ receiptUrl: string }>('/upload/payment-receipt', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
   
-  return response.data;
+  // El backend devuelve 'receiptUrl', pero normalizamos a 'url'
+  return { url: response.data.receiptUrl };
 };
 
 /**

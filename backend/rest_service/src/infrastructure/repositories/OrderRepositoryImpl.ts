@@ -37,7 +37,7 @@ export class OrderRepositoryImpl implements IOrderRepository {
   async findAll(): Promise<OrderEntity[]> {
     const repo = AppDataSource.getRepository(OrderEntity);
     return await repo.find({
-      relations: ["productOrders", "productOrders.product", "cart", "cart.products", "cart.products.product", "client", "paymentMethod"]
+  relations: ["productOrders", "productOrders.product", "cart", "cart.productCarts", "cart.productCarts.product", "paymentMethod"]
     });
   }
 
@@ -45,7 +45,7 @@ export class OrderRepositoryImpl implements IOrderRepository {
     const repo = AppDataSource.getRepository(OrderEntity);
     return await repo.find({
       where: { status },
-      relations: ["productOrders", "productOrders.product", "cart", "cart.products", "cart.products.product", "client", "paymentMethod"]
+  relations: ["productOrders", "productOrders.product", "cart", "cart.productCarts", "cart.productCarts.product", "paymentMethod"]
     });
   }
 

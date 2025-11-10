@@ -40,6 +40,11 @@ const SellerPaymentVerification = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
+  // Helper para obtener el ID de la orden (backend usa id_order)
+  const getOrderId = (order: any): number => {
+    return order.id_order || order.id;
+  };
+
   const { data: pendingOrders = [], isLoading } = useQuery({
     queryKey: ['pending-payments'],
     queryFn: getPendingPaymentOrders,
@@ -139,14 +144,16 @@ const SellerPaymentVerification = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {pendingOrders.map((order: Order) => (
-                <Card key={order.id} className="border-2">
+              {pendingOrders.map((order: Order) => {
+                const orderId = getOrderId(order);
+                return (
+                <Card key={orderId} className="border-2">
                   <CardContent className="p-4">
                     <div className="space-y-3">
                       {/* Header */}
                       <div className="flex items-start justify-between">
                         <div>
-                          <h4 className="font-semibold">Pedido #{order.id}</h4>
+                          <h4 className="font-semibold">Pedido #{orderId}</h4>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                             <Calendar className="h-3 w-3" />
                             {formatDate(order.order_date)}
@@ -225,7 +232,7 @@ const SellerPaymentVerification = () => {
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => handleReject(order.id)}
+                          onClick={() => handleReject(orderId)}
                           disabled={verifyMutation.isPending}
                         >
                           <XCircle className="h-4 w-4 mr-1" />
@@ -234,7 +241,7 @@ const SellerPaymentVerification = () => {
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={() => handleApprove(order.id)}
+                          onClick={() => handleApprove(orderId)}
                           disabled={verifyMutation.isPending}
                           className="bg-green-600 hover:bg-green-700"
                         >
@@ -245,7 +252,8 @@ const SellerPaymentVerification = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -303,7 +311,8 @@ const SellerPaymentVerification = () => {
                   <img
                     src={selectedOrder.payment_receipt_url}
                     alt="Comprobante de pago"
-                    className="w-full h-auto"
+                    className="max-w-[350px] max-h-[350px] w-auto h-auto mx-auto rounded-lg border"
+                    style={{ display: 'block' }}
                   />
                 )}
               </div>
@@ -332,7 +341,7 @@ const SellerPaymentVerification = () => {
                 <Button
                   variant="destructive"
                   onClick={() => {
-                    handleReject(selectedOrder.id);
+                    handleReject(getOrderId(selectedOrder));
                     setShowReceiptModal(false);
                   }}
                   disabled={verifyMutation.isPending}
@@ -342,7 +351,7 @@ const SellerPaymentVerification = () => {
                 </Button>
                 <Button
                   onClick={() => {
-                    handleApprove(selectedOrder.id);
+                    handleApprove(getOrderId(selectedOrder));
                     setShowReceiptModal(false);
                   }}
                   disabled={verifyMutation.isPending}
