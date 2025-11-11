@@ -17,6 +17,10 @@ export const createProductValidation = [
     .notEmpty().withMessage('La categoría es requerida')
     .isInt({ min: 1 }).withMessage('ID de categoría inválido'),
   
+  body('id_sub_category')
+    .notEmpty().withMessage('La subcategoría es requerida')
+    .isInt({ min: 1 }).withMessage('ID de subcategoría inválido'),
+  
   body('id_seller')
     .notEmpty().withMessage('El vendedor es requerido')
     .isInt({ min: 1 }).withMessage('ID de vendedor inválido'),
@@ -28,11 +32,7 @@ export const createProductValidation = [
   
   body('product_image')
     .optional()
-    .isString().withMessage('La imagen debe ser texto'),
-  
-  body('id_sub_category')
-    .optional()
-    .isInt({ min: 1 }).withMessage('ID de subcategoría inválido')
+    .isString().withMessage('La imagen debe ser texto')
 ];
 
 /**
@@ -58,6 +58,10 @@ export const getProductsValidation = [
   query('id_category')
     .optional()
     .isInt({ min: 1 }).withMessage('ID de categoría inválido'),
+  
+  query('id_sub_category')
+    .optional()
+    .isInt({ min: 1 }).withMessage('ID de subcategoría inválido'),
   
   query('id_seller')
     .optional()

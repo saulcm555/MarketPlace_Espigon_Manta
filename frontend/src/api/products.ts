@@ -15,50 +15,70 @@ import type {
 // ============================================
 
 /**
+ * Normalizar producto: convertir price de string a number
+ */
+const normalizeProduct = (product: any): Product => {
+  return {
+    ...product,
+    price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
+    // Asegurar compatibilidad con subcategory
+    subcategory: product.subcategory || product.subCategory
+  };
+};
+
+/**
  * Obtener todos los productos
  */
 export const getAllProducts = async (): Promise<Product[]> => {
-  const response = await apiClient.get<any>('/products');
-  // El backend devuelve { products: [...] } en lugar de un array directo
-  return response.data.products || response.data || [];
+  // Pedir el límite máximo permitido por el backend (100)
+  // La paginación se maneja en el frontend
+  const response = await apiClient.get<any>('/products', {
+    params: { limit: 100 } // Límite máximo permitido por validación del backend
+  });
+  // El backend devuelve { products: [...], pagination: {...} }
+  const products = response.data.products || response.data || [];
+  return products.map(normalizeProduct);
 };
 
 /**
  * Obtener producto por ID
  */
 export const getProductById = async (id: number): Promise<Product> => {
-  const response = await apiClient.get<Product>(`/products/${id}`);
-  return response.data;
+  const response = await apiClient.get<any>(`/products/${id}`);
+  return normalizeProduct(response.data);
 };
 
 /**
  * Buscar productos por nombre o descripción
  */
 export const searchProducts = async (query: string): Promise<Product[]> => {
-  const response = await apiClient.get<Product[]>('/products', {
-    params: { search: query }
+  const response = await apiClient.get<any>('/products', {
+    params: { search: query, limit: 100 }
   });
-  return response.data;
+  const products = response.data.products || response.data || [];
+  return products.map(normalizeProduct);
 };
 
 /**
  * Filtrar productos por categoría
  */
 export const getProductsByCategory = async (categoryId: number): Promise<Product[]> => {
-  const response = await apiClient.get<Product[]>('/products', {
-    params: { category: categoryId }
+  const response = await apiClient.get<any>('/products', {
+    params: { id_category: categoryId, limit: 100 }
   });
-  return response.data;
+  const products = response.data.products || response.data || [];
+  return products.map(normalizeProduct);
 };
 
 /**
  * Filtrar productos por subcategoría
  */
 export const getProductsBySubcategory = async (subcategoryId: number): Promise<Product[]> => {
-  const response = await apiClient.get<Product[]>('/products', {
-    params: { subcategory: subcategoryId }
+  const response = await apiClient.get<any>('/products', {
+    params: { id_sub_category: subcategoryId, limit: 100 }
   });
-  return response.data;
+  const products = response.data.products || response.data || [];
+  return products.map(normalizeProduct);
 };
 
 /**
@@ -68,17 +88,19 @@ export const getProductsBySeller = async (sellerId: number): Promise<Product[]> 
   const response = await apiClient.get<any>('/products', {
     params: { id_seller: sellerId }
   });
-  return response.data.products || response.data || [];
+  const products = response.data.products || response.data || [];
+  return products.map(normalizeProduct);
 };
 
 /**
  * Obtener productos destacados (los más recientes o más vendidos)
  */
 export const getFeaturedProducts = async (limit: number = 8): Promise<Product[]> => {
-  const response = await apiClient.get<Product[]>('/products', {
-    params: { limit, featured: true }
+  const response = await apiClient.get<any>('/products', {
+    params: { limit }
   });
-  return response.data;
+  const products = response.data.products || response.data || [];
+  return products.map(normalizeProduct);
 };
 
 // ============================================

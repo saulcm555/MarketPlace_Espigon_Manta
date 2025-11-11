@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { CreateSubCategory } from "../../../application/use_cases/categories/CreateSubCategory";
 import { ManageCategories } from "../../../application/use_cases/categories/ManageCategories";
+import { QueryCategories } from "../../../application/use_cases/categories/QueryCategories";
 import { CategoryService } from "../../../domain/services/CategoryService";
 import { SubCategoryService } from "../../../domain/services/SubCategoryService";
 import { CategoryRepositoryImpl } from "../../repositories/CategoryRepositoryImpl";
@@ -14,6 +15,18 @@ const categoryService = new CategoryService(categoryRepository);
 const subCategoryService = new SubCategoryService(subCategoryRepository);
 
 export const getSubCategories = asyncHandler(async (req: Request, res: Response) => {
+  const { id_category } = req.query;
+  
+  // Si se proporciona id_category, filtrar por categoría
+  if (id_category) {
+    const queryCategoriesUseCase = new QueryCategories(categoryService, subCategoryService);
+    const subCategories = await queryCategoriesUseCase.getSubCategories({
+      id_category: Number(id_category)
+    });
+    return res.json(subCategories);
+  }
+  
+  // Si no, devolver todas las subcategorías
   const subCategories = await subCategoryService.getAllSubCategories();
   res.json(subCategories);
 });

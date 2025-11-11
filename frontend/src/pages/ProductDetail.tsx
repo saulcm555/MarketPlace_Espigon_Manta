@@ -332,6 +332,20 @@ const ProductDetail = () => {
           <div className="space-y-6">
             {/* Title and stock badge */}
             <div>
+              {/* Badges de Categoría y Subcategoría */}
+              <div className="flex items-center gap-2 mb-3">
+                {product.category && (
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                    {product.category.category_name}
+                  </Badge>
+                )}
+                {(product.subcategory || (product as any).subCategory) && (
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+                    {product.subcategory?.sub_category_name || (product as any).subCategory?.sub_category_name}
+                  </Badge>
+                )}
+              </div>
+
               <div className="flex items-center justify-between mb-3">
                 <h1 className="text-3xl font-bold">{product.product_name}</h1>
                 <Badge variant="secondary">

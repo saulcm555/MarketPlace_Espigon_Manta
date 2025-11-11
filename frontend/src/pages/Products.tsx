@@ -6,8 +6,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getAllProducts, getAllCategories } from '@/api';
+import { getAllProducts, getAllCategories, getSubCategoriesByCategory } from '@/api';
 import Navbar from '@/components/Navbar';
+import ProductRating from '@/components/ProductRating';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +28,6 @@ import {
   SlidersHorizontal,
   X,
   ShoppingCart,
-  Star,
   Grid3x3,
   List,
   ChevronLeft,
@@ -42,8 +42,9 @@ const Products = () => {
   // Estados de filtros
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'all');
+  const [selectedSubCategory, setSelectedSubCategory] = useState(searchParams.get('subcategory') || 'all');
   const [selectedSeller, setSelectedSeller] = useState(searchParams.get('seller') || 'all');
-  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [priceRange, setPriceRange] = useState([0, 10000]); // Aumentado el rango máximo
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(true);
@@ -61,9 +62,20 @@ const Products = () => {
     queryKey: ['categories'],
     queryFn: getAllCategories,
   });
+
+  // Obtener subcategorías cuando se selecciona una categoría
+  const { data: subCategories = [], isLoading: isLoadingSubCategories } = useQuery({
+    queryKey: ['subcategories', selectedCategory],
+    queryFn: () => getSubCategoriesByCategory(Number(selectedCategory)),
+    enabled: selectedCategory !== 'all',
+  });
   // Aplicar filtros
   const filteredProducts = allProducts
     .filter((product: Product) => {
+      // IMPORTANTE: Solo filtrar productos rechazados o inactivos
+      // Mostrar productos: active, pending (y los que no tienen status definido)
+      if (product.status === 'rejected' || product.status === 'inactive') return false;
+
       // Filtro de búsqueda
       const matchesSearch = searchQuery === '' ||
         product.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -71,12 +83,15 @@ const Products = () => {
       // Filtro de categoría
       const matchesCategory = selectedCategory === 'all' ||
         product.id_category.toString() === selectedCategory;
+      // Filtro de subcategoría
+      const matchesSubCategory = selectedSubCategory === 'all' ||
+        product.id_sub_category?.toString() === selectedSubCategory;
       // Filtro de vendedor
       const matchesSeller = selectedSeller === 'all' ||
         product.id_seller?.toString() === selectedSeller;
       // Filtro de precio
       const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
-      return matchesSearch && matchesCategory && matchesSeller && matchesPrice;
+      return matchesSearch && matchesCategory && matchesSubCategory && matchesSeller && matchesPrice;
     })
     .sort((a: Product, b: Product) => {
       switch (sortBy) {
@@ -112,8 +127,9 @@ const Products = () => {
   const handleResetFilters = () => {
     setSearchQuery('');
     setSelectedCategory('all');
+    setSelectedSubCategory('all');
     setSelectedSeller('all');
-    setPriceRange([0, 1000]);
+    setPriceRange([0, 10000]); // Aumentado el rango máximo
     setSortBy('newest');
     setCurrentPage(1);
     setSearchParams({});
@@ -129,8 +145,9 @@ const Products = () => {
   const activeFiltersCount = 
     (searchQuery ? 1 : 0) + 
     (selectedCategory !== 'all' ? 1 : 0) + 
+    (selectedSubCategory !== 'all' ? 1 : 0) +
     (selectedSeller !== 'all' ? 1 : 0) +
-    (priceRange[0] !== 0 || priceRange[1] !== 1000 ? 1 : 0);
+    (priceRange[0] !== 0 || priceRange[1] !== 10000 ? 1 : 0); // Aumentado el rango máximo
 
   return (
     <div className="min-h-screen bg-background">
@@ -222,7 +239,19 @@ const Products = () => {
                   Categoría
                   <X
                     className="h-3 w-3 cursor-pointer"
-                    onClick={() => setSelectedCategory('all')}
+                    onClick={() => {
+                      setSelectedCategory('all');
+                      setSelectedSubCategory('all');
+                    }}
+                  />
+                </Badge>
+              )}
+              {selectedSubCategory !== 'all' && (
+                <Badge variant="secondary" className="gap-1">
+                  Subcategoría
+                  <X
+                    className="h-3 w-3 cursor-pointer"
+                    onClick={() => setSelectedSubCategory('all')}
                   />
                 </Badge>
               )}
@@ -235,12 +264,12 @@ const Products = () => {
                   />
                 </Badge>
               )}
-              {(priceRange[0] !== 0 || priceRange[1] !== 1000) && (
+              {(priceRange[0] !== 0 || priceRange[1] !== 10000) && (
                 <Badge variant="secondary" className="gap-1">
                   Precio: {formatPrice(priceRange[0])} - {formatPrice(priceRange[1])}
                   <X
                     className="h-3 w-3 cursor-pointer"
-                    onClick={() => setPriceRange([0, 1000])}
+                    onClick={() => setPriceRange([0, 10000])}
                   />
                 </Badge>
               )}
@@ -271,6 +300,7 @@ const Products = () => {
                         value={selectedCategory} 
                         onValueChange={(value) => {
                           setSelectedCategory(value);
+                          setSelectedSubCategory('all'); // Resetear subcategoría al cambiar categoría
                           setCurrentPage(1);
                         }}
                       >
@@ -291,14 +321,51 @@ const Products = () => {
                       </Select>
                     )}
                   </div>
+
+                  {/* Subcategorías - Solo se muestra si hay una categoría seleccionada */}
+                  {selectedCategory !== 'all' && (
+                    <div className="space-y-3">
+                      <Label className="text-base font-semibold">Subcategoría</Label>
+                      {isLoadingSubCategories ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : subCategories.length > 0 ? (
+                        <Select 
+                          value={selectedSubCategory} 
+                          onValueChange={(value) => {
+                            setSelectedSubCategory(value);
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una subcategoría" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todas las subcategorías</SelectItem>
+                            {subCategories.map((subCategory: any) => (
+                              <SelectItem 
+                                key={subCategory.id_sub_category} 
+                                value={subCategory.id_sub_category?.toString()}
+                              >
+                                {subCategory.sub_category_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">
+                          No hay subcategorías disponibles
+                        </p>
+                      )}
+                    </div>
+                  )}
                   {/* Rango de precio */}
                   <div className="space-y-3">
                     <Label className="text-base font-semibold">Rango de precio</Label>
                     <div className="pt-2">
                       <Slider
                         min={0}
-                        max={1000}
-                        step={10}
+                        max={10000}
+                        step={100}
                         value={priceRange}
                         onValueChange={(value) => {
                           setPriceRange(value as [number, number]);
@@ -468,6 +535,20 @@ const ProductCard = ({ product, viewMode }: ProductCardProps) => {
           <CardContent className="flex-1 p-4">
             <div className="flex flex-col h-full justify-between">
               <div>
+                {/* Badges de Categoría y Subcategoría */}
+                <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                  {product.category && (
+                    <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                      {product.category.category_name}
+                    </Badge>
+                  )}
+                  {(product.subcategory || (product as any).subCategory) && (
+                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+                      {product.subcategory?.sub_category_name || (product as any).subCategory?.sub_category_name}
+                    </Badge>
+                  )}
+                </div>
+
                 <h3 className="font-semibold text-lg mb-2 line-clamp-1">
                   {product.product_name}
                 </h3>
@@ -476,13 +557,9 @@ const ProductCard = ({ product, viewMode }: ProductCardProps) => {
                     {product.description}
                   </p>
                 )}
-                <div className="flex items-center gap-1 mb-3">
-                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm font-semibold">4.5</span>
-                  <span className="text-xs text-muted-foreground ml-1">
-                    ({product.stock} disponibles)
-                  </span>
-                </div>
+                
+                {/* Rating del producto */}
+                <ProductRating product={product} className="mb-3" />
               </div>
 
               <div className="flex items-center justify-between">
@@ -527,6 +604,20 @@ const ProductCard = ({ product, viewMode }: ProductCardProps) => {
       </div>
 
       <CardContent className="p-4">
+        {/* Badges de Categoría y Subcategoría */}
+        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+          {product.category && (
+            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+              {product.category.category_name}
+            </Badge>
+          )}
+          {(product.subcategory || (product as any).subCategory) && (
+            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+              {product.subcategory?.sub_category_name || (product as any).subCategory?.sub_category_name}
+            </Badge>
+          )}
+        </div>
+
         <h3 className="font-semibold mb-2 line-clamp-2 min-h-[3rem]">
           {product.product_name}
         </h3>
@@ -535,13 +626,10 @@ const ProductCard = ({ product, viewMode }: ProductCardProps) => {
             {product.description}
           </p>
         )}
-        <div className="flex items-center gap-1 mb-3">
-          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-          <span className="text-sm font-semibold">4.5</span>
-          <span className="text-xs text-muted-foreground ml-1">
-            ({product.stock} disponibles)
-          </span>
-        </div>
+        
+        {/* Rating del producto */}
+        <ProductRating product={product} className="mb-3" />
+        
         <div className="flex items-center justify-between">
           <span className="text-xl font-bold text-primary">
             {formatPrice(product.price)}
