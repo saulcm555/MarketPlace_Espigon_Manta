@@ -131,7 +131,7 @@ const FeaturedProducts = () => {
                     <p className="text-sm text-primary font-medium mb-1">
                       {product.seller?.seller_name || 'Vendedor'}
                     </p>
-                    <h3 className="font-semibold mb-2 line-clamp-2 min-h-[48px]">
+                    <h3 className="font-semibold mb-2 line-clamp-2">
                       {product.product_name}
                     </h3>
                     {product.description && (

@@ -27,6 +27,7 @@ import {
   Trash2,
   AlertCircle,
   Loader2,
+  CheckCircle,
 } from 'lucide-react';
 import type { Product } from '@/types/api';
 
@@ -51,6 +52,25 @@ const SellerDashboard = () => {
     enabled: isAuthenticated && user?.role === 'seller',
     retry: 1,
   });
+
+  // Separar pedidos por estado
+  // 1. Pedidos que necesitan verificación de pago (van arriba)
+  const pendingPaymentOrders = myOrders.filter(order => 
+    order.status === 'payment_pending_verification'
+  );
+
+  // 2. Pedidos activos para gestionar (van abajo) - ya verificados o en efectivo, pero no entregados
+  const activeOrders = myOrders.filter(order => 
+    order.status === 'pending' || // Efectivo
+    order.status === 'payment_confirmed' || // Transferencia aprobada
+    order.status === 'processing' ||
+    order.status === 'shipped'
+  );
+
+  // 3. Pedidos completados
+  const completedOrders = myOrders.filter(order => 
+    order.status === 'delivered'
+  );
 
   // Calcular estadísticas reales con manejo de errores
   let stats = {
@@ -339,32 +359,41 @@ const SellerDashboard = () => {
             {/* Payment Verification */}
             <SellerPaymentVerification />
 
-            {/* Orders List */}
+            {/* Pedidos activos para entregar */}
             <Card>
               <CardHeader>
-                <CardTitle>Todos los Pedidos</CardTitle>
-                <CardDescription>
-                  Pedidos que incluyen tus productos ({myOrders.length})
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Pedidos Activos</CardTitle>
+                    <CardDescription>
+                      Pedidos listos para gestionar y entregar ({activeOrders.length})
+                    </CardDescription>
+                  </div>
+                  {activeOrders.length > 0 && (
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                      {activeOrders.length} pendiente{activeOrders.length !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {isLoadingOrders ? (
                   <div className="flex justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
-                ) : myOrders.length === 0 ? (
+                ) : activeOrders.length === 0 ? (
                   <div className="text-center py-12">
                     <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                     <h3 className="text-lg font-semibold mb-2">
-                      No hay pedidos aún
+                      No hay pedidos activos
                     </h3>
                     <p className="text-muted-foreground">
-                      Los pedidos que incluyan tus productos aparecerán aquí
+                      Los pedidos listos para entregar aparecerán aquí
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {myOrders.slice(0, 10).map((order) => {
+                    {activeOrders.map((order) => {
                       // Calcular el total de productos del vendedor en este pedido
                       const sellerItems = order.productOrders?.filter(po => 
                         myProducts.some(p => p.id_product === po.id_product)
@@ -379,7 +408,7 @@ const SellerDashboard = () => {
                         <div
                           key={order.id_order}
                           className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                          onClick={() => navigate(`/orders/${order.id_order}`)}
+                          onClick={() => navigate(`/seller/orders/${order.id_order}`)}
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
@@ -389,6 +418,8 @@ const SellerDashboard = () => {
                                 order.status === 'payment_pending_verification' ? 'bg-blue-100 text-blue-800' :
                                 order.status === 'payment_confirmed' ? 'bg-green-100 text-green-800' :
                                 order.status === 'processing' ? 'bg-purple-100 text-purple-800' :
+                                order.status === 'shipped' ? 'bg-indigo-100 text-indigo-800' :
+                                order.status === 'delivered' ? 'bg-green-200 text-green-900' :
                                 order.status === 'completed' ? 'bg-green-200 text-green-900' :
                                 order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                                 order.status === 'payment_rejected' ? 'bg-red-200 text-red-900' :
@@ -398,6 +429,8 @@ const SellerDashboard = () => {
                                  order.status === 'payment_pending_verification' ? 'Verificando Pago' :
                                  order.status === 'payment_confirmed' ? 'Pago Confirmado' :
                                  order.status === 'processing' ? 'En Proceso' :
+                                 order.status === 'shipped' ? 'En Camino' :
+                                 order.status === 'delivered' ? 'Entregado ✓' :
                                  order.status === 'completed' ? 'Completado' :
                                  order.status === 'cancelled' ? 'Cancelado' :
                                  order.status === 'payment_rejected' ? 'Pago Rechazado' :
@@ -424,10 +457,10 @@ const SellerDashboard = () => {
                       );
                     })}
                     
-                    {myOrders.length > 10 && (
+                    {activeOrders.length > 10 && (
                       <div className="text-center pt-4">
                         <p className="text-sm text-muted-foreground">
-                          Mostrando 10 de {myOrders.length} pedidos totales
+                          Mostrando 10 de {activeOrders.length} pedidos activos
                         </p>
                       </div>
                     )}
@@ -435,6 +468,76 @@ const SellerDashboard = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Pedidos completados */}
+            {completedOrders.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        Pedidos Entregados
+                      </CardTitle>
+                      <CardDescription>
+                        Pedidos completados ({completedOrders.length})
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {completedOrders.slice(0, 5).map((order) => {
+                      // Calcular el total de productos del vendedor en este pedido
+                      const sellerItems = order.productOrders?.filter(po => 
+                        myProducts.some(p => p.id_product === po.id_product)
+                      ) || [];
+                      
+                      const sellerTotal = Number(sellerItems.reduce((sum, item) => {
+                        const subtotal = item.subtotal || (item.price_unit * item.quantity);
+                        return sum + (Number(subtotal) || 0);
+                      }, 0)) || 0;
+
+                      return (
+                        <div
+                          key={order.id_order}
+                          className="flex items-center justify-between p-4 border rounded-lg bg-green-50/50 dark:bg-green-950/10 hover:bg-green-50 dark:hover:bg-green-950/20 cursor-pointer transition-colors"
+                          onClick={() => navigate(`/seller/orders/${order.id_order}`)}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold">Pedido #{order.id_order}</h4>
+                              <Badge variant="default" className="bg-green-600 hover:bg-green-600">
+                                ✓ Entregado
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {new Date(order.order_date).toLocaleDateString('es-EC', { 
+                                day: '2-digit', 
+                                month: 'long', 
+                                year: 'numeric' 
+                              })}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-lg text-green-600">${sellerTotal.toFixed(2)}</p>
+                            <p className="text-xs text-muted-foreground">Completado</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {completedOrders.length > 5 && (
+                      <div className="text-center pt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Mostrando 5 de {completedOrders.length} pedidos completados
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">

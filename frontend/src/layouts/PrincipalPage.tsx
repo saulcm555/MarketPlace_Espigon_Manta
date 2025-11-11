@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import Index from "@/pages/Index";
 import Products from "@/pages/Products";
 import ProductDetail from "@/pages/ProductDetail";
@@ -14,12 +15,14 @@ import Orders from "@/pages/Orders";
 import OrderDetail from "@/pages/OrderDetail";
 import OrderSuccess from "@/pages/OrderSuccess";
 import SellerDashboard from "@/pages/SellerDashboard";
+import SellerOrderDetail from "@/pages/SellerOrderDetail";
 import SellerProducts from "@/pages/SellerProducts";
 import ProductForm from "@/pages/ProductForm";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import RegisterSeller from "@/pages/RegisterSeller";
 import Profile from "@/pages/Profile";
+import Settings from "@/pages/Settings";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
@@ -38,12 +41,13 @@ const queryClient = new QueryClient();
 
 const PrincipalPage = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <CartProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+    <ThemeProvider>
+      <AuthProvider>
+        <CartProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/products" element={<Products />} />
@@ -59,6 +63,14 @@ const PrincipalPage = () => (
                 element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/settings" 
+                element={
+                  <ProtectedRoute>
+                    <Settings />
                   </ProtectedRoute>
                 } 
               />
@@ -99,6 +111,14 @@ const PrincipalPage = () => (
                 element={
                   <ProtectedRoute>
                     <SellerDashboard />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/seller/orders/:id" 
+                element={
+                  <ProtectedRoute>
+                    <SellerOrderDetail />
                   </ProtectedRoute>
                 } 
               />
@@ -153,6 +173,7 @@ const PrincipalPage = () => (
         </TooltipProvider>
       </CartProvider>
     </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

@@ -9,12 +9,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Menu, ShoppingCart, User, LogOut, Settings, Package, ChevronDown, Receipt, Clock } from "lucide-react";
+import { Menu, ShoppingCart, User, LogOut, Settings, Package, Receipt, Clock, Cog } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getAllCategories, getMyOrders } from "@/api";
+import { getMyOrders } from "@/api";
 import CartDrawer from "@/components/CartDrawer";
 import logoEspigon from "@/assets/logo.jpg";
 
@@ -23,12 +23,6 @@ const Navbar = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const { itemCount, openCart } = useCart();
   const navigate = useNavigate();
-
-  // Fetch categories for dropdown
-  const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: getAllCategories,
-  });
 
   // Fetch recent orders (últimos 5 pedidos)
   const { data: orders = [] } = useQuery({
@@ -63,12 +57,22 @@ const Navbar = () => {
         return { variant: 'secondary' as const, text: 'Pendiente' };
       case 'payment_pending_verification':
         return { variant: 'default' as const, text: 'Verificando pago' };
+      case 'payment_confirmed':
+        return { variant: 'default' as const, text: 'Pago confirmado' };
+      case 'payment_rejected':
+        return { variant: 'destructive' as const, text: 'Pago rechazado' };
       case 'processing':
         return { variant: 'default' as const, text: 'Procesando' };
+      case 'shipped':
+        return { variant: 'default' as const, text: 'Enviado' };
+      case 'delivered':
+        return { variant: 'default' as const, text: 'Entregado' };
       case 'completed':
         return { variant: 'default' as const, text: 'Completado' };
       case 'cancelled':
         return { variant: 'destructive' as const, text: 'Cancelado' };
+      case 'expired':
+        return { variant: 'destructive' as const, text: 'Expirado' };
       default:
         return { variant: 'secondary' as const, text: status };
     }
@@ -99,39 +103,19 @@ const Navbar = () => {
               Productos
             </Link>
             
-            {/* Categorías Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1 text-foreground/80 hover:text-foreground transition-colors">
-                  Categorías
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>Categorías</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/products" className="cursor-pointer">
-                    Ver todas las categorías
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {categories.map((category: any) => (
-                  <DropdownMenuItem key={category.id_category} asChild>
-                    <Link 
-                      to={`/products?category=${category.id_category}`}
-                      className="cursor-pointer"
-                    >
-                      {category.category_name}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Categorías eliminado por petición del usuario */}
 
             <Link to="/entrepreneurs" className="text-foreground/80 hover:text-foreground transition-colors">
               Emprendedores
             </Link>
+
+            {/* Mis Pedidos - Solo para clientes */}
+            {isAuthenticated && user?.role === 'client' && (
+              <Link to="/orders" className="flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors">
+                <Receipt className="h-4 w-4" />
+                Mis Pedidos
+              </Link>
+            )}
 
             {/* Mi Tienda - Solo para vendedores */}
             {isAuthenticated && user?.role === 'seller' && (
@@ -277,6 +261,14 @@ const Navbar = () => {
                     <User className="mr-2 h-4 w-4" />
                     Mi perfil
                   </DropdownMenuItem>
+                  
+                  {/* Configuración para clientes y vendedores */}
+                  {(user?.role === 'client' || user?.role === 'seller') && (
+                    <DropdownMenuItem onClick={() => navigate('/settings')}>
+                      <Cog className="mr-2 h-4 w-4" />
+                      Configuración
+                    </DropdownMenuItem>
+                  )}
                   
                   <DropdownMenuSeparator />
                   

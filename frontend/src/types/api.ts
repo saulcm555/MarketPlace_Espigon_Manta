@@ -287,7 +287,7 @@ export interface Order {
   id_payment_method: number;
   id_delivery?: number;
   total_amount: number;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'payment_pending_verification' | 'payment_confirmed' | 'payment_rejected' | 'expired';
+  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'payment_pending_verification' | 'payment_confirmed' | 'payment_rejected' | 'expired' | 'delivered' | 'shipped';
   order_date: string;
   delivery_address?: string;
   delivery_type?: 'home_delivery' | 'pickup';

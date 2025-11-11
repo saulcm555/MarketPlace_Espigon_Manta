@@ -81,8 +81,8 @@ const ProductDetail = () => {
     let alreadyReviewed = false;
 
     for (const order of myOrders) {
-      // Solo considerar órdenes completadas
-      if (order.status === 'completed' && order.productOrders) {
+      // Solo considerar órdenes completadas o entregadas
+      if ((order.status === 'completed' || order.status === 'delivered') && order.productOrders) {
         for (const productOrder of order.productOrders) {
           if (productOrder.id_product === product.id_product) {
             // Encontramos que el usuario compró este producto

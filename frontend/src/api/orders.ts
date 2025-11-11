@@ -116,6 +116,16 @@ export const getSellerOrders = async (): Promise<Order[]> => {
   return response.data;
 };
 
+/**
+ * Marcar pedido como entregado - Para sellers
+ */
+export const markOrderAsDelivered = async (orderId: number): Promise<Order> => {
+  const response = await apiClient.patch<Order>(
+    `/orders/${orderId}/mark-delivered`
+  );
+  return response.data;
+};
+
 // ============================================
 // Review Operations
 // ============================================
@@ -173,6 +183,7 @@ export const getOrderStatusColor = (status: string): string => {
     processing: 'info',
     shipped: 'primary',
     delivered: 'success',
+    completed: 'success',
     cancelled: 'destructive',
     payment_pending_verification: 'warning',
     payment_confirmed: 'success',
@@ -192,6 +203,7 @@ export const getOrderStatusText = (status: string): string => {
     processing: 'En proceso',
     shipped: 'Enviado',
     delivered: 'Entregado',
+    completed: 'Completado',
     cancelled: 'Cancelado',
     payment_pending_verification: 'Esperando verificación de pago',
     payment_confirmed: 'Pago confirmado',

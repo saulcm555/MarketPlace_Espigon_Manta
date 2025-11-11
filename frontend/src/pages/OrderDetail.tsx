@@ -194,6 +194,9 @@ const OrderDetail = () => {
   }
 
   const cartItems = order.cart?.products || [];
+  
+  // Obtener productos de la orden (mejor fuente de datos)
+  const orderProducts = order.productOrders || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -236,47 +239,87 @@ const OrderDetail = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
-                  Productos
+                  Productos ({orderProducts.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {cartItems.map((item) => (
-                    <div key={item.id} className="flex gap-4 p-4 bg-muted/50 rounded-lg">
-                      <div className="w-20 h-20 bg-background rounded-md overflow-hidden flex-shrink-0">
-                        {item.product?.image_url ? (
-                          <img
-                            src={item.product.image_url}
-                            alt={item.product.product_name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="h-8 w-8 text-muted-foreground" />
+                {orderProducts.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">No hay productos en este pedido</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {orderProducts.map((item) => (
+                      <div key={item.id_product_order} className="flex gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                        {/* Imagen del producto */}
+                        <div className="w-24 h-24 bg-background rounded-md overflow-hidden flex-shrink-0 border">
+                          {item.product?.image_url ? (
+                            <img
+                              src={item.product.image_url}
+                              alt={item.product.product_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-muted">
+                              <Package className="h-10 w-10 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Información del producto */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-lg mb-1">
+                            {item.product?.product_name || 'Producto'}
+                          </h4>
+                          
+                          {item.product?.description && (
+                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                              {item.product.description}
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-4 text-sm">
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">Cantidad:</span>
+                              <span className="font-medium">{item.quantity}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">Precio unitario:</span>
+                              <span className="font-medium">{formatPrice(item.price_unit)}</span>
+                            </div>
                           </div>
-                        )}
-                      </div>
 
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium truncate mb-1">
-                          {item.product?.product_name}
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          Cantidad: {item.quantity}
-                        </p>
-                        <p className="text-sm font-semibold text-primary mt-1">
-                          {formatPrice(item.product?.price || 0)} × {item.quantity}
-                        </p>
-                      </div>
+                          {/* Vendedor */}
+                          {item.product?.seller && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">
+                                Vendedor: {item.product.seller.seller_name || item.product.seller.bussines_name}
+                              </span>
+                            </div>
+                          )}
+                        </div>
 
-                      <div className="text-right">
-                        <p className="font-semibold">
-                          {formatPrice((item.product?.price || 0) * item.quantity)}
-                        </p>
+                        {/* Precio total */}
+                        <div className="text-right flex flex-col justify-between">
+                          <p className="text-xl font-bold text-primary">
+                            {formatPrice(item.subtotal || (item.price_unit * item.quantity))}
+                          </p>
+                          
+                          {/* Indicador de review si ya valoró */}
+                          {item.rating && item.rating > 0 && (
+                            <div className="mt-2">
+                              <Badge variant="secondary" className="text-xs">
+                                ⭐ Valorado
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -454,9 +497,19 @@ const OrderDetail = () => {
                 <CardTitle>Resumen del pedido</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Estado del pedido */}
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Estado</p>
+                  <Badge variant={getOrderStatusColor(order.status) as any} className="text-sm">
+                    {getOrderStatusText(order.status)}
+                  </Badge>
+                </div>
+
+                <Separator />
+
                 {/* Payment Method */}
                 <div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                     <CreditCard className="h-4 w-4" />
                     Método de pago
                   </div>
@@ -465,40 +518,62 @@ const OrderDetail = () => {
                   </p>
                 </div>
 
-                <Separator />
-
-                {/* Client Info */}
-                {order.client && (
-                  <div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                      <User className="h-4 w-4" />
-                      Cliente
+                {/* Tipo de entrega */}
+                {order.delivery_type && (
+                  <>
+                    <Separator />
+                    <div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                        <MapPin className="h-4 w-4" />
+                        Tipo de entrega
+                      </div>
+                      <p className="font-medium">
+                        {order.delivery_type === 'home_delivery' 
+                          ? '🚚 Entrega a domicilio' 
+                          : '🏪 Retiro en tienda'}
+                      </p>
                     </div>
-                    <p className="font-medium">{order.client.name}</p>
-                    <p className="text-sm text-muted-foreground">{order.client.email}</p>
-                  </div>
+                  </>
                 )}
 
                 <Separator />
 
-                {/* Total */}
-                <div className="space-y-2">
+                {/* Desglose de precios */}
+                <div className="space-y-3">
+                  <p className="font-medium text-sm">Desglose de precios</p>
+                  
+                  {/* Subtotal de productos */}
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className="text-muted-foreground">
+                      Productos ({orderProducts.length})
+                    </span>
                     <span className="font-medium">
-                      {formatPrice(order.total_amount - 3)}
+                      {formatPrice(orderProducts.reduce((sum, item) => 
+                        sum + (item.subtotal || (item.price_unit * item.quantity)), 0
+                      ))}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Envío</span>
-                    <span className="font-medium">{formatPrice(3)}</span>
-                  </div>
+                  
+                  {/* Envío */}
+                  {order.delivery_type === 'home_delivery' && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Envío</span>
+                      <span className="font-medium">{formatPrice(3)}</span>
+                    </div>
+                  )}
+                  
                   <Separator />
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
-                    <span className="text-primary">{formatPrice(order.total_amount)}</span>
+                  
+                  {/* Total */}
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-lg">Total</span>
+                    <span className="font-bold text-2xl text-primary">
+                      {formatPrice(order.total_amount)}
+                    </span>
                   </div>
                 </div>
+
+                <Separator />
 
                 {/* Actions */}
                 {order.status === 'pending' && (
@@ -516,19 +591,66 @@ const OrderDetail = () => {
                   </>
                 )}
 
-                {order.status === 'completed' && (
+                {(order.status === 'delivered' || order.status === 'completed') && (
                   <>
-                    <Separator />
+                    <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-green-700 dark:text-green-300 text-sm">
+                            Pedido entregado
+                          </p>
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            Ahora puedes valorar los productos que compraste
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                     <Button
                       variant="outline"
                       className="w-full"
                       onClick={() => {
-                        // TODO: Implementar reseña
+                        // Navegar al primer producto del pedido
+                        if (orderProducts.length > 0 && orderProducts[0].product) {
+                          navigate(`/products/${orderProducts[0].product.id_product}`);
+                        }
                       }}
                     >
-                      Dejar reseña
+                      ⭐ Valorar productos
                     </Button>
                   </>
+                )}
+
+                {order.status === 'payment_pending_verification' && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-start gap-2">
+                      <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-blue-700 dark:text-blue-300 text-sm">
+                          Verificando pago
+                        </p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          El vendedor está verificando tu comprobante de pago
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {order.status === 'payment_confirmed' && (
+                  <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-green-700 dark:text-green-300 text-sm">
+                          Pago confirmado
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          El vendedor está preparando tu pedido
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </CardContent>
             </Card>

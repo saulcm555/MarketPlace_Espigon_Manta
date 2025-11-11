@@ -131,7 +131,7 @@ const SellerPaymentVerification = () => {
             )}
           </CardTitle>
           <CardDescription>
-            Revisa y aprueba los comprobantes de transferencia bancaria
+            Revisa y aprueba los comprobantes de transferencia. Una vez aprobados, los pedidos pasarán a "Pedidos Activos".
           </CardDescription>
         </CardHeader>
         <CardContent>
