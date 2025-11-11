@@ -95,6 +95,7 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
     if (req.body.id_sub_category !== undefined) updateData.id_sub_category = req.body.id_sub_category;
     if (req.body.id_seller !== undefined) updateData.id_seller = req.body.id_seller;
     if (req.body.id_inventory !== undefined) updateData.id_inventory = req.body.id_inventory;
+    if (req.body.status !== undefined) updateData.status = req.body.status; // ✅ AGREGADO: Mapear status
     
     console.log('📝 Datos mapeados para actualización:', JSON.stringify(updateData, null, 2));
     
