@@ -16,6 +16,7 @@ export interface Product {
 	price: number;
 	stock: number;
 	image_url: string;
+	status: string;
 	created_at: Date;
 	inventory: Inventory;
 	seller?: Seller;
