@@ -7,6 +7,11 @@ export function roleMiddleware(requiredRole: string | string[]) {
 			return res.status(403).json({ message: "No user role found" });
 		}
 		
+		// Permitir acceso a servicios internos sin verificar roles específicos
+		if (user.type === "internal-service" && user.role === "service") {
+			return next();
+		}
+		
 		// Convertir a array si es un string único
 		const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
 		
