@@ -49,6 +49,14 @@ export class ProductEntity {
 	@IsUrl()
 	image_url!: string;
 
+	@Column({ 
+		name: "status", 
+		type: "enum", 
+		enum: ["pending", "active", "rejected", "inactive"],
+		default: "pending"
+	})
+	status!: string;
+
 	@CreateDateColumn({ name: "created_at" })
 	created_at!: Date;
 

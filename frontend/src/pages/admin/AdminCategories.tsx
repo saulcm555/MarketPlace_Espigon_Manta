@@ -35,15 +35,15 @@ interface Category {
 }
 
 interface SubCategory {
-  id_subcategory: number;
-  subcategory_name: string;
-  subcategory_description?: string;
+  id_sub_category: number;
+  sub_category_name: string;
+  description?: string;
   id_category: number;
 }
 
 export function AdminCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | SubCategory | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -92,8 +92,8 @@ export function AdminCategories() {
     try {
       if (isSubcategoryMode) {
         await apiClient.post('/subcategories', {
-          subcategory_name: formData.name,
-          subcategory_description: formData.description,
+          sub_category_name: formData.name,
+          description: formData.description,
           id_category: formData.parentCategoryId,
         });
         toast.success('Subcategoría creada exitosamente');
@@ -121,13 +121,15 @@ export function AdminCategories() {
 
     try {
       if (isSubcategoryMode && selectedCategory) {
-        await apiClient.put(`/subcategories/${selectedCategory.id_category}`, {
-          subcategory_name: formData.name,
-          subcategory_description: formData.description,
+        const subCat = selectedCategory as SubCategory;
+        await apiClient.put(`/subcategories/${subCat.id_sub_category}`, {
+          sub_category_name: formData.name,
+          description: formData.description,
         });
         toast.success('Subcategoría actualizada');
       } else if (selectedCategory) {
-        await apiClient.put(`/categories/${selectedCategory.id_category}`, {
+        const cat = selectedCategory as Category;
+        await apiClient.put(`/categories/${cat.id_category}`, {
           category_name: formData.name,
           description: formData.description,
         });
@@ -147,10 +149,12 @@ export function AdminCategories() {
 
     try {
       if (isSubcategoryMode) {
-        await apiClient.delete(`/subcategories/${selectedCategory.id_category}`);
+        const subCat = selectedCategory as SubCategory;
+        await apiClient.delete(`/subcategories/${subCat.id_sub_category}`);
         toast.success('Subcategoría eliminada');
       } else {
-        await apiClient.delete(`/categories/${selectedCategory.id_category}`);
+        const cat = selectedCategory as Category;
+        await apiClient.delete(`/categories/${cat.id_category}`);
         toast.success('Categoría eliminada');
       }
       
@@ -182,18 +186,18 @@ export function AdminCategories() {
   };
 
   const openEditDialog = (item: Category | SubCategory, isSub: boolean) => {
-    setSelectedCategory(item as Category);
+    setSelectedCategory(item);
     setIsSubcategoryMode(isSub);
     setFormData({
-      name: isSub ? (item as SubCategory).subcategory_name : (item as Category).category_name,
-      description: isSub ? (item as SubCategory).subcategory_description || '' : (item as Category).category_description || '',
+      name: isSub ? (item as SubCategory).sub_category_name : (item as Category).category_name,
+      description: isSub ? (item as SubCategory).description || '' : (item as Category).category_description || '',
       parentCategoryId: isSub ? (item as SubCategory).id_category : 0,
     });
     setIsEditDialogOpen(true);
   };
 
   const openDeleteDialog = (item: Category | SubCategory, isSub: boolean) => {
-    setSelectedCategory(item as Category);
+    setSelectedCategory(item);
     setIsSubcategoryMode(isSub);
     setIsDeleteDialogOpen(true);
   };
@@ -321,16 +325,16 @@ export function AdminCategories() {
                     <div className="grid gap-2">
                       {category.subcategories.map((sub) => (
                         <div
-                          key={sub.id_subcategory}
+                          key={sub.id_sub_category}
                           className="flex items-center justify-between p-3 rounded-lg border bg-gradient-to-r from-muted/50 to-muted/30 hover:from-muted/80 hover:to-muted/60 transition-colors"
                         >
                           <div className="flex items-center gap-3">
                             <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             <div>
-                              <p className="font-medium">{sub.subcategory_name}</p>
-                              {sub.subcategory_description && (
+                              <p className="font-medium">{sub.sub_category_name}</p>
+                              {sub.description && (
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  {sub.subcategory_description}
+                                  {sub.description}
                                 </p>
                               )}
                             </div>

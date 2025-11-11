@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Filter, CheckCircle, XCircle, Eye, Loader2 } from 'lucide-react';
+import { Search, Filter, CheckCircle, XCircle, Eye, Loader2, Trash2, Ban, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -53,6 +53,7 @@ export function AdminProducts() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -103,6 +104,14 @@ export function AdminProducts() {
 
     let filtered = products;
 
+    // Si el filtro es "all", excluir productos inactivos por defecto
+    if (statusFilter === 'all') {
+      filtered = filtered.filter(p => (p.status || 'active') !== 'inactive');
+    } else {
+      // Si hay un filtro específico, usarlo
+      filtered = filtered.filter(p => (p.status || 'active') === statusFilter);
+    }
+
     if (searchTerm) {
       filtered = filtered.filter(p => {
         const seller = sellers.find(s => s.id_seller === p.id_seller);
@@ -111,10 +120,6 @@ export function AdminProducts() {
           seller?.business_name?.toLowerCase().includes(searchTerm.toLowerCase())
         );
       });
-    }
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(p => (p.status || 'active') === statusFilter);
     }
 
     setFilteredProducts(filtered);
@@ -128,6 +133,72 @@ export function AdminProducts() {
       setIsDetailOpen(false);
     } catch (error) {
       toast.error('Error al aprobar producto');
+    }
+  };
+
+  const handleDeactivate = async (productId: number) => {
+    try {
+      // Encontrar el producto para enviar todos sus datos
+      const product = products.find(p => p.id_product === productId);
+      if (!product) {
+        toast.error('Producto no encontrado');
+        return;
+      }
+      
+      // Enviar todos los campos necesarios junto con el nuevo status
+      await apiClient.put(`/products/${productId}`, { 
+        product_name: product.product_name,
+        product_description: product.product_description,
+        product_price: product.price,
+        stock: product.stock,
+        image_url: product.image_url,
+        id_category: product.id_category,
+        id_seller: product.id_seller,
+        status: 'inactive' 
+      });
+      
+      toast.success('Producto desactivado exitosamente');
+      
+      // Recargar datos y esperar
+      await fetchData();
+      
+    } catch (error: any) {
+      console.error('Error al desactivar:', error);
+      const errorMsg = error?.response?.data?.message || error?.message || 'Error al desactivar producto';
+      toast.error(errorMsg);
+    }
+  };
+
+  const handleReactivate = async (productId: number) => {
+    try {
+      const product = products.find(p => p.id_product === productId);
+      
+      if (!product) {
+        toast.error('Producto no encontrado');
+        return;
+      }
+      
+      // Enviar todos los campos necesarios junto con el nuevo status
+      await apiClient.put(`/products/${productId}`, { 
+        product_name: product.product_name,
+        product_description: product.product_description,
+        product_price: product.price,
+        stock: product.stock,
+        image_url: product.image_url,
+        id_category: product.id_category,
+        id_seller: product.id_seller,
+        status: 'active' 
+      });
+      
+      toast.success('Producto reactivado exitosamente');
+      
+      // Recargar datos
+      await fetchData();
+      
+    } catch (error: any) {
+      console.error('Error al reactivar:', error);
+      const errorMsg = error?.response?.data?.message || error?.message || 'Error al reactivar producto';
+      toast.error(errorMsg);
     }
   };
 
@@ -149,6 +220,24 @@ export function AdminProducts() {
       setRejectionReason('');
     } catch (error) {
       toast.error('Error al rechazar producto');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      // En lugar de intentar eliminar físicamente, directamente desactivamos el producto
+      // Esto evita problemas con foreign keys de órdenes asociadas
+      await apiClient.delete(`/products/${selectedProduct.id_product}`);
+      toast.success('Producto eliminado exitosamente');
+      await fetchData();
+      setIsDeleteDialogOpen(false);
+      setIsDetailOpen(false);
+    } catch (error: any) {
+      // Si el DELETE falla (probablemente por foreign keys), mostrar mensaje claro
+      toast.error('No se puede eliminar este producto porque tiene órdenes asociadas. Los productos con órdenes no se pueden eliminar del sistema.');
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -285,7 +374,9 @@ export function AdminProducts() {
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos ({products.length})</SelectItem>
+                <SelectItem value="all">
+                  Todos ({products.filter(p => (p.status || 'active') !== 'inactive').length})
+                </SelectItem>
                 <SelectItem value="pending">
                   Pendientes ({products.filter(p => (p.status || 'active') === 'pending').length})
                 </SelectItem>
@@ -386,6 +477,45 @@ export function AdminProducts() {
                         <XCircle className="h-3 w-3" />
                       </Button>
                     </>
+                  )}
+
+                  {/* Botón Desactivar - Solo para productos activos o rechazados */}
+                  {((product.status || 'active') === 'active' || (product.status || 'active') === 'rejected') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                      onClick={() => handleDeactivate(product.id_product)}
+                    >
+                      <Ban className="h-3 w-3" />
+                    </Button>
+                  )}
+
+                  {/* Botón Reactivar - Solo para productos inactivos */}
+                  {(product.status || 'active') === 'inactive' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-green-500 text-green-600 hover:bg-green-50"
+                      onClick={() => handleReactivate(product.id_product)}
+                    >
+                      <RefreshCw className="mr-1 h-3 w-3" />
+                      Reactivar
+                    </Button>
+                  )}
+
+                  {/* Botón Eliminar - Solo para productos sin órdenes (nuevos) */}
+                  {(product.status || 'active') === 'pending' && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedProduct(product);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   )}
                 </div>
               </CardContent>
@@ -533,6 +663,46 @@ export function AdminProducts() {
               disabled={!rejectionReason.trim()}
             >
               Rechazar Producto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Eliminar */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar Producto</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedProduct && (
+            <div className="py-4">
+              <p className="text-sm">
+                <span className="font-semibold">Producto:</span> {selectedProduct.product_name}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                ⚠️ <strong>Importante:</strong> Si este producto tiene órdenes asociadas, no se podrá eliminar.
+                Solo se pueden eliminar productos sin ventas registradas.
+              </p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar Producto
             </Button>
           </DialogFooter>
         </DialogContent>

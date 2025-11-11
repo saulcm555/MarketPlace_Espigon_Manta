@@ -11,9 +11,10 @@ import type { UserRole } from '@/types/api';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRole?: UserRole;
+  allowedRoles?: UserRole[];
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole, allowedRoles }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
 
   // Show loading while checking auth
@@ -30,8 +31,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     return <Navigate to="/login" replace />;
   }
 
-  // Check role if required
+  // Check role if required (single role)
   if (requiredRole && user?.role !== requiredRole) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Check role if required (multiple roles)
+  if (allowedRoles && !allowedRoles.includes(user?.role as UserRole)) {
     return <Navigate to="/" replace />;
   }
 
