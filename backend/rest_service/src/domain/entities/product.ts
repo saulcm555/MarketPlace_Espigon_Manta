@@ -1,4 +1,6 @@
 import type { Inventory } from "./inventory";
+import type { Category } from "./category";
+import type { SubCategory } from "./sub_category";
 import { Order } from "./order";
 import type { SubCategoryProduct } from "./sub_category";
 import type { Seller } from "./seller";
@@ -19,6 +21,8 @@ export interface Product {
 	status: string;
 	created_at: Date;
 	inventory: Inventory;
+	category?: Category;
+	subCategory?: SubCategory;
 	seller?: Seller;
 	subCategoryProducts?: SubCategoryProduct[];
 	productOrders?: Order[];

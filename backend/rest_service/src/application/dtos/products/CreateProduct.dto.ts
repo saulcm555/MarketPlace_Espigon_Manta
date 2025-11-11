@@ -4,7 +4,7 @@
 export interface CreateProductDto {
   id_seller: number;
   id_category: number;
-  id_sub_category?: number;
+  id_sub_category: number; // Ahora es obligatorio - cada producto debe tener una subcategoría
   id_inventory?: number;
   product_name: string;
   description?: string;

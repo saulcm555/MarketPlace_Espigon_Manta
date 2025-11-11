@@ -8,9 +8,21 @@ import type { SubCategory } from '@/types/api';
 
 /**
  * Obtener todas las subcategorías (público)
+ * @param id_category - Opcional: filtrar por categoría
  */
-export const getSubCategories = async (): Promise<SubCategory[]> => {
-  const response = await apiClient.get<SubCategory[]>('/subcategories');
+export const getSubCategories = async (id_category?: number): Promise<SubCategory[]> => {
+  const url = id_category 
+    ? `/subcategories?id_category=${id_category}` 
+    : '/subcategories';
+  const response = await apiClient.get<SubCategory[]>(url);
+  return response.data;
+};
+
+/**
+ * Obtener subcategorías de una categoría específica
+ */
+export const getSubCategoriesByCategory = async (id_category: number): Promise<SubCategory[]> => {
+  const response = await apiClient.get<SubCategory[]>(`/subcategories?id_category=${id_category}`);
   return response.data;
 };
 

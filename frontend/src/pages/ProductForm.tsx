@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
-import { getAllCategories, getProductById, createProduct, updateProduct, uploadProductImage } from '@/api';
+import { getAllCategories, getSubCategoriesByCategory, getProductById, createProduct, updateProduct, uploadProductImage } from '@/api';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +44,7 @@ const ProductForm = () => {
     price: '',
     stock: '',
     id_category: '',
+    id_sub_category: '',
     image_url: '',
   });
 
@@ -55,6 +56,13 @@ const ProductForm = () => {
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: getAllCategories,
+  });
+
+  // Obtener subcategorías cuando se selecciona una categoría
+  const { data: subCategories = [], isLoading: isLoadingSubCategories } = useQuery({
+    queryKey: ['subcategories', formData.id_category],
+    queryFn: () => getSubCategoriesByCategory(Number(formData.id_category)),
+    enabled: !!formData.id_category,
   });
 
   // Obtener producto si estamos editando
@@ -131,6 +139,7 @@ const ProductForm = () => {
         price: product.price.toString(),
         stock: product.stock.toString(),
         id_category: product.id_category.toString(),
+        id_sub_category: product.id_sub_category.toString(),
         image_url: product.image_url || '',
       });
       if (product.image_url) {
@@ -140,7 +149,13 @@ const ProductForm = () => {
   }, [product, isEditing]);
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      // Si cambia la categoría, resetear la subcategoría
+      if (field === 'id_category') {
+        return { ...prev, [field]: value, id_sub_category: '' };
+      }
+      return { ...prev, [field]: value };
+    });
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -187,10 +202,10 @@ const ProductForm = () => {
     e.preventDefault();
 
     // Validaciones
-    if (!formData.product_name || !formData.price || !formData.stock || !formData.id_category) {
+    if (!formData.product_name || !formData.price || !formData.stock || !formData.id_category || !formData.id_sub_category) {
       toast({
         title: "Campos requeridos",
-        description: "Por favor completa todos los campos obligatorios",
+        description: "Por favor completa todos los campos obligatorios (nombre, precio, stock, categoría y subcategoría)",
         variant: "destructive",
       });
       return;
@@ -222,6 +237,7 @@ const ProductForm = () => {
         product_price: parseFloat(formData.price),
         stock: parseInt(formData.stock),
         id_category: parseInt(formData.id_category),
+        id_sub_category: parseInt(formData.id_sub_category),
         id_seller: user?.id_seller || user?.id || 0,
         product_image: imageUrl || undefined,
       };
@@ -387,6 +403,40 @@ const ProductForm = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Subcategoría - Solo se muestra si hay una categoría seleccionada */}
+              {formData.id_category && (
+                <div className="space-y-2">
+                  <Label htmlFor="id_sub_category">Subcategoría *</Label>
+                  {isLoadingSubCategories ? (
+                    <div className="flex items-center justify-center p-4 border rounded-md">
+                      <p className="text-sm text-muted-foreground">Cargando subcategorías...</p>
+                    </div>
+                  ) : subCategories.length > 0 ? (
+                    <Select
+                      value={formData.id_sub_category}
+                      onValueChange={(value) => handleChange('id_sub_category', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una subcategoría" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subCategories.map((subCat: any) => (
+                          <SelectItem key={subCat.id_sub_category} value={subCat.id_sub_category.toString()}>
+                            {subCat.sub_category_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex items-center justify-center p-4 border rounded-md border-destructive/50 bg-destructive/10">
+                      <p className="text-sm text-destructive">
+                        No hay subcategorías disponibles para esta categoría. Por favor, contacta al administrador.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Imagen del producto */}
               <div className="space-y-2">

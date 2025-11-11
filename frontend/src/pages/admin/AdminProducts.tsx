@@ -435,6 +435,20 @@ export function AdminProducts() {
               </CardHeader>
 
               <CardContent>
+                {/* Badges de Categoría y Subcategoría */}
+                <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                  {(product as any).category && (
+                    <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                      {(product as any).category.category_name}
+                    </Badge>
+                  )}
+                  {(product as any).subcategory && (
+                    <Badge variant="outline" className="text-xs bg-secondary/50 text-secondary-foreground border-secondary/30">
+                      {(product as any).subcategory.sub_category_name}
+                    </Badge>
+                  )}
+                </div>
+
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Stock:</span>

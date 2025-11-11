@@ -200,6 +200,29 @@ const SellerProducts = () => {
                       <Package className="h-12 w-12 text-muted-foreground" />
                     </div>
                   )}
+                  
+                  {/* Badge de estado */}
+                  <div className="absolute top-2 left-2">
+                    {!product.status || product.status === 'pending' ? (
+                      <Badge variant="secondary" className="bg-yellow-500 text-white border-yellow-600">
+                        ⏳ Pendiente
+                      </Badge>
+                    ) : product.status === 'active' ? (
+                      <Badge variant="default" className="bg-green-500 text-white border-green-600">
+                        ✓ Activo
+                      </Badge>
+                    ) : product.status === 'rejected' ? (
+                      <Badge variant="destructive" className="border-red-700">
+                        ✗ Rechazado
+                      </Badge>
+                    ) : product.status === 'inactive' ? (
+                      <Badge variant="outline" className="bg-gray-500 text-white border-gray-600">
+                        ○ Inactivo
+                      </Badge>
+                    ) : null}
+                  </div>
+
+                  {/* Badge de stock */}
                   {product.stock === 0 && (
                     <Badge variant="destructive" className="absolute top-2 right-2">
                       Agotado
@@ -213,6 +236,20 @@ const SellerProducts = () => {
                 </div>
 
                 <CardContent className="p-4">
+                  {/* Badges de Categoría y Subcategoría */}
+                  <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                    {product.category && (
+                      <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                        {product.category.category_name}
+                      </Badge>
+                    )}
+                    {product.subcategory && (
+                      <Badge variant="outline" className="text-xs bg-secondary/50 text-secondary-foreground border-secondary/30">
+                        {product.subcategory.sub_category_name}
+                      </Badge>
+                    )}
+                  </div>
+
                   <h3 className="font-semibold text-lg mb-1 truncate">
                     {product.product_name}
                   </h3>
@@ -256,11 +293,27 @@ const SellerProducts = () => {
 
         {/* Stats */}
         {myProducts.length > 0 && (
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="text-2xl font-bold">{myProducts.length}</div>
                 <p className="text-xs text-muted-foreground">Total productos</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-green-600">
+                  {myProducts.filter((p: Product) => p.status === 'active').length}
+                </div>
+                <p className="text-xs text-muted-foreground">Productos activos</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold text-yellow-600">
+                  {myProducts.filter((p: Product) => p.status === 'pending').length}
+                </div>
+                <p className="text-xs text-muted-foreground">Pendientes de aprobación</p>
               </CardContent>
             </Card>
             <Card>
@@ -270,7 +323,7 @@ const SellerProducts = () => {
                 </div>
                 <p className="text-xs text-muted-foreground">En stock</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  ({myProducts.reduce((sum: number, p: Product) => sum + (p.stock || 0), 0)} unidades totales)
+                  ({myProducts.reduce((sum: number, p: Product) => sum + (p.stock || 0), 0)} unidades)
                 </p>
               </CardContent>
             </Card>

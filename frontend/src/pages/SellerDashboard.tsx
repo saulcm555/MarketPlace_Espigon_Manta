@@ -12,6 +12,7 @@ import { getSellerOrders } from '@/api/orders';
 import Navbar from '@/components/Navbar';
 import SellerPaymentVerification from '@/components/SellerPaymentVerification';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -268,6 +269,27 @@ const SellerDashboard = () => {
                                 <Package className="h-12 w-12 text-muted-foreground" />
                               </div>
                             )}
+                            
+                            {/* Badge de estado */}
+                            <div className="absolute top-2 left-2">
+                              {!product.status || product.status === 'pending' ? (
+                                <Badge variant="secondary" className="bg-yellow-500 text-white border-yellow-600">
+                                  ⏳ Pendiente
+                                </Badge>
+                              ) : product.status === 'active' ? (
+                                <Badge variant="default" className="bg-green-500 text-white border-green-600">
+                                  ✓ Activo
+                                </Badge>
+                              ) : product.status === 'rejected' ? (
+                                <Badge variant="destructive" className="border-red-700">
+                                  ✗ Rechazado
+                                </Badge>
+                              ) : product.status === 'inactive' ? (
+                                <Badge variant="outline" className="bg-gray-500 text-white border-gray-600">
+                                  ○ Inactivo
+                                </Badge>
+                              ) : null}
+                            </div>
                           </div>
                           <CardContent className="p-4">
                             <h3 className="font-semibold mb-1 line-clamp-1">
