@@ -7,7 +7,6 @@ import {
   ShoppingCart,
   FolderTree,
   BarChart3,
-  CreditCard,
   Settings,
   LogOut,
   Menu,
@@ -55,12 +54,6 @@ export function AdminLayout() {
       label: 'Órdenes', 
       path: '/admin/orders',
       description: 'Gestionar pedidos'
-    },
-    { 
-      icon: CreditCard, 
-      label: 'Pagos', 
-      path: '/admin/payments',
-      description: 'Verificar pagos'
     },
     { 
       icon: BarChart3, 

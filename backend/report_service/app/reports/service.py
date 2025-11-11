@@ -8,14 +8,45 @@ from typing import List, Dict, Any
 from collections import defaultdict
 
 BASE_URL = "http://127.0.0.1:3000/api"
+# Token de servicio interno para comunicación entre microservicios
+SERVICE_TOKEN = "internal-service-graphql-reports-2024"
 
 async def fetch_data(endpoint: str, params: Dict[str, Any] = None) -> Any:
     """Función auxiliar para obtener datos del REST API"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(f"{BASE_URL}{endpoint}", params=params)
+            # Headers con token de servicio interno
+            headers = {
+                "X-Service-Token": SERVICE_TOKEN,
+                "X-Internal-Service": "report-service"
+            }
+            
+            # Para productos, necesitamos obtener todos sin paginación
+            # Límite máximo permitido por la validación del REST API es 100
+            if endpoint == "/products" and params is None:
+                params = {"limit": 100}
+            
+            response = await client.get(
+                f"{BASE_URL}{endpoint}", 
+                params=params,
+                headers=headers
+            )
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            
+            # DEBUG: Ver qué devuelve el endpoint
+            print(f"DEBUG fetch_data - Endpoint: {endpoint}")
+            print(f"DEBUG fetch_data - Response type: {type(data)}")
+            print(f"DEBUG fetch_data - Response keys: {data.keys() if isinstance(data, dict) else 'not a dict'}")
+            
+            # Si el endpoint es /products y devuelve un objeto con paginación,
+            # extraer solo el array de productos
+            if endpoint == "/products" and isinstance(data, dict) and "products" in data:
+                products_array = data["products"]
+                print(f"DEBUG fetch_data - Extracted products count: {len(products_array)}")
+                return products_array
+            
+            return data
     except httpx.HTTPError as e:
         print(f"Error fetching {endpoint}: {e}")
         return [] if endpoint.startswith("/") else {}
@@ -707,6 +738,14 @@ async def get_dashboard_stats():
     sellers = await fetch_data("/sellers")
     products = await fetch_data("/products")
     deliveries = await fetch_data("/deliveries")
+    
+    # DEBUG: Imprimir lo que viene de productos
+    print(f"DEBUG - Productos recibidos: {products}")
+    print(f"DEBUG - Tipo de productos: {type(products)}")
+    if isinstance(products, list):
+        print(f"DEBUG - Cantidad de productos: {len(products)}")
+        if len(products) > 0:
+            print(f"DEBUG - Primer producto: {products[0]}")
     
     # Validar que los datos sean listas
     if not isinstance(orders, list):
