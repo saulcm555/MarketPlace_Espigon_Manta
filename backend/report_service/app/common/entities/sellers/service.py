@@ -29,7 +29,7 @@ async def get_all_sellers() -> List[SellerType]:
                 id_seller=seller["id_seller"],
                 seller_name=seller["seller_name"],
                 seller_email=seller["seller_email"],
-                phone=safe_int(seller.get("phone")),
+                phone=str(seller.get("phone", "")),  # Convertir a string
                 bussines_name=seller["bussines_name"],
                 location=seller["location"],
                 created_at=parse_iso_datetime(seller.get("created_at"))

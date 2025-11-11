@@ -13,3 +13,5 @@ class OrderModel(BaseModel):
     id_cart: int
     id_payment_method: int
     id_delivery: Optional[int] = None
+    payment_receipt_url: Optional[str] = None  # URL del comprobante de pago
+    payment_verified_at: Optional[datetime] = None  # Fecha de verificación del pago

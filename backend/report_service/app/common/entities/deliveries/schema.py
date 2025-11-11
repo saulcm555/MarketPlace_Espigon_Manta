@@ -15,7 +15,7 @@ class DeliveryType:
     estimated_time: datetime
     delivery_person: str
     delivery_cost: float
-    phone: int
+    phone: str  # Cambiado de int a str
     
     # Relaciones
     @strawberry.field

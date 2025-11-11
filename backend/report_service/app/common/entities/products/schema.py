@@ -17,6 +17,7 @@ class ProductType:
     price: float
     stock: int
     image_url: Optional[str]
+    status: str  # pending, active, rejected, inactive
     created_at: datetime
     
     # Relaciones

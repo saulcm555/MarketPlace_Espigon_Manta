@@ -52,6 +52,7 @@ class SubCategoryProductType:
                     price=float(p["price"]),
                     stock=p["stock"],
                     image_url=p.get("image_url"),
+                    status=p.get("status", "pending"),
                     created_at=datetime.fromisoformat(p["created_at"].replace("Z", ""))
                 )
         except:

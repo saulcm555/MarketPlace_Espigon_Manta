@@ -34,7 +34,7 @@ async def get_all_deliveries() -> List[DeliveryType]:
                 estimated_time=parse_iso_datetime(delivery.get("estimated_time")),
                 delivery_person=delivery["delivery_person"],
                 delivery_cost=safe_float(delivery.get("delivery_cost")),
-                phone=delivery["phone"]
+                phone=str(delivery.get("phone", ""))  # Convertir a string
             ))
         except KeyError as e:
             logger.warning(f"⚠️ Campo faltante en entrega: {e}")

@@ -1,11 +1,7 @@
 import strawberry
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 import httpx
-
-if TYPE_CHECKING:
-    from app.common.entities.products.schema import ProductType
-    from app.common.entities.orders.schema import OrderType
 
 BASE_URL = "http://127.0.0.1:3000/api"
 
@@ -23,7 +19,7 @@ class ProductOrderType:
     
     # Relaciones
     @strawberry.field
-    async def product(self) -> Optional["ProductType"]:
+    async def product(self) -> Optional[strawberry.LazyType["ProductType", "app.common.entities.products.schema"]]:
         """Obtiene el producto"""
         try:
             async with httpx.AsyncClient() as client:
@@ -43,13 +39,14 @@ class ProductOrderType:
                     price=float(p["price"]),
                     stock=p["stock"],
                     image_url=p.get("image_url"),
+                    status=p.get("status", "pending"),
                     created_at=datetime.fromisoformat(p["created_at"].replace("Z", ""))
                 )
         except:
             return None
     
     @strawberry.field
-    async def order(self) -> Optional["OrderType"]:
+    async def order(self) -> Optional[strawberry.LazyType["OrderType", "app.common.entities.orders.schema"]]:
         """Obtiene la orden"""
         try:
             async with httpx.AsyncClient() as client:
@@ -67,7 +64,9 @@ class ProductOrderType:
                     id_client=order["id_client"],
                     id_cart=order["id_cart"],
                     id_payment_method=order["id_payment_method"],
-                    id_delivery=order.get("id_delivery")
+                    id_delivery=order.get("id_delivery"),
+                    payment_receipt_url=order.get("payment_receipt_url"),
+                    payment_verified_at=datetime.fromisoformat(order["payment_verified_at"].replace("Z", "")) if order.get("payment_verified_at") else None
                 )
         except:
             return None
