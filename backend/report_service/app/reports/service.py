@@ -871,3 +871,174 @@ async def get_top_rated_products_report(limit: int = 20):
         top_products=top_products
     )
 
+# ======================= ESTADÍSTICAS DEL VENDEDOR =======================
+
+async def get_seller_dashboard_stats(seller_id: int):
+    """
+    Genera estadísticas del dashboard específicas para un vendedor
+    """
+    from app.reports.schema import SellerDashboardStats
+    
+    # Obtener productos del vendedor
+    products = await fetch_data("/products")
+    if not isinstance(products, list):
+        products = []
+    
+    # Filtrar productos del vendedor
+    seller_products = [p for p in products if p.get("id_seller") == seller_id]
+    seller_product_ids = {p["id_product"] for p in seller_products}
+    
+    # Obtener todas las órdenes
+    orders = await fetch_data("/orders")
+    if not isinstance(orders, list):
+        orders = []
+    
+    # Obtener product_orders para filtrar
+    today = date.today()
+    first_day_of_month = date(today.year, today.month, 1)
+    
+    # Estadísticas iniciales
+    today_sales = 0.0
+    today_orders_set = set()
+    month_revenue = 0.0
+    month_orders_set = set()
+    total_revenue = 0.0
+    total_orders_set = set()
+    
+    # Procesar cada orden
+    for order in orders:
+        try:
+            order_date = datetime.fromisoformat(order["order_date"].replace("Z", "")).date()
+            order_id = order["id_order"]
+            
+            # Obtener productos de esta orden
+            product_orders = order.get("productOrders", [])
+            
+            # Calcular cuánto corresponde al vendedor en esta orden
+            seller_revenue_in_order = 0.0
+            has_seller_products = False
+            
+            for po in product_orders:
+                if po.get("id_product") in seller_product_ids:
+                    has_seller_products = True
+                    subtotal = float(po.get("subtotal", 0))
+                    seller_revenue_in_order += subtotal
+            
+            # Si esta orden tiene productos del vendedor
+            if has_seller_products:
+                # Total histórico
+                total_revenue += seller_revenue_in_order
+                total_orders_set.add(order_id)
+                
+                # Ventas de hoy
+                if order_date == today:
+                    today_sales += seller_revenue_in_order
+                    today_orders_set.add(order_id)
+                
+                # Ventas del mes
+                if order_date >= first_day_of_month:
+                    month_revenue += seller_revenue_in_order
+                    month_orders_set.add(order_id)
+        
+        except (KeyError, ValueError, TypeError) as e:
+            continue
+    
+    # Contar productos con stock bajo (menos de 10)
+    low_stock_count = sum(1 for p in seller_products if p.get("stock", 0) < 10)
+    
+    return SellerDashboardStats(
+        seller_id=seller_id,
+        today_sales=round(today_sales, 2),
+        today_orders=len(today_orders_set),
+        month_revenue=round(month_revenue, 2),
+        month_orders=len(month_orders_set),
+        total_products=len(seller_products),
+        low_stock_products=low_stock_count,
+        total_revenue=round(total_revenue, 2),
+        total_orders=len(total_orders_set)
+    )
+
+async def get_seller_best_products(seller_id: int, start_date: date, end_date: date, limit: int = 10):
+    """
+    Obtiene los productos más vendidos de un vendedor específico
+    """
+    from app.reports.schema import BestProductsReport, ProductSalesItem
+    
+    # Obtener productos del vendedor
+    products = await fetch_data("/products")
+    if not isinstance(products, list):
+        products = []
+    
+    seller_products = {p["id_product"]: p for p in products if p.get("id_seller") == seller_id}
+    
+    if not seller_products:
+        return BestProductsReport(
+            period_start=start_date,
+            period_end=end_date,
+            best_products=[]
+        )
+    
+    # Obtener categorías
+    categories = await fetch_data("/categories")
+    if not isinstance(categories, list):
+        categories = []
+    category_map = {c["id_category"]: c["category_name"] for c in categories}
+    
+    # Obtener órdenes
+    orders = await fetch_data("/orders")
+    if not isinstance(orders, list):
+        orders = []
+    
+    # Estadísticas por producto
+    product_stats = defaultdict(lambda: {"units": 0, "revenue": 0.0, "prices": []})
+    
+    for order in orders:
+        try:
+            order_date = datetime.fromisoformat(order["order_date"].replace("Z", "")).date()
+            
+            if not (start_date <= order_date <= end_date):
+                continue
+            
+            product_orders = order.get("productOrders", [])
+            
+            for po in product_orders:
+                product_id = po.get("id_product")
+                
+                # Solo contar productos de este vendedor
+                if product_id in seller_products:
+                    quantity = po.get("quantity", 0)
+                    price = float(po.get("price_unit", 0))
+                    subtotal = float(po.get("subtotal", price * quantity))
+                    
+                    product_stats[product_id]["units"] += quantity
+                    product_stats[product_id]["revenue"] += subtotal
+                    product_stats[product_id]["prices"].append(price)
+        
+        except (KeyError, ValueError, TypeError):
+            continue
+    
+    # Crear lista de productos vendidos
+    best_products = []
+    for product_id, stats in product_stats.items():
+        if stats["units"] > 0:
+            product = seller_products[product_id]
+            avg_price = sum(stats["prices"]) / len(stats["prices"]) if stats["prices"] else 0.0
+            
+            best_products.append(ProductSalesItem(
+                product_id=product_id,
+                product_name=product.get("product_name", "Sin nombre"),
+                category_name=category_map.get(product.get("id_category"), "Sin categoría"),
+                units_sold=stats["units"],
+                total_revenue=round(stats["revenue"], 2),
+                average_price=round(avg_price, 2)
+            ))
+    
+    # Ordenar por unidades vendidas
+    best_products.sort(key=lambda x: x.units_sold, reverse=True)
+    
+    return BestProductsReport(
+        period_start=start_date,
+        period_end=end_date,
+        best_products=best_products[:limit]
+    )
+

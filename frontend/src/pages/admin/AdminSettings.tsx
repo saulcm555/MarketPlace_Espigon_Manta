@@ -20,12 +20,16 @@ import {
   Save,
   RefreshCw,
   Settings as SettingsIcon,
-  Lock
+  Lock,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useTheme } from '@/context/ThemeContext';
 
 export function AdminSettings() {
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const [isSaving, setIsSaving] = useState(false);
 
   // Estados para las configuraciones
@@ -45,10 +49,6 @@ export function AdminSettings() {
     enableCash: true,
     enablePaypal: false,
     enableStripe: false,
-    bankName: 'Banco Pichincha',
-    bankAccount: '1234567890',
-    bankAccountName: 'Marketplace El Espigón',
-    bankAccountType: 'Corriente',
     paypalEmail: '',
     stripeKey: '',
   });
@@ -81,13 +81,16 @@ export function AdminSettings() {
     deliveryRadius: '10',
   });
 
-  const [securitySettings, setSecuritySettings] = useState({
-    enableTwoFactor: false,
-    sessionTimeout: '30',
-    maxLoginAttempts: '5',
-    passwordMinLength: '8',
-    requireStrongPassword: true,
-    enableCaptcha: false,
+  const [securitySettings, setSecuritySettings] = useState(() => {
+    const saved = localStorage.getItem('security_settings');
+    return saved ? JSON.parse(saved) : {
+      enableTwoFactor: false,
+      sessionTimeout: '30',
+      maxLoginAttempts: '5',
+      passwordMinLength: '8',
+      requireStrongPassword: true,
+      enableCaptcha: false,
+    };
   });
 
   const handleSaveGeneral = async () => {
@@ -196,6 +199,9 @@ export function AdminSettings() {
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      // Guardar en localStorage
+      localStorage.setItem('security_settings', JSON.stringify(securitySettings));
+      
       toast({
         title: "Configuración guardada",
         description: "La configuración de seguridad se ha actualizado correctamente.",
@@ -231,10 +237,14 @@ export function AdminSettings() {
 
       {/* Tabs de Configuración */}
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Store className="w-4 h-4" />
             <span className="hidden sm:inline">General</span>
+          </TabsTrigger>
+          <TabsTrigger value="appearance" className="flex items-center gap-2">
+            {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            <span className="hidden sm:inline">Apariencia</span>
           </TabsTrigger>
           <TabsTrigger value="payments" className="flex items-center gap-2">
             <CreditCard className="w-4 h-4" />
@@ -401,6 +411,83 @@ export function AdminSettings() {
           </Card>
         </TabsContent>
 
+        {/* Tab: Apariencia */}
+        <TabsContent value="appearance" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+                Apariencia
+              </CardTitle>
+              <CardDescription>
+                Personaliza la apariencia del panel de administración
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Modo Oscuro</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Cambia entre tema claro y oscuro para el panel de administración
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Sun className="w-4 h-4" />
+                    Claro
+                  </div>
+                  <Switch
+                    checked={theme === 'dark'}
+                    onCheckedChange={(checked) => {
+                      setTheme(checked ? 'dark' : 'light');
+                      toast({
+                        title: "Tema actualizado",
+                        description: `Modo ${checked ? 'oscuro' : 'claro'} activado`,
+                      });
+                    }}
+                  />
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Moon className="w-4 h-4" />
+                    Oscuro
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="bg-muted/50 border rounded-lg p-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Sun className="w-4 h-4 text-yellow-500" />
+                      Modo Claro
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      Interfaz brillante y clara, ideal para entornos bien iluminados. Reduce la fatiga visual durante el día.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Moon className="w-4 h-4 text-blue-500" />
+                      Modo Oscuro
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      Interfaz oscura que reduce el brillo de la pantalla. Perfecto para trabajar de noche o en lugares con poca luz.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>💡 Consejo:</strong> El tema seleccionado se aplica automáticamente y se guarda en tu navegador.
+                  Puedes cambiarlo en cualquier momento desde esta sección.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Tab: Pagos */}
         <TabsContent value="payments" className="space-y-6">
           <Card>
@@ -473,61 +560,13 @@ export function AdminSettings() {
 
               <Separator />
 
-              {/* Datos bancarios */}
-              {paymentSettings.enableTransfer && (
-                <>
-                  <div>
-                    <h4 className="font-semibold mb-4 flex items-center gap-2">
-                      <DollarSign className="w-4 h-4" />
-                      Datos Bancarios para Transferencias
-                    </h4>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="bankName">Banco</Label>
-                        <Input
-                          id="bankName"
-                          value={paymentSettings.bankName}
-                          onChange={(e) => setPaymentSettings({ ...paymentSettings, bankName: e.target.value })}
-                          placeholder="Banco Pichincha"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="bankAccountType">Tipo de Cuenta</Label>
-                        <Select
-                          value={paymentSettings.bankAccountType}
-                          onValueChange={(value) => setPaymentSettings({ ...paymentSettings, bankAccountType: value })}
-                        >
-                          <SelectTrigger id="bankAccountType">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Corriente">Corriente</SelectItem>
-                            <SelectItem value="Ahorros">Ahorros</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="bankAccount">Número de Cuenta</Label>
-                        <Input
-                          id="bankAccount"
-                          value={paymentSettings.bankAccount}
-                          onChange={(e) => setPaymentSettings({ ...paymentSettings, bankAccount: e.target.value })}
-                          placeholder="1234567890"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="bankAccountName">Titular de la Cuenta</Label>
-                        <Input
-                          id="bankAccountName"
-                          value={paymentSettings.bankAccountName}
-                          onChange={(e) => setPaymentSettings({ ...paymentSettings, bankAccountName: e.target.value })}
-                          placeholder="Marketplace El Espigón"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
+              {/* Nota sobre datos bancarios */}
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Nota:</strong> Los datos bancarios para transferencias son configurados por cada vendedor individualmente
+                  en su perfil. Los clientes verán los datos bancarios del vendedor correspondiente al momento de pagar.
+                </p>
+              </div>
 
               <div className="flex justify-end">
                 <Button onClick={handleSavePayments} disabled={isSaving}>

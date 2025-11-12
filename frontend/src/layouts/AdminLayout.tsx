@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   X,
+  Home,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -72,16 +73,16 @@ export function AdminLayout() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* Sidebar */}
       <aside
         className={cn(
-          'bg-white border-r flex flex-col transition-all duration-300',
+          'bg-white dark:bg-gray-800 border-r dark:border-gray-700 flex flex-col transition-all duration-300',
           sidebarOpen ? 'w-64' : 'w-20'
         )}
       >
         {/* Header */}
-        <div className="p-6 border-b">
+        <div className="p-6 border-b dark:border-gray-700">
           <div className="flex items-center justify-between">
             {sidebarOpen ? (
               <>
@@ -115,7 +116,7 @@ export function AdminLayout() {
         </div>
 
         {/* User Info */}
-        <div className="p-4 border-b">
+        <div className="p-4 border-b dark:border-gray-700">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
@@ -161,11 +162,21 @@ export function AdminLayout() {
 
         <Separator />
 
-        {/* Logout */}
+        {/* Ir a Página Principal */}
         <div className="p-4">
           <Button
             variant="outline"
-            className="w-full justify-start gap-3 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+            className="w-full justify-start gap-3 hover:bg-green-50 dark:hover:bg-green-950 hover:text-green-600 dark:hover:text-green-400 hover:border-green-200 dark:hover:border-green-800 mb-2"
+            onClick={() => navigate('/')}
+          >
+            <Home className={cn('h-5 w-5', !sidebarOpen && 'h-6 w-6')} />
+            {sidebarOpen && <span>Página Principal</span>}
+          </Button>
+          
+          {/* Logout */}
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800"
             onClick={logout}
           >
             <LogOut className={cn('h-5 w-5', !sidebarOpen && 'h-6 w-6')} />

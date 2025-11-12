@@ -24,12 +24,13 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     // Intentar obtener el tema guardado en localStorage
     const savedTheme = localStorage.getItem('theme') as Theme | null;
     
-    // Si no hay tema guardado, usar preferencia del sistema
-    if (!savedTheme) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    // Si hay tema guardado, usarlo
+    if (savedTheme) {
+      return savedTheme;
     }
     
-    return savedTheme;
+    // Por defecto usar LIGHT (no dark automático)
+    return 'light';
   });
 
   useEffect(() => {

@@ -16,6 +16,7 @@ from app.reports.schema import (
     DeliveryPerformanceReport,
     FinancialReport,
     DashboardStats,
+    SellerDashboardStats,
     DateRangeInput,
     ReportPeriod
 )
@@ -29,7 +30,9 @@ from app.reports.service import (
     get_inventory_report,
     get_delivery_performance_report,
     get_financial_report,
-    get_dashboard_stats
+    get_dashboard_stats,
+    get_seller_dashboard_stats,
+    get_seller_best_products
 )
 
 @strawberry.type
@@ -188,3 +191,30 @@ class ReportQueries:
         Estadísticas generales del dashboard (ventas del día, mes, totales, etc).
         """
         return await get_dashboard_stats()
+    
+    @strawberry.field
+    async def seller_dashboard_stats(self, seller_id: int) -> SellerDashboardStats:
+        """
+        Estadísticas del dashboard específicas para un vendedor.
+        Filtra todas las métricas por los productos que pertenecen al vendedor.
+        """
+        return await get_seller_dashboard_stats(seller_id)
+    
+    @strawberry.field
+    async def seller_best_products(
+        self,
+        seller_id: int,
+        date_range: Optional[DateRangeInput] = None,
+        limit: int = 10
+    ) -> BestProductsReport:
+        """
+        Reporte de productos más vendidos de un vendedor específico.
+        """
+        if date_range:
+            start_date = date_range.start_date
+            end_date = date_range.end_date
+        else:
+            end_date = date.today()
+            start_date = end_date - timedelta(days=30)
+        
+        return await get_seller_best_products(seller_id, start_date, end_date, limit)

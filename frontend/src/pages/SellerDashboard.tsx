@@ -11,6 +11,7 @@ import { getProductsBySeller } from '@/api';
 import { getSellerOrders } from '@/api/orders';
 import Navbar from '@/components/Navbar';
 import SellerPaymentVerification from '@/components/SellerPaymentVerification';
+import { SellerAnalytics } from '@/components/SellerAnalytics';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -541,25 +542,24 @@ const SellerDashboard = () => {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Análisis y Estadísticas</CardTitle>
-                <CardDescription>
-                  Próximamente: Gráficos y análisis detallados
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    En desarrollo
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Pronto podrás ver análisis detallados de tus ventas
-                  </p>
+            <Card className="mb-4 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <TrendingUp className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                      📊 Análisis en Tiempo Real con GraphQL
+                    </h3>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Los datos se actualizan automáticamente desde el servidor de reportes.
+                      Aquí puedes ver tus ventas del día, mes y el rendimiento general de tu tienda.
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+            
+            <SellerAnalytics />
           </TabsContent>
         </Tabs>
       </div>
