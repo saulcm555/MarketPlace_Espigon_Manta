@@ -31,8 +31,9 @@ export class ProductRepositoryImpl implements IProductRepository {
     const repo = AppDataSource.getRepository(ProductEntity);
     const productId = parseInt(id, 10);
     
-    // Usar QueryBuilder para hacer JOIN con seller
-    const product = await repo
+    // Usar QueryBuilder para hacer JOIN con seller, inventory, category y subcategory
+    // Y calcular el rating promedio desde product_order
+    const result = await repo
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.inventory', 'inventory')
       .leftJoinAndMapOne(
@@ -41,17 +42,49 @@ export class ProductRepositoryImpl implements IProductRepository {
         'seller',
         'seller.id_seller = product.id_seller'
       )
+      .leftJoinAndMapOne(
+        'product.category',
+        'category',
+        'category',
+        'category.id_category = product.id_category'
+      )
+      .leftJoinAndMapOne(
+        'product.subCategory',
+        'sub_category',
+        'sub_category',
+        'sub_category.id_sub_category = product.id_sub_category'
+      )
+      .leftJoin('product_order', 'po', 'po.id_product = product.id_product AND po.rating IS NOT NULL')
+      .addSelect('COALESCE(AVG(po.rating), 0)', 'product_avg_rating')
+      .addSelect('COUNT(po.rating)', 'product_review_count')
       .where('product.id_product = :id', { id: productId })
-      .getOne();
+      .groupBy('product.id_product')
+      .addGroupBy('inventory.id_inventory')
+      .addGroupBy('seller.id_seller')
+      .addGroupBy('category.id_category')
+      .addGroupBy('sub_category.id_sub_category')
+      .getRawAndEntities();
     
-    return product;
+    if (!result.entities || result.entities.length === 0) {
+      return null;
+    }
+    
+    const product = result.entities[0];
+    const rawData = result.raw[0];
+    
+    return {
+      ...product,
+      avgRating: parseFloat(rawData.product_avg_rating) || 0,
+      reviewCount: parseInt(rawData.product_review_count) || 0
+    } as any;
   }
 
   async findAll(): Promise<ProductEntity[]> {
     const repo = AppDataSource.getRepository(ProductEntity);
     
-    // Usar QueryBuilder para hacer JOIN con seller
-    return await repo
+    // Usar QueryBuilder para hacer JOIN con seller, inventory, category y subcategory
+    // Y calcular el rating promedio desde product_order
+    const products = await repo
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.inventory', 'inventory')
       .leftJoinAndMapOne(
@@ -60,7 +93,37 @@ export class ProductRepositoryImpl implements IProductRepository {
         'seller',
         'seller.id_seller = product.id_seller'
       )
-      .getMany();
+      .leftJoinAndMapOne(
+        'product.category',
+        'category',
+        'category',
+        'category.id_category = product.id_category'
+      )
+      .leftJoinAndMapOne(
+        'product.subCategory',
+        'sub_category',
+        'sub_category',
+        'sub_category.id_sub_category = product.id_sub_category'
+      )
+      .leftJoin('product_order', 'po', 'po.id_product = product.id_product AND po.rating IS NOT NULL')
+      .addSelect('COALESCE(AVG(po.rating), 0)', 'product_avg_rating')
+      .addSelect('COUNT(po.rating)', 'product_review_count')
+      .groupBy('product.id_product')
+      .addGroupBy('inventory.id_inventory')
+      .addGroupBy('seller.id_seller')
+      .addGroupBy('category.id_category')
+      .addGroupBy('sub_category.id_sub_category')
+      .getRawAndEntities();
+    
+    // Mapear los resultados raw (avg_rating, review_count) a las entidades
+    return products.entities.map((product, index) => {
+      const rawData = products.raw[index];
+      return {
+        ...product,
+        avgRating: parseFloat(rawData.product_avg_rating) || 0,
+        reviewCount: parseInt(rawData.product_review_count) || 0
+      } as any;
+    });
   }
 
   // DELETE con async/await

@@ -79,11 +79,15 @@ export class UpdateOrderStatus {
     newStatus: string
   ): boolean {
     const allowedTransitions: Record<string, string[]> = {
-      pending: ["processing", "cancelled"],
-      processing: ["shipped", "cancelled"],
+      pending: ["processing", "delivered", "cancelled"], // Agregado "delivered" para pagos en efectivo
+      payment_pending_verification: ["payment_confirmed", "payment_rejected", "cancelled"],
+      payment_confirmed: ["processing", "delivered", "cancelled"],
+      payment_rejected: ["cancelled"],
+      processing: ["shipped", "delivered", "cancelled"],
       shipped: ["delivered"],
       delivered: [], // Estado final
       cancelled: [], // Estado final
+      expired: [], // Estado final
     };
 
     return (

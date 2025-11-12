@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Shirt, Utensils, Palette, Gift, Coffee, Smartphone, Package, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllCategories } from "@/api/categories";
+import { useNavigate } from "react-router-dom";
 import type { Category } from "@/types/api";
 
 // Icon mapping for categories
@@ -33,6 +34,8 @@ const getIconForCategory = (categoryName: string) => {
 };
 
 const Categories = () => {
+  const navigate = useNavigate();
+  
   // Fetch categories from API
   const { data: categories, isLoading } = useQuery<Category[]>({
     queryKey: ['categories'],
@@ -87,6 +90,7 @@ const Categories = () => {
                 <Card 
                   key={category.id_category}
                   className="group cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => navigate(`/products?category=${category.id_category}`)}
                 >
                   <CardContent className="p-6 text-center">
                     <div className={`mx-auto w-16 h-16 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>

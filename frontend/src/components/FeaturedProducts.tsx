@@ -1,10 +1,11 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, ShoppingCart, Loader2, AlertCircle } from "lucide-react";
+import { ShoppingCart, Loader2, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getAllProducts, formatPrice } from "@/api/products";
 import { Link, useNavigate } from "react-router-dom";
+import ProductRating from "@/components/ProductRating";
 import type { Product } from "@/types/api";
 
 const FeaturedProducts = () => {
@@ -65,8 +66,8 @@ const FeaturedProducts = () => {
     );
   }
 
-  // Get featured products (limit to 4-8)
-  const featuredProducts = products?.slice(0, 8) || [];
+  // Get featured products (limit to 4-8) - SOLO ACTIVOS
+  const featuredProducts = products?.filter(p => p.status === 'active').slice(0, 8) || [];
   return (
     <section className="py-16">
       <div className="container mx-auto px-4">
@@ -113,10 +114,24 @@ const FeaturedProducts = () => {
                   </div>
 
                   <CardContent className="p-4">
+                    {/* Badges de Categoría y Subcategoría */}
+                    <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                      {product.category && (
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                          {product.category.category_name}
+                        </Badge>
+                      )}
+                      {product.subcategory && (
+                        <Badge variant="outline" className="text-xs bg-secondary/50 text-secondary-foreground border-secondary/30">
+                          {product.subcategory.sub_category_name}
+                        </Badge>
+                      )}
+                    </div>
+
                     <p className="text-sm text-primary font-medium mb-1">
                       {product.seller?.seller_name || 'Vendedor'}
                     </p>
-                    <h3 className="font-semibold mb-2 line-clamp-2 min-h-[48px]">
+                    <h3 className="font-semibold mb-2 line-clamp-2">
                       {product.product_name}
                     </h3>
                     {product.description && (
@@ -124,13 +139,10 @@ const FeaturedProducts = () => {
                         {product.description}
                       </p>
                     )}
-                    <div className="flex items-center gap-1 mb-3">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm font-semibold">4.5</span>
-                      <span className="text-xs text-muted-foreground ml-1">
-                        ({product.stock} disponibles)
-                      </span>
-                    </div>
+                    
+                    {/* Rating del producto */}
+                    <ProductRating product={product} className="mb-3" />
+                    
                     <div className="flex items-center justify-between">
                       <span className="text-xl font-bold text-primary">
                         {formatPrice(product.price)}

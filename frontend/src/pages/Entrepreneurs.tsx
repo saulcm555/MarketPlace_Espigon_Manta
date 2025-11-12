@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Store, 
+  User,
   MapPin, 
   Phone, 
   Mail, 
@@ -93,7 +94,14 @@ const Entrepreneurs = () => {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <CardTitle className="text-xl mb-1">
-                          {seller.bussines_name || seller.seller_name}
+                          {seller.bussines_name ? (
+                            <div className="flex items-center gap-2">
+                              <Store className="h-4 w-4 text-muted-foreground" />
+                              <span>{seller.bussines_name}</span>
+                            </div>
+                          ) : (
+                            <span>{seller.seller_name}</span>
+                          )}
                         </CardTitle>
                         <CardDescription className="flex items-center gap-1">
                           <Store className="h-3 w-3" />
@@ -108,7 +116,7 @@ const Entrepreneurs = () => {
                     {/* Nombre del vendedor */}
                     {seller.bussines_name && (
                       <div className="flex items-center gap-2 text-sm">
-                        <Store className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <span className="font-medium">{seller.seller_name}</span>
                       </div>
                     )}

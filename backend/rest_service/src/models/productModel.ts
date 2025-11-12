@@ -9,6 +9,8 @@ import {
 } from "typeorm";
 import { Length, Min, IsUrl } from "class-validator";
 import { InventoryEntity } from "./inventoryModel";
+import { CategoryEntity } from "./categoryModel";
+import { SubCategoryEntity } from "./subCategoryModel";
 import { SubCategoryProductEntity } from "./subCategoryModel";
 import { ProductOrderEntity } from "./orderModel";
 import { ProductCartEntity } from "./cartModel";
@@ -49,6 +51,14 @@ export class ProductEntity {
 	@IsUrl()
 	image_url!: string;
 
+	@Column({ 
+		name: "status", 
+		type: "enum", 
+		enum: ["pending", "active", "rejected", "inactive"],
+		default: "pending"
+	})
+	status!: string;
+
 	@CreateDateColumn({ name: "created_at" })
 	created_at!: Date;
 
@@ -56,6 +66,16 @@ export class ProductEntity {
 	@ManyToOne(() => InventoryEntity, (i) => i.products)
 	@JoinColumn({ name: "id_inventory" })
 	inventory!: InventoryEntity;
+
+	// ManyToOne hacia Category
+	@ManyToOne(() => CategoryEntity)
+	@JoinColumn({ name: "id_category" })
+	category?: CategoryEntity;
+
+	// ManyToOne hacia SubCategory
+	@ManyToOne(() => SubCategoryEntity)
+	@JoinColumn({ name: "id_sub_category" })
+	subCategory?: SubCategoryEntity;
 
 	// OneToMany hacia sub_category_product (tabla intermedia)
 	@OneToMany(() => SubCategoryProductEntity, (scp) => scp.product)

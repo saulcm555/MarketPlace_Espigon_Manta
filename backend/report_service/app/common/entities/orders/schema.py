@@ -16,6 +16,8 @@ class OrderType:
     id_cart: int
     id_payment_method: int
     id_delivery: Optional[int]
+    payment_receipt_url: Optional[str]  # URL del comprobante de pago
+    payment_verified_at: Optional[datetime]  # Fecha de verificación del pago
     
     # Relaciones
     @strawberry.field

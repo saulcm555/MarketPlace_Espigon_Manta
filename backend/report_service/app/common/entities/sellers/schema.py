@@ -10,7 +10,7 @@ class SellerType:
     id_seller: int
     seller_name: str
     seller_email: str
-    phone: int
+    phone: str  # Cambiado de int a str
     bussines_name: str
     location: str
     created_at: datetime

@@ -14,4 +14,5 @@ class ProductModel(BaseModel):
     price: Decimal = Field(..., ge=0)
     stock: int = Field(..., ge=0)
     image_url: Optional[str] = None
+    status: str = Field(default="pending")  # pending, active, rejected, inactive
     created_at: datetime

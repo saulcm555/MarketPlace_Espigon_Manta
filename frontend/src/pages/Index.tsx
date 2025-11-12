@@ -3,7 +3,6 @@ import Hero from "@/components/Hero";
 import Categories from "@/components/Categories";
 import Features from "@/components/Features";
 import FeaturedProducts from "@/components/FeaturedProducts";
-import CallToAction from "@/components/CallToAction";
 import { Facebook, Instagram, Twitter, Mail, MapPin, Phone } from "lucide-react";
 
 const Index = () => {
@@ -15,7 +14,6 @@ const Index = () => {
         <Categories />
         <FeaturedProducts />
         <Features />
-        <CallToAction />
       </main>
       <footer className="bg-gradient-to-b from-muted/30 to-muted/50 border-t border-border">
         <div className="container mx-auto px-4 py-16">

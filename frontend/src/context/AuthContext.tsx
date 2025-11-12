@@ -12,6 +12,7 @@ import {
   getAuthToken,
   verifyToken 
 } from '@/api/auth';
+import { clearLoginAttempts } from '@/utils/securityConfig';
 import type { User, UserRole, LoginRequest, LoginResponse } from '@/types/api';
 
 // ============================================
@@ -92,6 +93,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Save to localStorage
       saveAuthData(response.token, response.user);
+      
+      // Limpiar intentos fallidos de login para este email
+      clearLoginAttempts(credentials.email);
       
     } catch (error) {
       console.error('Login error:', error);

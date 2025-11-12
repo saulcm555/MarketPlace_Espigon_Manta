@@ -19,7 +19,8 @@ import {
   verifyPayment,
   getSellerPendingPayments,
   getSellerOrders,
-  getMyOrders
+  getMyOrders,
+  markOrderAsDelivered
 } from "../controllers/orderController";
 
 const router = Router();
@@ -43,5 +44,8 @@ router.get("/products/:id_product/reviews", getProductReviews); // Público - ob
 // Rutas para pagos por transferencia
 router.patch("/:id/payment-receipt", authMiddleware, roleMiddleware("client"), updatePaymentReceipt); // Cliente sube comprobante
 router.patch("/:id/verify-payment", authMiddleware, roleMiddleware("seller"), verifyPayment); // Vendedor verifica pago
+
+// Ruta para marcar como entregado
+router.patch("/:id/mark-delivered", authMiddleware, roleMiddleware("seller"), markOrderAsDelivered); // Vendedor marca como entregado
 
 export default router;

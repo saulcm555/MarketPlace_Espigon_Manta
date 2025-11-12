@@ -194,12 +194,26 @@ export const getSellerPendingPayments = asyncHandler(async (req: Request, res: R
     return res.status(401).json({ message: "No se pudo identificar el vendedor" });
   }
   const allPendingOrders = await orderService.getOrdersByStatus('payment_pending_verification');
+  
   const sellerPendingOrders = allPendingOrders.filter(order => {
-    if (!order.cart?.productCarts) return false;
-    return order.cart.productCarts.some((cartProduct: ProductCart) => {
-      return cartProduct.product?.id_seller === sellerId;
-    });
+    // Primero verificar en productOrders (relación directa y más confiable)
+    if (order.productOrders && order.productOrders.length > 0) {
+      const hasSellerProducts = order.productOrders.some((productOrder: any) => {
+        return productOrder.product?.id_seller === sellerId;
+      });
+      if (hasSellerProducts) return true;
+    }
+    
+    // Fallback: verificar en cart.productCarts
+    if (order.cart?.productCarts) {
+      return order.cart.productCarts.some((cartProduct: ProductCart) => {
+        return cartProduct.product?.id_seller === sellerId;
+      });
+    }
+    
+    return false;
   });
+  
   res.json(sellerPendingOrders);
 });
 
@@ -235,4 +249,72 @@ export const getSellerOrders = asyncHandler(async (req: Request, res: Response) 
   });
   
   res.json(sellerOrders);
+});
+
+/**
+ * PATCH /api/orders/:id/mark-delivered
+ * Marcar un pedido como entregado (solo vendedor)
+ * Cambia el status a 'delivered'
+ */
+export const markOrderAsDelivered = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const sellerId = req.user?.id_seller || req.user?.id;
+
+  if (!id) {
+    return res.status(400).json({ message: "ID de orden requerido" });
+  }
+
+  if (!sellerId) {
+    return res.status(401).json({ message: "No se pudo identificar el vendedor" });
+  }
+
+  // Verificar que la orden existe
+  const order = await orderService.getOrderById(id);
+  if (!order) {
+    throw new NotFoundError("Orden");
+  }
+
+  // Verificar que el vendedor tiene productos en esta orden
+  let hasSellerProducts = false;
+  
+  // Verificar en productOrders
+  if (order.productOrders && order.productOrders.length > 0) {
+    hasSellerProducts = order.productOrders.some((productOrder: any) => {
+      return productOrder.product?.id_seller === sellerId;
+    });
+  }
+  
+  // Fallback: verificar en cart.productCarts
+  if (!hasSellerProducts && order.cart?.productCarts) {
+    hasSellerProducts = order.cart.productCarts.some((cartProduct: ProductCart) => {
+      return cartProduct.product?.id_seller === sellerId;
+    });
+  }
+
+  if (!hasSellerProducts) {
+    return res.status(403).json({ 
+      message: "No tienes permiso para marcar esta orden como entregada" 
+    });
+  }
+
+  // Verificar que el estado actual permite la transición a delivered
+  // Permitido desde: pending (pago efectivo), payment_confirmed, processing, shipped
+  const validStatuses = ['pending', 'payment_confirmed', 'processing', 'shipped'];
+  if (!validStatuses.includes(order.status)) {
+    return res.status(400).json({ 
+      message: `No se puede marcar como entregado desde el estado: ${order.status}` 
+    });
+  }
+
+  // Actualizar el estado a delivered usando el caso de uso
+  const updateOrderStatusUseCase = new UpdateOrderStatus(orderService);
+  const updatedOrder = await updateOrderStatusUseCase.execute({
+    id_order: Number(id),
+    status: 'delivered',
+  });
+
+  res.json({
+    message: "Pedido marcado como entregado correctamente",
+    order: updatedOrder
+  });
 });

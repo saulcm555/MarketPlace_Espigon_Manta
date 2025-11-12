@@ -11,4 +11,4 @@ class DeliveryModel(BaseModel):
     estimated_time: datetime
     delivery_person: str = Field(..., min_length=3, max_length=100)
     delivery_cost: Decimal = Field(..., ge=0)
-    phone: int
+    phone: str = Field(..., max_length=20)  # Cambiado de int a str

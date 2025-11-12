@@ -3,10 +3,12 @@ import { ShoppingBag, Store } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getStatistics } from "@/api";
+import { useAuth } from "@/context/AuthContext";
 import heroImage from "@/assets/espigon-hero.jpg";
 
 const Hero = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   
   // Obtener estadísticas reales del marketplace
   const { data: stats } = useQuery({
@@ -19,6 +21,16 @@ const Hero = () => {
       local: 100
     }
   });
+
+  const handleSellerClick = () => {
+    // Si el usuario ya es vendedor, llevarlo al dashboard
+    if (isAuthenticated && user?.role === 'seller') {
+      navigate('/seller/dashboard');
+    } else {
+      // Si no es vendedor, llevarlo a registrarse
+      navigate('/register-seller');
+    }
+  };
 
   return (
     <section className="relative min-h-screen flex items-center justify-center">
@@ -57,10 +69,10 @@ const Hero = () => {
             <Button 
               size="lg" 
               className="px-8 py-6 text-base bg-white text-primary border-2 border-white hover:bg-transparent hover:text-white transition-all"
-              onClick={() => navigate('/register-seller')}
+              onClick={handleSellerClick}
             >
               <Store className="mr-2 h-5 w-5" />
-              Vender mis Productos
+              {isAuthenticated && user?.role === 'seller' ? 'Mi Tienda' : 'Vender mis Productos'}
             </Button>
           </div>
 

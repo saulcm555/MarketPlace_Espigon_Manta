@@ -2,7 +2,7 @@
 import httpx
 from typing import List
 from app.common.entities.products.schema import ProductType
-from app.common.utils import parse_iso_datetime, safe_float, safe_int
+from app.common.utils import parse_iso_datetime, safe_float, safe_int, extract_data_from_response
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,9 +12,13 @@ async def get_all_products() -> List[ProductType]:
     """Obtiene todos los productos desde el REST API"""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{BASE_URL}/products")
+            response = await client.get(f"{BASE_URL}/products?limit=1000")
             response.raise_for_status()
-            data = response.json()
+            response_data = response.json()
+            
+            # Extraer datos (maneja paginación o array directo)
+            data = extract_data_from_response(response_data, ['products', 'data'])
+                
     except httpx.HTTPError as e:
         logger.error(f"❌ Error HTTP obteniendo productos: {e}")
         return []
@@ -36,6 +40,7 @@ async def get_all_products() -> List[ProductType]:
                 price=safe_float(product.get("price")),
                 stock=safe_int(product.get("stock")),
                 image_url=product.get("image_url"),
+                status=product.get("status", "pending"),  # pending, active, rejected, inactive
                 created_at=parse_iso_datetime(product.get("created_at"))
             ))
         except KeyError as e:

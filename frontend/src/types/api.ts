@@ -67,13 +67,19 @@ export interface Product {
   id_inventory: number;
   id_category: number;
   id_sub_category?: number;
+  status?: 'pending' | 'active' | 'rejected' | 'inactive';
   created_at?: string;
   updated_at?: string;
+  
+  // Rating fields (calculados en backend)
+  avgRating?: number; // Promedio de rating (0-5)
+  reviewCount?: number; // Cantidad de reviews
   
   // Relaciones (cuando se incluyen)
   seller?: Seller;
   category?: Category;
-  subcategory?: SubCategory;
+  subcategory?: SubCategory; // esperado en el frontend
+  subCategory?: SubCategory; // como viene del backend (camelCase)
 }
 
 export interface CreateProductRequest {
@@ -212,7 +218,8 @@ export interface Category {
 
 export interface SubCategory {
   id_sub_category: number;
-  subcategory_name: string;
+  sub_category_name: string; // Backend usa snake_case
+  subcategory_name?: string; // Alias para compatibilidad
   description?: string;
   id_category: number;
   created_at?: string;
@@ -280,7 +287,7 @@ export interface Order {
   id_payment_method: number;
   id_delivery?: number;
   total_amount: number;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'payment_pending_verification' | 'payment_confirmed' | 'payment_rejected' | 'expired';
+  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'payment_pending_verification' | 'payment_confirmed' | 'payment_rejected' | 'expired' | 'delivered' | 'shipped';
   order_date: string;
   delivery_address?: string;
   delivery_type?: 'home_delivery' | 'pickup';

@@ -3,16 +3,16 @@
 ## 🎯 DASHBOARD GENERAL
 ```graphql
 query DashboardStats {
-  dashboardStats {
-    todaySales
-    todayOrders
-    totalActiveClients
-    totalActiveSellers
-    totalProducts
-    pendingDeliveries
-    lowStockProducts
-    monthRevenue
-    monthOrders
+  dashboard_stats {
+    today_sales
+    today_orders
+    total_active_clients
+    total_active_sellers
+    total_products
+    pending_deliveries
+    low_stock_products
+    month_revenue
+    month_orders
   }
 }
 ```
@@ -20,23 +20,22 @@ query DashboardStats {
 ## 💰 REPORTE DE VENTAS
 ```graphql
 query SalesReport {
-  salesReport(
-    dateRange: { 
-      startDate: "2025-01-01", 
-      endDate: "2025-11-07" 
+  sales_report(
+    date_range: { 
+      start_date: "2025-10-01", 
+      end_date: "2025-11-07" 
     }
     period: MONTHLY
   ) {
-    startDate
-    endDate
-    totalRevenue
-    totalOrders
-    averageOrderValue
-    salesByPeriod {
+    period_start
+    period_end
+    total_revenue
+    total_orders
+    average_transaction
+    sales_by_period {
       period
-      totalSales
-      totalOrders
-      averageOrderValue
+      total_sales
+      total_orders
     }
   }
 }
@@ -45,22 +44,22 @@ query SalesReport {
 ## 🏆 TOP VENDEDORES
 ```graphql
 query TopSellers {
-  topSellersReport(
-    dateRange: { 
-      startDate: "2025-10-01", 
-      endDate: "2025-11-07" 
+  top_sellers_report(
+    date_range: { 
+      start_date: "2025-10-01", 
+      end_date: "2025-11-07" 
     }
     limit: 5
   ) {
-    periodStart
-    periodEnd
-    topSellers {
-      sellerId
-      sellerName
-      businessName
-      totalSales
-      totalOrders
-      productsSold
+    period_start
+    period_end
+    top_sellers {
+      seller_id
+      seller_name
+      business_name
+      total_sales
+      total_orders
+      products_sold
     }
   }
 }
@@ -69,22 +68,22 @@ query TopSellers {
 ## 📦 PRODUCTOS MÁS VENDIDOS
 ```graphql
 query BestProducts {
-  bestProductsReport(
-    dateRange: { 
-      startDate: "2025-10-01", 
-      endDate: "2025-11-07" 
+  best_products_report(
+    date_range: { 
+      start_date: "2025-10-01", 
+      end_date: "2025-11-07" 
     }
     limit: 10
   ) {
-    periodStart
-    periodEnd
-    bestProducts {
-      productId
-      productName
-      categoryName
-      unitsSold
-      totalRevenue
-      averagePrice
+    period_start
+    period_end
+    best_products {
+      product_id
+      product_name
+      category_name
+      units_sold
+      total_revenue
+      average_price
     }
   }
 }
@@ -93,20 +92,20 @@ query BestProducts {
 ## 📊 VENTAS POR CATEGORÍA
 ```graphql
 query CategorySales {
-  categorySalesReport(
-    dateRange: { 
-      startDate: "2025-10-01", 
-      endDate: "2025-11-07" 
+  category_sales_report(
+    date_range: { 
+      start_date: "2025-10-01", 
+      end_date: "2025-11-07" 
     }
   ) {
-    periodStart
-    periodEnd
+    period_start
+    period_end
     categories {
-      categoryId
-      categoryName
-      totalSales
-      totalOrders
-      productsCount
+      category_id
+      category_name
+      total_sales
+      total_orders
+      products_count
     }
   }
 }
@@ -115,25 +114,25 @@ query CategorySales {
 ## 👥 REPORTE DE CLIENTES
 ```graphql
 query ClientsReport {
-  clientsReport(
-    dateRange: { 
-      startDate: "2025-10-01", 
-      endDate: "2025-11-07" 
+  clients_report(
+    date_range: { 
+      start_date: "2025-10-01", 
+      end_date: "2025-11-07" 
     }
-    topLimit: 10
+    top_limit: 10
   ) {
-    periodStart
-    periodEnd
-    totalClients
-    newClients
-    activeClients
-    topClients {
-      clientId
-      clientName
-      clientEmail
-      totalOrders
-      totalSpent
-      lastOrderDate
+    period_start
+    period_end
+    total_clients
+    new_clients
+    active_clients
+    top_clients {
+      client_id
+      client_name
+      client_email
+      total_orders
+      total_spent
+      last_order_date
     }
   }
 }
@@ -142,16 +141,16 @@ query ClientsReport {
 ## 📦 REPORTE DE INVENTARIO
 ```graphql
 query InventoryReport {
-  inventoryReport(minStockThreshold: 10) {
-    totalProducts
-    outOfStock
-    lowStock
-    criticalProducts {
-      productId
-      productName
-      sellerName
-      currentStock
-      minStockThreshold
+  inventory_report(min_stock_threshold: 10) {
+    total_products
+    out_of_stock
+    low_stock
+    critical_products {
+      product_id
+      product_name
+      seller_name
+      current_stock
+      min_stock_threshold
       status
     }
   }
@@ -161,20 +160,20 @@ query InventoryReport {
 ## 🚚 REPORTE DE DELIVERIES
 ```graphql
 query DeliveryReport {
-  deliveryPerformanceReport(
-    dateRange: { 
-      startDate: "2025-10-01", 
-      endDate: "2025-11-07" 
+  delivery_performance_report(
+    date_range: { 
+      start_date: "2025-10-01", 
+      end_date: "2025-11-07" 
     }
   ) {
-    periodStart
-    periodEnd
-    totalDeliveries
+    period_start
+    period_end
+    total_deliveries
     completed
     pending
     cancelled
-    averageDeliveryTimeHours
-    statusBreakdown {
+    average_delivery_time_hours
+    status_breakdown {
       status
       count
       percentage
@@ -186,21 +185,21 @@ query DeliveryReport {
 ## 💵 REPORTE FINANCIERO
 ```graphql
 query FinancialReport {
-  financialReport(
-    dateRange: { 
-      startDate: "2025-10-01", 
-      endDate: "2025-11-07" 
+  financial_report(
+    date_range: { 
+      start_date: "2025-10-01", 
+      end_date: "2025-11-07" 
     }
   ) {
-    periodStart
-    periodEnd
-    totalRevenue
-    totalOrders
-    averageTransaction
-    paymentMethods {
-      methodName
-      totalTransactions
-      totalAmount
+    period_start
+    period_end
+    total_revenue
+    total_orders
+    average_transaction
+    payment_methods {
+      method_name
+      total_transactions
+      total_amount
       percentage
     }
   }
@@ -211,55 +210,55 @@ query FinancialReport {
 ```graphql
 query ExecutiveDashboard {
   # Stats generales
-  dashboardStats {
-    todaySales
-    todayOrders
-    monthRevenue
-    monthOrders
-    totalActiveClients
-    totalActiveSellers
-    totalProducts
-    pendingDeliveries
-    lowStockProducts
+  dashboard_stats {
+    today_sales
+    today_orders
+    month_revenue
+    month_orders
+    total_active_clients
+    total_active_sellers
+    total_products
+    pending_deliveries
+    low_stock_products
   }
   
   # Top vendedores del mes
-  topSellersReport(limit: 5) {
-    topSellers {
-      sellerName
-      businessName
-      totalSales
-      totalOrders
+  top_sellers_report(limit: 5) {
+    top_sellers {
+      seller_name
+      business_name
+      total_sales
+      total_orders
     }
   }
   
   # Productos más vendidos
-  bestProductsReport(limit: 10) {
-    bestProducts {
-      productName
-      categoryName
-      unitsSold
-      totalRevenue
+  best_products_report(limit: 10) {
+    best_products {
+      product_name
+      category_name
+      units_sold
+      total_revenue
     }
   }
   
   # Inventario crítico
-  inventoryReport(minStockThreshold: 5) {
-    outOfStock
-    lowStock
-    criticalProducts {
-      productName
-      currentStock
+  inventory_report(min_stock_threshold: 5) {
+    out_of_stock
+    low_stock
+    critical_products {
+      product_name
+      current_stock
       status
     }
   }
   
   # Ventas por categoría
-  categorySalesReport {
+  category_sales_report {
     categories {
-      categoryName
-      totalSales
-      productsCount
+      category_name
+      total_sales
+      products_count
     }
   }
 }
@@ -268,17 +267,17 @@ query ExecutiveDashboard {
 ## 📈 QUERY PARA GRÁFICOS (Ventas en el tiempo)
 ```graphql
 query SalesChart {
-  salesReport(
-    dateRange: { 
-      startDate: "2025-01-01", 
-      endDate: "2025-12-31" 
+  sales_report(
+    date_range: { 
+      start_date: "2025-01-01", 
+      end_date: "2025-12-31" 
     }
     period: MONTHLY
   ) {
-    salesByPeriod {
+    sales_by_period {
       period          # "2025-01", "2025-02", etc.
-      totalSales      # Para el eje Y
-      totalOrders     # Para mostrar cantidad
+      total_sales     # Para el eje Y
+      total_orders    # Para mostrar cantidad
     }
   }
 }
@@ -288,39 +287,39 @@ query SalesChart {
 ```graphql
 query PerformanceAnalysis {
   # Ventas del mes actual
-  currentMonth: salesReport(
-    dateRange: { 
-      startDate: "2025-11-01", 
-      endDate: "2025-11-30" 
+  current_month: sales_report(
+    date_range: { 
+      start_date: "2025-11-01", 
+      end_date: "2025-11-30" 
     }
   ) {
-    totalRevenue
-    totalOrders
+    total_revenue
+    total_orders
   }
   
   # Ventas del mes anterior
-  previousMonth: salesReport(
-    dateRange: { 
-      startDate: "2025-10-01", 
-      endDate: "2025-10-31" 
+  previous_month: sales_report(
+    date_range: { 
+      start_date: "2025-10-01", 
+      end_date: "2025-10-31" 
     }
   ) {
-    totalRevenue
-    totalOrders
+    total_revenue
+    total_orders
   }
   
   # Clientes nuevos
-  clientsReport {
-    totalClients
-    newClients
-    activeClients
+  clients_report {
+    total_clients
+    new_clients
+    active_clients
   }
   
   # Performance de deliveries
-  deliveryPerformanceReport {
+  delivery_performance_report {
     completed
     pending
-    averageDeliveryTimeHours
+    average_delivery_time_hours
   }
 }
 ```
@@ -334,24 +333,285 @@ query PerformanceAnalysis {
 - `YEARLY`: Agrupa por año
 
 ### Rangos de fechas:
-- Si no especificas `dateRange`, usa los **últimos 30 días** por defecto
+- Si no especificas `date_range`, usa los **últimos 30 días** por defecto
 - Formato de fecha: `"YYYY-MM-DD"` (ejemplo: `"2025-11-07"`)
 
 ### Límites:
-- `limit` en `topSellersReport`: default 10
-- `limit` en `bestProductsReport`: default 20
-- `topLimit` en `clientsReport`: default 10
-- `minStockThreshold` en `inventoryReport`: default 10
+- `limit` en `top_sellers_report`: default 10
+- `limit` en `best_products_report`: default 20
+- `top_limit` en `clients_report`: default 10
+- `min_stock_threshold` en `inventory_report`: default 10
 
 ### Para frontend:
 Usa **aliases** de GraphQL para comparar períodos:
 ```graphql
 query CompareMonths {
-  thisMonth: salesReport(dateRange: { startDate: "2025-11-01", endDate: "2025-11-30" }) {
-    totalRevenue
+  this_month: sales_report(date_range: { start_date: "2025-11-01", end_date: "2025-11-30" }) {
+    total_revenue
   }
-  lastMonth: salesReport(dateRange: { startDate: "2025-10-01", endDate: "2025-10-31" }) {
-    totalRevenue
+  last_month: sales_report(date_range: { start_date: "2025-10-01", end_date: "2025-10-31" }) {
+    total_revenue
+  }
+}
+```
+
+## 🆕 QUERIES DE ENTIDADES BÁSICAS (Agregadas)
+
+### Todas las Entidades Disponibles:
+```graphql
+# Productos
+query AllProducts {
+  all_products {
+    id_product
+    product_name
+    price
+    stock
+    status
+    image_url
+    created_at
+  }
+}
+
+# Órdenes
+query AllOrders {
+  all_orders {
+    id_order
+    order_date
+    status
+    total_amount
+    delivery_type
+    payment_receipt_url
+    payment_verified_at
+  }
+}
+
+# Clientes
+query AllClients {
+  all_clients {
+    id_client
+    client_name
+    client_email
+    phone
+    address
+    document_type
+    document_number
+    birth_date
+    created_at
+  }
+}
+
+# Vendedores
+query AllSellers {
+  all_sellers {
+    id_seller
+    seller_name
+    seller_email
+    phone
+    bussines_name
+    location
+    created_at
+  }
+}
+
+# Categorías
+query AllCategories {
+  all_categories {
+    id_category
+    category_name
+    description
+    photo
+  }
+}
+
+# Subcategorías
+query AllSubCategories {
+  all_subcategories {
+    id_sub_category
+    id_category
+    sub_category_name
+    description
+  }
+}
+
+# Carritos
+query AllCarts {
+  all_carts {
+    id_cart
+    id_client
+    id_product
+    status
+    quantity
+  }
+}
+
+# Productos en Carritos (tabla intermedia)
+query AllProductCarts {
+  all_product_carts {
+    id_product_cart
+    id_product
+    id_cart
+    quantity
+    added_at
+    updated_at
+  }
+}
+
+# Productos en Órdenes (tabla intermedia con reviews)
+query AllProductOrders {
+  all_product_orders {
+    id_product_order
+    id_order
+    id_product
+    price_unit
+    subtotal
+    rating
+    review_comment
+    reviewed_at
+    created_at
+  }
+}
+
+# Métodos de Pago
+query AllPaymentMethods {
+  all_payment_methods {
+    id_payment_method
+    method_name
+    details_payment
+  }
+}
+
+# Deliveries
+query AllDeliveries {
+  all_deliveries {
+    id_delivery
+    id_product
+    delivery_address
+    city
+    status
+    estimated_time
+    delivery_person
+    delivery_cost
+    phone
+  }
+}
+
+# Inventarios
+query AllInventories {
+  all_inventories {
+    id_inventory
+    id_seller
+    updated_at
+  }
+}
+
+# Productos en Subcategorías (tabla intermedia)
+query AllSubcategoryProducts {
+  all_subcategory_products {
+    id_sub_category_product
+    id_sub_category
+    id_product
+  }
+}
+
+# Admins
+query AllAdmins {
+  all_admins {
+    id_admin
+    admin_name
+    admin_email
+    role
+    created_at
+  }
+}
+```
+
+### Con Relaciones (Queries Anidadas):
+```graphql
+# Productos con Vendedor y Categoría
+query ProductsWithRelations {
+  all_products {
+    id_product
+    product_name
+    price
+    status
+    seller {
+      seller_name
+      bussines_name
+    }
+    category {
+      category_name
+    }
+  }
+}
+
+# Órdenes con Cliente y Productos
+query OrdersWithDetails {
+  all_orders {
+    id_order
+    status
+    total_amount
+    payment_receipt_url
+    client {
+      client_name
+      client_email
+    }
+    product_orders {
+      price_unit
+      subtotal
+      rating
+      review_comment
+      product {
+        product_name
+        status
+      }
+    }
+  }
+}
+
+# Carritos con Productos (usando tabla intermedia)
+query CartsWithProducts {
+  all_carts {
+    id_cart
+    status
+    client {
+      client_name
+    }
+    product_carts {
+      quantity
+      added_at
+      product {
+        product_name
+        price
+        status
+      }
+    }
+  }
+}
+
+# Categorías con Subcategorías
+query CategoriesWithSubs {
+  all_categories {
+    category_name
+    subcategories {
+      sub_category_name
+      description
+    }
+  }
+}
+
+# Vendedores con Inventarios y Productos
+query SellersWithInventory {
+  all_sellers {
+    seller_name
+    bussines_name
+    inventories {
+      updated_at
+      products {
+        product_name
+        stock
+        status
+      }
+    }
   }
 }
 ```

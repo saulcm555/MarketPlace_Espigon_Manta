@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { updateClient } from '@/api/clients';
+import { updateSeller } from '@/api/sellers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { User, Mail, Phone, MapPin, Shield, ArrowLeft, Save, Package, ShoppingBag } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Shield, ArrowLeft, Save, Package, ShoppingBag, Store } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 
 const Profile = () => {
@@ -30,6 +31,7 @@ const Profile = () => {
     email: user?.email || '',
     phone: user?.phone?.toString() || '',
     address: user?.address || '',
+    businessName: user?.role === 'seller' ? (user as any).bussines_name || '' : '',
   });
 
   const handleChange = (field: string, value: string) => {
@@ -63,33 +65,66 @@ const Profile = () => {
       // Preparar datos para enviar - solo incluir campos que tienen valor
       const dataToUpdate: any = {};
       
-      if (formData.name && formData.name.trim()) {
-        dataToUpdate.client_name = formData.name.trim();
-      }
-      
-      if (formData.phone && formData.phone.trim()) {
-        dataToUpdate.phone = formData.phone.trim(); // Enviar como string
-      }
-      
-      if (formData.address && formData.address.trim()) {
-        dataToUpdate.address = formData.address.trim();
-      }
+      if (user?.role === 'seller') {
+        // Actualización de vendedor
+        if (formData.name && formData.name.trim()) {
+          dataToUpdate.seller_name = formData.name.trim();
+        }
+        
+        if (formData.phone && formData.phone.trim()) {
+          dataToUpdate.phone = formData.phone.trim();
+        }
+        
+        if (formData.businessName && formData.businessName.trim()) {
+          dataToUpdate.bussines_name = formData.businessName.trim();
+        }
 
-      // Verificar que hay algo que actualizar
-      if (Object.keys(dataToUpdate).length === 0) {
-        throw new Error('No hay cambios para guardar');
+        // Verificar que hay algo que actualizar
+        if (Object.keys(dataToUpdate).length === 0) {
+          throw new Error('No hay cambios para guardar');
+        }
+
+        // Actualizar vendedor en el backend
+        const updatedSeller = await updateSeller(user.id, dataToUpdate);
+
+        // Actualizar el contexto de autenticación con los nuevos datos
+        updateUser({
+          ...user,
+          name: updatedSeller.seller_name,
+          phone: updatedSeller.phone,
+          bussines_name: updatedSeller.bussines_name,
+        } as any);
+
+      } else {
+        // Actualización de cliente (lógica original)
+        if (formData.name && formData.name.trim()) {
+          dataToUpdate.client_name = formData.name.trim();
+        }
+        
+        if (formData.phone && formData.phone.trim()) {
+          dataToUpdate.phone = formData.phone.trim(); // Enviar como string
+        }
+        
+        if (formData.address && formData.address.trim()) {
+          dataToUpdate.address = formData.address.trim();
+        }
+
+        // Verificar que hay algo que actualizar
+        if (Object.keys(dataToUpdate).length === 0) {
+          throw new Error('No hay cambios para guardar');
+        }
+
+        // Actualizar en el backend
+        const updatedClient = await updateClient(user.id, dataToUpdate);
+
+        // Actualizar el contexto de autenticación con los nuevos datos
+        updateUser({
+          ...user,
+          name: updatedClient.client_name,
+          phone: updatedClient.phone,
+          address: updatedClient.address,
+        });
       }
-
-      // Actualizar en el backend
-      const updatedClient = await updateClient(user.id, dataToUpdate);
-
-      // Actualizar el contexto de autenticación con los nuevos datos
-      updateUser({
-        ...user,
-        name: updatedClient.client_name,
-        phone: updatedClient.phone,
-        address: updatedClient.address,
-      });
 
       setSuccess('Perfil actualizado correctamente');
       setIsEditing(false);
@@ -269,6 +304,25 @@ const Profile = () => {
                       />
                     </div>
                   </div>
+
+                  {/* Campo de nombre de emprendimiento solo para vendedores */}
+                  {user?.role === 'seller' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="businessName">Nombre del emprendimiento</Label>
+                      <div className="relative">
+                        <Store className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="businessName"
+                          type="text"
+                          placeholder="Nombre de tu negocio"
+                          value={formData.businessName}
+                          onChange={(e) => handleChange('businessName', e.target.value)}
+                          className="pl-10"
+                          disabled={!isEditing}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
@@ -332,6 +386,7 @@ const Profile = () => {
                             email: user?.email || '',
                             phone: user?.phone?.toString() || '',
                             address: user?.address || '',
+                            businessName: user?.role === 'seller' ? (user as any).bussines_name || '' : '',
                           });
                           setError('');
                           setSuccess('');
