@@ -1,23 +1,34 @@
 import { createClient } from 'redis';
 
+// Variable para rastrear si Redis está disponible
+let redisAvailable = true;
+
 // Crear cliente Redis con configuración desde variables de entorno
 const redisClient = createClient({
   url: process.env.REDIS_URL || 'redis://localhost:6379',
   socket: {
-    reconnectStrategy: (retries) => {
-      // Reconectar con backoff exponencial, máximo 3 segundos
-      if (retries > 10) {
-        console.error('❌ Redis: Too many reconnection attempts');
-        return new Error('Too many retries');
+    reconnectStrategy: (retries: number) => {
+      // Si Redis no está disponible, no intentar reconectar
+      if (!redisAvailable) {
+        return false;
       }
-      return Math.min(retries * 100, 3000);
+      // Limitar a 3 intentos solamente
+      if (retries > 3) {
+        console.log('⚠️  Redis: Deshabilitando reconexión automática');
+        redisAvailable = false;
+        return false;
+      }
+      return Math.min(retries * 100, 1000);
     }
   }
 });
 
-// Event listeners para monitoreo
-redisClient.on('error', (err) => {
-  console.error('❌ Redis Client Error:', err);
+// Event listeners para monitoreo (solo si Redis está habilitado)
+redisClient.on('error', (err: Error) => {
+  // Silenciar errores de conexión repetitivos
+  if (redisAvailable && err.message && !err.message.includes('ECONNREFUSED')) {
+    console.error('❌ Redis Client Error:', err.message);
+  }
 });
 
 redisClient.on('connect', () => {
@@ -26,10 +37,7 @@ redisClient.on('connect', () => {
 
 redisClient.on('ready', () => {
   console.log('✅ Redis: Connected and ready');
-});
-
-redisClient.on('reconnecting', () => {
-  console.log('🔄 Redis: Reconnecting...');
+  redisAvailable = true;
 });
 
 redisClient.on('end', () => {
@@ -44,9 +52,14 @@ export async function connectRedis(): Promise<void> {
   try {
     await redisClient.connect();
     console.log('✅ Redis connected successfully');
-  } catch (error) {
-    console.error('❌ Failed to connect to Redis:', error);
-    console.warn('⚠️  Application will continue without Redis (notifications disabled)');
+  } catch (error: any) {
+    redisAvailable = false;
+    console.warn('⚠️  Redis not available - Application will continue without Redis');
+    console.warn('   (Real-time notifications will be disabled)');
+    // No mostrar el stack trace completo, solo el mensaje
+    if (error?.code === 'ECONNREFUSED') {
+      console.warn('   Tip: Start Redis with: docker run -p 6379:6379 redis');
+    }
   }
 }
 
@@ -67,7 +80,14 @@ export async function disconnectRedis(): Promise<void> {
  * Verifica si Redis está conectado y listo.
  */
 export function isRedisConnected(): boolean {
-  return redisClient.isOpen && redisClient.isReady;
+  return redisAvailable && redisClient.isOpen && redisClient.isReady;
+}
+
+/**
+ * Verifica si Redis está habilitado/disponible en el sistema.
+ */
+export function isRedisAvailable(): boolean {
+  return redisAvailable;
 }
 
 export { redisClient };

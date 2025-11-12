@@ -15,9 +15,9 @@ const router = Router();
 router.get("/", getDeliveries);
 router.get("/:id", getDeliveryById);
 
-// Rutas protegidas (solo admin/seller)
-router.post("/", authMiddleware, createDelivery);
-router.put("/:id", authMiddleware, updateDelivery);
+// Rutas protegidas (solo admin)
+router.post("/", authMiddleware, roleMiddleware("admin"), createDelivery);
+router.put("/:id", authMiddleware, roleMiddleware("admin"), updateDelivery);
 router.delete("/:id", authMiddleware, roleMiddleware("admin"), deleteDelivery);
 
 export default router;
