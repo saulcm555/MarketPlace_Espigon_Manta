@@ -9,7 +9,7 @@ const router = Router();
 router.get("/", getSellers); // Pública
 router.get("/:id", getSellerById); // Pública
 router.post("/", createSeller); // Público para registro
-router.put("/:id", authMiddleware, roleMiddleware("seller"), ownershipMiddleware("seller"), updateSeller); // Solo el seller dueño o admin
+router.put("/:id", authMiddleware, roleMiddleware(["seller", "admin"]), ownershipMiddleware("seller"), updateSeller); // Seller dueño o admin
 router.delete("/:id", authMiddleware, roleMiddleware("admin"), deleteSeller); // Solo admin
 
 export default router;

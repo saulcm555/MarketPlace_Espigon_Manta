@@ -6,10 +6,10 @@ import { getInventories, getInventoryById, createInventory, updateInventory, del
 
 const router = Router();
 
-router.get("/", authMiddleware, roleMiddleware("seller"), getInventories); // Solo seller ve sus inventarios
-router.get("/:id", authMiddleware, roleMiddleware("seller"), ownershipMiddleware("inventory"), getInventoryById); // Solo el seller dueño o admin
+router.get("/", authMiddleware, roleMiddleware(["seller", "admin"]), getInventories); // Seller ve sus inventarios, admin ve todos
+router.get("/:id", authMiddleware, roleMiddleware(["seller", "admin"]), ownershipMiddleware("inventory"), getInventoryById); // Seller dueño o admin
 router.post("/", authMiddleware, roleMiddleware("seller"), createInventory); // Solo seller
-router.put("/:id", authMiddleware, roleMiddleware("seller"), ownershipMiddleware("inventory"), updateInventory); // Solo el seller dueño o admin
+router.put("/:id", authMiddleware, roleMiddleware(["seller", "admin"]), ownershipMiddleware("inventory"), updateInventory); // Seller dueño o admin
 router.delete("/:id", authMiddleware, roleMiddleware("admin"), deleteInventory); // Solo admin
 
 export default router;

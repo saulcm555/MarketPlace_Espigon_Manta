@@ -1,27 +1,12 @@
-import { useQuery, gql } from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Package, Users, ShoppingCart, AlertTriangle, TrendingUp, Store, FileText } from 'lucide-react';
+import { DollarSign, Package, Users, ShoppingCart, AlertTriangle, TrendingUp, Store, FileText, BarChart3, UsersRound } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-
-// GraphQL Query
-const DASHBOARD_STATS = gql`
-  query DashboardStats {
-    dashboard_stats {
-      today_sales
-      today_orders
-      total_active_clients
-      total_active_sellers
-      total_products
-      pending_deliveries
-      low_stock_products
-      month_revenue
-      month_orders
-    }
-  }
-`;
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DASHBOARD_STATS, SALES_REPORT, CLIENTS_REPORT } from '@/graphql/adminDashboard';
 
 interface DashboardStats {
   today_sales: number;
@@ -35,15 +20,50 @@ interface DashboardStats {
   month_orders: number;
 }
 
+interface SalesReportItem {
+  period: string;
+  total_sales: number;
+  total_orders: number;
+  average_order_value: number;
+}
+
+interface ClientsReportData {
+  period_start: string;
+  period_end: string;
+  total_clients: number;
+  new_clients: number;
+  active_clients: number;
+}
+
 export function AdminDashboard() {
   const navigate = useNavigate();
   
-  // GraphQL Query
+  // GraphQL Queries
   const { data, loading, error } = useQuery<{ dashboard_stats: DashboardStats }>(DASHBOARD_STATS, {
     pollInterval: 30000,
   });
 
+  // Sales report for last 7 days
+  const { data: salesData, loading: salesLoading } = useQuery<{
+    sales_report: {
+      total_revenue: number;
+      total_orders: number;
+      sales_by_period: SalesReportItem[];
+    };
+  }>(SALES_REPORT, {
+    variables: {
+      period: 'DAILY',
+    },
+  });
+
+  // Clients report
+  const { data: clientsData, loading: clientsLoading } = useQuery<{
+    clients_report: ClientsReportData;
+  }>(CLIENTS_REPORT);
+
   const stats = data?.dashboard_stats;
+  const salesByPeriod = salesData?.sales_report?.sales_by_period || [];
+  const clientsReport = clientsData?.clients_report;
 
   if (loading) {
     return (
@@ -264,6 +284,176 @@ export function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Gráficos */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Gráfico de Ventas */}
+        <Card className="shadow-lg border-blue-100">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-blue-600" />
+                  Ventas Últimos 7 Días
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Evolución de ingresos diarios
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {salesLoading ? (
+              <Skeleton className="h-[300px] w-full" />
+            ) : salesByPeriod.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={salesByPeriod}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="period" 
+                    stroke="#6b7280"
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis 
+                    stroke="#6b7280"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => `$${value.toFixed(0)}`}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'Ventas']}
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      padding: '10px'
+                    }}
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="total_sales" 
+                    stroke="#3b82f6" 
+                    strokeWidth={3}
+                    name="Ventas Totales"
+                    dot={{ fill: '#3b82f6', r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No hay datos de ventas disponibles
+              </div>
+            )}
+            {salesData && (
+              <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Período</p>
+                  <p className="text-lg font-bold text-blue-600">
+                    ${salesData.sales_report.total_revenue.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Órdenes Totales</p>
+                  <p className="text-lg font-bold">
+                    {salesData.sales_report.total_orders}
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Gráfico de Usuarios */}
+        <Card className="shadow-lg border-purple-100">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <UsersRound className="h-5 w-5 text-purple-600" />
+                  Usuarios Registrados
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Distribución de la comunidad
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {clientsLoading ? (
+              <Skeleton className="h-[300px] w-full" />
+            ) : clientsReport ? (
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart 
+                    data={[
+                      {
+                        name: 'Clientes',
+                        Totales: clientsReport.total_clients,
+                        Activos: clientsReport.active_clients,
+                        Nuevos: clientsReport.new_clients,
+                      },
+                      {
+                        name: 'Vendedores',
+                        Totales: stats?.total_active_sellers || 0,
+                        Activos: stats?.total_active_sellers || 0,
+                        Nuevos: 0,
+                      },
+                    ]}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#6b7280"
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      stroke="#6b7280"
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        padding: '10px'
+                      }}
+                    />
+                    <Legend />
+                    <Bar dataKey="Totales" fill="#8b5cf6" name="Totales" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="Activos" fill="#a78bfa" name="Activos" radius={[8, 8, 0, 0]} />
+                    <Bar dataKey="Nuevos" fill="#c4b5fd" name="Nuevos" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-4 pt-4 border-t grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total Clientes</p>
+                    <p className="text-lg font-bold text-purple-600">
+                      {clientsReport.total_clients}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Clientes Activos</p>
+                    <p className="text-lg font-bold">
+                      {clientsReport.active_clients}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Nuevos (Mes)</p>
+                    <p className="text-lg font-bold text-green-600">
+                      {clientsReport.new_clients}
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No hay datos de usuarios disponibles
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

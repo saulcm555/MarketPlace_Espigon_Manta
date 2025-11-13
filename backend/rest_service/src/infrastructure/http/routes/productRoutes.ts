@@ -23,7 +23,7 @@ const router = Router();
 router.get("/", getProductsValidation, validateRequest, getProducts); // pública
 router.get("/:id", getProductByIdValidation, validateRequest, getProductById); // pública
 router.post("/", createProductValidation, validateRequest, authMiddleware, roleMiddleware("seller"), createProduct); // solo vendedores
-router.put("/:id", updateProductValidation, validateRequest, authMiddleware, roleMiddleware("seller"), ownershipMiddleware("product"), updateProduct); // solo el seller dueño o admin
-router.delete("/:id", deleteProductValidation, validateRequest, authMiddleware, roleMiddleware("seller"), ownershipMiddleware("product"), deleteProduct); // solo el seller dueño o admin
+router.put("/:id", updateProductValidation, validateRequest, authMiddleware, roleMiddleware(["seller", "admin"]), ownershipMiddleware("product"), updateProduct); // seller dueño o admin
+router.delete("/:id", deleteProductValidation, validateRequest, authMiddleware, roleMiddleware(["seller", "admin"]), ownershipMiddleware("product"), deleteProduct); // seller dueño o admin
 
 export default router;

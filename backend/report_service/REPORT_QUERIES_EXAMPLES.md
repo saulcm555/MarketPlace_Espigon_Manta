@@ -27,11 +27,11 @@ query SalesReport {
     }
     period: MONTHLY
   ) {
-    period_start
-    period_end
+    start_date
+    end_date
     total_revenue
     total_orders
-    average_transaction
+    average_order_value
     sales_by_period {
       period
       total_sales

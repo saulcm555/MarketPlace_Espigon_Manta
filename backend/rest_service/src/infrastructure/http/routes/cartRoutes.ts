@@ -25,25 +25,25 @@ import {
 const router = Router();
 
 // Rutas básicas de carrito
-router.get("/", authMiddleware, roleMiddleware("client"), getCarts); // Cliente ve sus carritos
-router.get("/:id", getCartByIdValidation, validateRequest, authMiddleware, roleMiddleware("client"), ownershipMiddleware("cart"), getCartById); // Solo el cliente dueño o admin
+router.get("/", authMiddleware, roleMiddleware(["client", "admin"]), getCarts); // Cliente ve sus carritos, admin ve todos
+router.get("/:id", getCartByIdValidation, validateRequest, authMiddleware, roleMiddleware(["client", "admin"]), ownershipMiddleware("cart"), getCartById); // Cliente dueño o admin
 router.post("/", createCartValidation, validateRequest, authMiddleware, roleMiddleware("client"), createCart); // Solo cliente
-router.put("/:id", getCartByIdValidation, validateRequest, authMiddleware, roleMiddleware("client"), ownershipMiddleware("cart"), updateCart); // Solo el cliente dueño o admin
-router.delete("/:id", getCartByIdValidation, validateRequest, authMiddleware, roleMiddleware("client"), ownershipMiddleware("cart"), deleteCart); // Solo el cliente dueño o admin
+router.put("/:id", getCartByIdValidation, validateRequest, authMiddleware, roleMiddleware(["client", "admin"]), ownershipMiddleware("cart"), updateCart); // Cliente dueño o admin
+router.delete("/:id", getCartByIdValidation, validateRequest, authMiddleware, roleMiddleware(["client", "admin"]), ownershipMiddleware("cart"), deleteCart); // Cliente dueño o admin
 
 
 // RUTAS PARA MANEJAR PRODUCTCART 
 
 // Obtener carrito con todos sus productos (relación ProductCart)
-router.get("/:id/with-products", getCartByIdValidation, validateRequest, authMiddleware, roleMiddleware("client"), ownershipMiddleware("cart"), getCartWithProducts);
+router.get("/:id/with-products", getCartByIdValidation, validateRequest, authMiddleware, roleMiddleware(["client", "admin"]), ownershipMiddleware("cart"), getCartWithProducts);
 
 // Agregar un producto a un carrito específico
-router.post("/:id/products", getCartByIdValidation, addProductToCartValidation, validateRequest, authMiddleware, roleMiddleware("client"), ownershipMiddleware("cart"), addProductToCart);
+router.post("/:id/products", getCartByIdValidation, addProductToCartValidation, validateRequest, authMiddleware, roleMiddleware(["client", "admin"]), ownershipMiddleware("cart"), addProductToCart);
 
 // Actualizar cantidad de un producto en el carrito
-router.put("/:id/products/:productId", getCartByIdValidation, updateCartItemValidation, validateRequest, authMiddleware, roleMiddleware("client"), ownershipMiddleware("cart"), updateCartItemQuantity);
+router.put("/:id/products/:productId", getCartByIdValidation, updateCartItemValidation, validateRequest, authMiddleware, roleMiddleware(["client", "admin"]), ownershipMiddleware("cart"), updateCartItemQuantity);
 
 // Quitar un producto del carrito
-router.delete("/:id/products/:productId", removeProductFromCartValidation, validateRequest, authMiddleware, roleMiddleware("client"), ownershipMiddleware("cart"), removeProductFromCart);
+router.delete("/:id/products/:productId", removeProductFromCartValidation, validateRequest, authMiddleware, roleMiddleware(["client", "admin"]), ownershipMiddleware("cart"), removeProductFromCart);
 
 export default router;
