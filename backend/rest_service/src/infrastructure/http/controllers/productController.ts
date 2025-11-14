@@ -3,12 +3,17 @@ import { CreateProduct } from "../../../application/use_cases/products/CreatePro
 import { ListProducts } from "../../../application/use_cases/products/ListProducts";
 import { ManageProducts as ManageProductsUseCase } from "../../../application/use_cases/products/ManageProducts";
 import { ProductService } from "../../../domain/services/ProductService";
+import { InventoryService } from "../../../domain/services/InventoryService";
 import { ProductRepositoryImpl } from "../../repositories/ProductRepositoryImpl";
+import { InventoryRepositoryImpl } from "../../repositories/InventoryRepositoryImpl";
 import { asyncHandler, NotFoundError, BadRequestError, UnauthorizedError } from "../../middlewares/errors";
 
 // Instancias de dependencias
 const productRepository = new ProductRepositoryImpl();
 const productService = new ProductService(productRepository);
+
+const inventoryRepository = new InventoryRepositoryImpl();
+const inventoryService = new InventoryService(inventoryRepository);
 
 export const getProducts = asyncHandler(async (req: Request, res: Response) => {
   const listProductsUseCase = new ListProducts(productService);
@@ -33,8 +38,21 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const createProduct = asyncHandler(async (req: Request, res: Response) => {
-  const createProductUseCase = new CreateProduct(productService);
-  const product = await createProductUseCase.execute(req.body);
+  // Obtener id_seller desde el usuario autenticado
+  const user = (req as any).user;
+  
+  if (!user || !user.id_seller) {
+    throw new BadRequestError("Usuario no autenticado o no es vendedor");
+  }
+  
+  // Combinar datos del body con el id_seller del usuario autenticado
+  const productData = {
+    ...req.body,
+    id_seller: user.id_seller
+  };
+  
+  const createProductUseCase = new CreateProduct(productService, inventoryService);
+  const product = await createProductUseCase.execute(productData);
   res.status(201).json(product);
 });
 

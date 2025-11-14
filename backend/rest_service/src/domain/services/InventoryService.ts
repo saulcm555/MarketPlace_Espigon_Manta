@@ -16,6 +16,10 @@ export class InventoryService {
     return await this.inventoryRepository.findById(id);
   }
 
+  async getInventoryBySeller(id_seller: number): Promise<Inventory | null> {
+    return await this.inventoryRepository.findBySeller(id_seller);
+  }
+
   async getAllInventories(): Promise<Inventory[]> {
     return await this.inventoryRepository.findAll();
   }

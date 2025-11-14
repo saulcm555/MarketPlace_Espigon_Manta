@@ -238,7 +238,7 @@ const ProductForm = () => {
         stock: parseInt(formData.stock),
         id_category: parseInt(formData.id_category),
         id_sub_category: parseInt(formData.id_sub_category),
-        id_seller: user?.id_seller || user?.id || 0,
+        // id_seller se obtiene automáticamente del token en el backend
         product_image: imageUrl || undefined,
       };
 

@@ -30,6 +30,11 @@ export class InventoryRepositoryImpl implements IInventoryRepository {
     return await repo.findOneBy({ id_inventory: inventoryId });
   }
 
+  async findBySeller(id_seller: number): Promise<InventoryEntity | null> {
+    const repo = AppDataSource.getRepository(InventoryEntity);
+    return await repo.findOneBy({ id_seller });
+  }
+
   async findAll(): Promise<InventoryEntity[]> {
     const repo = AppDataSource.getRepository(InventoryEntity);
     return await repo.find();
