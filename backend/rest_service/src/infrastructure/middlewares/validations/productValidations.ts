@@ -21,9 +21,9 @@ export const createProductValidation = [
     .notEmpty().withMessage('La subcategoría es requerida')
     .isInt({ min: 1 }).withMessage('ID de subcategoría inválido'),
   
-  body('id_seller')
-    .notEmpty().withMessage('El vendedor es requerido')
-    .isInt({ min: 1 }).withMessage('ID de vendedor inválido'),
+  body('stock')
+    .optional()
+    .isInt({ min: 0 }).withMessage('El stock debe ser un número entero mayor o igual a 0'),
   
   body('product_description')
     .optional()

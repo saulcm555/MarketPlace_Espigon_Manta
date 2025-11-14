@@ -20,12 +20,13 @@ import {
   getSellerPendingPayments,
   getSellerOrders,
   getMyOrders,
-  markOrderAsDelivered
+  markOrderAsDelivered,
+  getProductOrders
 } from "../controllers/orderController";
 
 const router = Router();
 
-router.get("/", authMiddleware, roleMiddleware("admin"), getOrders); // Solo admin ve todas
+router.get("/", authMiddleware, roleMiddleware(["admin", "service"]), getOrders); // Admin y servicio interno
 router.get("/my-orders", authMiddleware, roleMiddleware("client"), getMyOrders); // Cliente ve sus órdenes
 
 // Rutas específicas del vendedor (ANTES de /:id para evitar conflictos)

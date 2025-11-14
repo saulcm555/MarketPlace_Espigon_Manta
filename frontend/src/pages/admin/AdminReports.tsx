@@ -17,12 +17,14 @@ import {
   ShoppingCart,
   AlertCircle,
   Calendar,
+  FileText,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { generateSalesReportPDF, generateInventoryReportPDF } from '@/utils/pdfReports';
 import { 
   BarChart, 
   Bar, 
@@ -57,10 +59,8 @@ const DASHBOARD_STATS = gql`
 `;
 
 const CATEGORY_SALES = gql`
-  query CategorySales($startDate: Date!, $endDate: Date!) {
-    category_sales_report(
-      date_range: { start_date: $startDate, end_date: $endDate }
-    ) {
+  query CategorySales($dateRange: DateRangeInput) {
+    category_sales_report(date_range: $dateRange) {
       period_start
       period_end
       categories {
@@ -138,6 +138,14 @@ export function AdminReports() {
   const applyDateFilter = () => {
     setStartDate(tempStartDate);
     setEndDate(tempEndDate);
+    
+    // Refetch con las nuevas fechas
+    refetchCategorySales({
+      dateRange: {
+        start_date: tempStartDate,
+        end_date: tempEndDate,
+      },
+    });
   };
 
   // Queries
@@ -149,6 +157,7 @@ export function AdminReports() {
     data: categorySalesData,
     loading: categorySalesLoading,
     error: categorySalesError,
+    refetch: refetchCategorySales,
   } = useQuery<{
     category_sales_report: {
       period_start: string;
@@ -157,8 +166,10 @@ export function AdminReports() {
     };
   }>(CATEGORY_SALES, {
     variables: {
-      startDate: startDate,
-      endDate: endDate,
+      dateRange: {
+        start_date: startDate,
+        end_date: endDate,
+      },
     },
   });
 
@@ -314,7 +325,30 @@ export function AdminReports() {
                     Período: {startDate} - {endDate}
                   </CardDescription>
                 </div>
-                <Calendar className="h-5 w-5 text-muted-foreground" />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (categorySalesData?.category_sales_report.categories) {
+                        generateSalesReportPDF(
+                          categorySalesData.category_sales_report.categories,
+                          startDate,
+                          endDate
+                        );
+                      }
+                    }}
+                    disabled={
+                      categorySalesLoading ||
+                      !categorySalesData?.category_sales_report.categories.length
+                    }
+                    className="gap-2"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Ver PDF
+                  </Button>
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -450,10 +484,28 @@ export function AdminReports() {
         <TabsContent value="inventory">
           <Card>
             <CardHeader>
-              <CardTitle>Estado del Inventario</CardTitle>
-              <CardDescription>
-                Productos con stock crítico (menos de 10 unidades)
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Estado del Inventario</CardTitle>
+                  <CardDescription>
+                    Productos con stock crítico (menos de 10 unidades)
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (inventoryData?.inventory_report) {
+                      generateInventoryReportPDF(inventoryData.inventory_report);
+                    }
+                  }}
+                  disabled={inventoryLoading || !inventoryData?.inventory_report}
+                  className="gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Ver PDF
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {inventoryLoading ? (

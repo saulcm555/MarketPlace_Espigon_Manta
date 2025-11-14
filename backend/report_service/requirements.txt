@@ -1,15 +1,31 @@
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-strawberry-graphql[fastapi]==0.245.0
-httpx==0.27.2
-# Data Validation
-pydantic==2.9.2
-pydantic-settings==2.6.0
-# Environment Variables
-python-dotenv==1.0.1
-# Utils
-python-multipart==0.0.12
-python-dateutil==2.9.0
-# GraphQL core
+# Core Framework
+fastapi==0.109.0
+uvicorn==0.27.0
+starlette==0.35.1
+
+# GraphQL
+strawberry-graphql[fastapi]==0.209.0
 graphql-core==3.2.3
-typing-extensions==4.12.2
+
+# HTTP Client
+httpx==0.27.0
+httpcore==1.0.9
+certifi==2024.8.30
+
+# Validation & Types
+pydantic==2.5.3
+pydantic_core==2.14.6
+email-validator==2.1.0
+annotated-types==0.7.0
+typing_extensions==4.12.2
+
+# Async & Utilities
+anyio==4.11.0
+sniffio==1.3.1
+h11==0.16.0
+idna==3.10
+
+# Environment & CLI
+python-dotenv==1.0.0
+click==8.1.7
+colorama==0.4.6

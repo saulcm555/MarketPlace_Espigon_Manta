@@ -66,12 +66,14 @@ async def get_sales_report(start_date: date, end_date: date, period: str = "dail
     if not isinstance(orders, list):
         orders = []
     
-    # Filtrar por rango de fechas
+    # Filtrar por rango de fechas y estado (solo completadas/entregadas)
     filtered_orders = []
     for order in orders:
         try:
             order_date = datetime.fromisoformat(order["order_date"].replace("Z", "")).date()
-            if start_date <= order_date <= end_date:
+            order_status = order.get("status", "").lower()
+            # Solo contar órdenes completadas o entregadas
+            if start_date <= order_date <= end_date and order_status in ["completed", "delivered"]:
                 filtered_orders.append(order)
         except (KeyError, ValueError, TypeError):
             continue
@@ -141,12 +143,14 @@ async def get_top_sellers_report(start_date: date, end_date: date, limit: int = 
     if not isinstance(sellers, list):
         sellers = []
     
-    # Filtrar órdenes por fecha
+    # Filtrar órdenes por fecha y estado (solo completadas/entregadas)
     filtered_orders = []
     for order in orders:
         try:
             order_date = datetime.fromisoformat(order["order_date"].replace("Z", "")).date()
-            if start_date <= order_date <= end_date:
+            order_status = order.get("status", "").lower()
+            # Solo contar órdenes completadas o entregadas
+            if start_date <= order_date <= end_date and order_status in ["completed", "delivered"]:
                 filtered_orders.append(order)
         except (KeyError, ValueError, TypeError):
             continue
@@ -235,12 +239,14 @@ async def get_best_products_report(start_date: date, end_date: date, limit: int 
     if not isinstance(categories, list):
         categories = []
     
-    # Filtrar órdenes por fecha
+    # Filtrar órdenes por fecha y estado (solo completadas/entregadas)
     filtered_orders = []
     for order in orders:
         try:
             order_date = datetime.fromisoformat(order["order_date"].replace("Z", "")).date()
-            if start_date <= order_date <= end_date:
+            order_status = order.get("status", "").lower()
+            # Solo contar órdenes completadas o entregadas
+            if start_date <= order_date <= end_date and order_status in ["completed", "delivered"]:
                 filtered_orders.append(order)
         except (KeyError, TypeError, ValueError):
             continue
@@ -317,6 +323,11 @@ async def get_category_sales_report(start_date: date, end_date: date):
     products = await fetch_data("/products")
     categories = await fetch_data("/categories")
     
+    # DEBUG: Imprimir órdenes recibidas
+    print(f"\n=== DEBUG CATEGORY SALES ===")
+    print(f"Total órdenes recibidas: {len(orders) if isinstance(orders, list) else 0}")
+    print(f"Rango de fechas solicitado: {start_date} a {end_date}")
+    
     # Validar que sean listas
     if not isinstance(orders, list):
         orders = []
@@ -327,15 +338,31 @@ async def get_category_sales_report(start_date: date, end_date: date):
     if not isinstance(categories, list):
         categories = []
     
-    # Filtrar órdenes
+    # Filtrar órdenes por fecha y estado (solo completadas/entregadas)
     filtered_orders = []
     for order in orders:
         try:
             order_date = datetime.fromisoformat(order["order_date"].replace("Z", "")).date()
-            if start_date <= order_date <= end_date:
+            order_status = order.get("status", "").lower()
+            
+            # DEBUG: Imprimir cada orden
+            print(f"Orden #{order.get('id_order')}: fecha={order_date}, estado='{order_status}', monto={order.get('total_amount')}")
+            
+            # Solo contar órdenes completadas o entregadas
+            if start_date <= order_date <= end_date and order_status in ["completed", "delivered"]:
                 filtered_orders.append(order)
-        except (KeyError, TypeError, ValueError):
+                print(f"  ✓ INCLUIDA en reporte")
+            else:
+                if not (start_date <= order_date <= end_date):
+                    print(f"  ✗ Fuera de rango de fechas")
+                elif order_status not in ["completed", "delivered"]:
+                    print(f"  ✗ Estado no válido: '{order_status}'")
+        except (KeyError, TypeError, ValueError) as e:
+            print(f"  ✗ Error procesando orden: {e}")
             continue
+    
+    print(f"Total órdenes filtradas: {len(filtered_orders)}")
+    print(f"=========================\n")
     
     # Crear set de order_ids de forma segura
     order_ids = set()
@@ -415,12 +442,14 @@ async def get_clients_report(start_date: date, end_date: date, top_limit: int = 
     if not isinstance(orders, list):
         orders = []
     
-    # Filtrar órdenes por fecha
+    # Filtrar órdenes por fecha y estado (solo completadas/entregadas)
     filtered_orders = []
     for order in orders:
         try:
             order_date = datetime.fromisoformat(order["order_date"].replace("Z", "")).date()
-            if start_date <= order_date <= end_date:
+            order_status = order.get("status", "").lower()
+            # Solo contar órdenes completadas o entregadas
+            if start_date <= order_date <= end_date and order_status in ["completed", "delivered"]:
                 filtered_orders.append(order)
         except (KeyError, TypeError, ValueError):
             continue
@@ -567,12 +596,14 @@ async def get_delivery_performance_report(start_date: date, end_date: date):
     if not isinstance(orders, list):
         orders = []
     
-    # Filtrar órdenes por fecha
+    # Filtrar órdenes por fecha y estado (solo completadas/entregadas)
     filtered_order_ids = set()
     for order in orders:
         try:
             order_date = datetime.fromisoformat(order["order_date"].replace("Z", "")).date()
-            if start_date <= order_date <= end_date:
+            order_status = order.get("status", "").lower()
+            # Solo contar órdenes completadas o entregadas
+            if start_date <= order_date <= end_date and order_status in ["completed", "delivered"]:
                 filtered_order_ids.add(order["id_order"])
         except (KeyError, TypeError, ValueError):
             continue
@@ -657,12 +688,14 @@ async def get_financial_report(start_date: date, end_date: date):
     if not isinstance(payment_methods, list):
         payment_methods = []
     
-    # Filtrar órdenes
+    # Filtrar órdenes por fecha y estado (solo completadas/entregadas)
     filtered_orders = []
     for order in orders:
         try:
             order_date = datetime.fromisoformat(order["order_date"].replace("Z", "")).date()
-            if start_date <= order_date <= end_date:
+            order_status = order.get("status", "").lower()
+            # Solo contar órdenes completadas o entregadas
+            if start_date <= order_date <= end_date and order_status in ["completed", "delivered"]:
                 filtered_orders.append(order)
         except (KeyError, TypeError, ValueError):
             continue
@@ -759,24 +792,26 @@ async def get_dashboard_stats():
     if not isinstance(deliveries, list):
         deliveries = []
     
-    # Calcular stats de hoy
+    # Calcular stats de hoy (solo órdenes completadas/entregadas)
     today_orders = []
     for o in orders:
         try:
             order_date = datetime.fromisoformat(o["order_date"].replace("Z", "")).date()
-            if order_date == today:
+            order_status = o.get("status", "").lower()
+            if order_date == today and order_status in ["completed", "delivered"]:
                 today_orders.append(o)
         except (KeyError, ValueError, TypeError):
             continue
     
     today_sales = sum(float(o.get("total_amount", 0)) for o in today_orders)
     
-    # Calcular stats del mes
+    # Calcular stats del mes (solo órdenes completadas/entregadas)
     month_orders = []
     for o in orders:
         try:
             order_date = datetime.fromisoformat(o["order_date"].replace("Z", "")).date()
-            if order_date >= month_start:
+            order_status = o.get("status", "").lower()
+            if order_date >= month_start and order_status in ["completed", "delivered"]:
                 month_orders.append(o)
         except (KeyError, ValueError, TypeError):
             continue

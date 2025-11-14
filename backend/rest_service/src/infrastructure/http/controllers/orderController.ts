@@ -9,6 +9,8 @@ import { OrderRepositoryImpl } from "../../repositories/OrderRepositoryImpl";
 import { CartRepositoryImpl } from "../../repositories/CartRepositoryImpl";
 import { asyncHandler, NotFoundError } from "../../middlewares/errors";
 import type { ProductCart } from "../../../domain/entities/cart";
+import AppDataSource from "../../database/data-source";
+import { ProductOrderEntity } from "../../../models/orderModel";
 
 // Instancias de dependencias
 const orderRepository = new OrderRepositoryImpl();
@@ -317,4 +319,17 @@ export const markOrderAsDelivered = asyncHandler(async (req: Request, res: Respo
     message: "Pedido marcado como entregado correctamente",
     order: updatedOrder
   });
+});
+
+/**
+ * GET /api/product-orders
+ * Obtener todos los product_orders (para reportes internos)
+ */
+export const getProductOrders = asyncHandler(async (req: Request, res: Response) => {
+  const repo = AppDataSource.getRepository(ProductOrderEntity);
+  const productOrders = await repo.find({
+    relations: ['product', 'order'],
+    take: 10000 // Límite alto para reportes
+  });
+  res.json(productOrders);
 });
