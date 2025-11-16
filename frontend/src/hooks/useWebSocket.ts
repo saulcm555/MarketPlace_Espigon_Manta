@@ -137,13 +137,16 @@ export function useWebSocket(options: UseWebSocketOptions) {
           const data = JSON.parse(event.data);
           log('Message received:', data);
 
-          // Verificar si es un evento de estadísticas o productos
-          if (data.type === 'ADMIN_STATS_UPDATED' || 
-              data.type === 'SELLER_STATS_UPDATED' ||
-              data.type === 'PRODUCT_CREATED' ||
-              data.type === 'PRODUCT_UPDATED' ||
-              data.type === 'PRODUCT_DELETED' ||
-              data.event === 'product_updated') {
+          // Verificar si es un evento que debemos procesar
+          // Los eventos pueden venir con 'type' o 'event' dependiendo del origen
+          const eventType = data.type || data.event;
+          
+          if (eventType === 'ADMIN_STATS_UPDATED' || 
+              eventType === 'SELLER_STATS_UPDATED' ||
+              eventType === 'PRODUCT_CREATED' ||
+              eventType === 'PRODUCT_UPDATED' ||
+              eventType === 'PRODUCT_DELETED' ||
+              eventType === 'product_updated') {
             onStatsUpdate?.(data as StatsEvent);
           }
         } catch (error) {

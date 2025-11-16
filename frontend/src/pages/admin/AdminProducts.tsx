@@ -67,12 +67,15 @@ export function AdminProducts() {
       console.log('🔔 [AdminProducts] WebSocket event received:', event);
       
       // Refrescar productos cuando hay cambios
-      if (event.type === 'PRODUCT_CREATED' || 
-          event.type === 'PRODUCT_UPDATED' || 
-          event.type === 'PRODUCT_DELETED' ||
-          event.type === 'ADMIN_STATS_UPDATED' ||
-          event.event === 'product_updated') {
-        console.log('🔄 [AdminProducts] Refreshing products...');
+      // Los eventos vienen con 'event' o 'type' dependiendo del origen
+      const eventType = event.type || event.event;
+      
+      if (eventType === 'PRODUCT_CREATED' || 
+          eventType === 'PRODUCT_UPDATED' || 
+          eventType === 'PRODUCT_DELETED' ||
+          eventType === 'ADMIN_STATS_UPDATED' ||
+          eventType === 'product_updated') {
+        console.log('🔄 [AdminProducts] Refreshing products...', eventType);
         fetchData();
       }
     },
