@@ -8,6 +8,7 @@ from typing import List, Dict, Any
 from collections import defaultdict
 
 BASE_URL = "http://127.0.0.1:3000/api"
+REST_API_URL = "http://127.0.0.1:3000/api"  # URL del REST service
 # Token de servicio interno para comunicación entre microservicios
 SERVICE_TOKEN = "internal-service-graphql-reports-2024"
 
@@ -792,26 +793,28 @@ async def get_dashboard_stats():
     if not isinstance(deliveries, list):
         deliveries = []
     
-    # Calcular stats de hoy (solo órdenes completadas/entregadas)
+    # Calcular stats de hoy (TODAS las órdenes, sin importar status)
     today_orders = []
     for o in orders:
         try:
             order_date = datetime.fromisoformat(o["order_date"].replace("Z", "")).date()
+            # Contar todas las órdenes del día, excepto las canceladas
             order_status = o.get("status", "").lower()
-            if order_date == today and order_status in ["completed", "delivered"]:
+            if order_date == today and order_status not in ["cancelled", "expired"]:
                 today_orders.append(o)
         except (KeyError, ValueError, TypeError):
             continue
     
     today_sales = sum(float(o.get("total_amount", 0)) for o in today_orders)
     
-    # Calcular stats del mes (solo órdenes completadas/entregadas)
+    # Calcular stats del mes (TODAS las órdenes, sin importar status)
     month_orders = []
     for o in orders:
         try:
             order_date = datetime.fromisoformat(o["order_date"].replace("Z", "")).date()
+            # Contar todas las órdenes del mes, excepto las canceladas
             order_status = o.get("status", "").lower()
-            if order_date >= month_start and order_status in ["completed", "delivered"]:
+            if order_date >= month_start and order_status not in ["cancelled", "expired"]:
                 month_orders.append(o)
         except (KeyError, ValueError, TypeError):
             continue
@@ -911,94 +914,146 @@ async def get_top_rated_products_report(limit: int = 20):
 async def get_seller_dashboard_stats(seller_id: int):
     """
     Genera estadísticas del dashboard específicas para un vendedor
+    OPTIMIZADO: Usa endpoint directo del REST API en lugar de procesar todos los datos
     """
+    import time
     from app.reports.schema import SellerDashboardStats
     
-    # Obtener productos del vendedor
-    products = await fetch_data("/products")
-    if not isinstance(products, list):
-        products = []
+    request_start = time.time()
+    print(f"🔍 [REPORT_SERVICE] Fetching seller dashboard stats for seller_id={seller_id}")
     
-    # Filtrar productos del vendedor
-    seller_products = [p for p in products if p.get("id_seller") == seller_id]
-    seller_product_ids = {p["id_product"] for p in seller_products}
-    
-    # Obtener todas las órdenes
-    orders = await fetch_data("/orders")
-    if not isinstance(orders, list):
-        orders = []
-    
-    # Obtener product_orders para filtrar
-    today = date.today()
-    first_day_of_month = date(today.year, today.month, 1)
-    
-    # Estadísticas iniciales
-    today_sales = 0.0
-    today_orders_set = set()
-    month_revenue = 0.0
-    month_orders_set = set()
-    total_revenue = 0.0
-    total_orders_set = set()
-    
-    # Procesar cada orden
-    for order in orders:
-        try:
-            order_date = datetime.fromisoformat(order["order_date"].replace("Z", "")).date()
-            order_id = order["id_order"]
+    # Usar endpoint optimizado que hace la query SQL directamente
+    try:
+        http_start = time.time()
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = {
+                "X-Service-Token": SERVICE_TOKEN,
+                "X-Internal-Service": "report-service"
+            }
             
-            # Obtener productos de esta orden
-            product_orders = order.get("productOrders", [])
+            url = f"{BASE_URL}/statistics/seller/{seller_id}/dashboard"
+            print(f"📡 [REPORT_SERVICE] Calling: {url}")
             
-            # Calcular cuánto corresponde al vendedor en esta orden
-            seller_revenue_in_order = 0.0
-            has_seller_products = False
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
             
-            for po in product_orders:
-                if po.get("id_product") in seller_product_ids:
-                    has_seller_products = True
-                    subtotal = float(po.get("subtotal", 0))
-                    seller_revenue_in_order += subtotal
+            http_time = (time.time() - http_start) * 1000
+            print(f"⏱️ [REPORT_SERVICE] HTTP call took: {http_time:.2f}ms")
+            print(f"✅ [REPORT_SERVICE] Received data: {data}")
             
-            # Si esta orden tiene productos del vendedor
-            if has_seller_products:
-                # Total histórico
-                total_revenue += seller_revenue_in_order
-                total_orders_set.add(order_id)
-                
-                # Ventas de hoy
-                if order_date == today:
-                    today_sales += seller_revenue_in_order
-                    today_orders_set.add(order_id)
-                
-                # Ventas del mes
-                if order_date >= first_day_of_month:
-                    month_revenue += seller_revenue_in_order
-                    month_orders_set.add(order_id)
-        
-        except (KeyError, ValueError, TypeError) as e:
-            continue
-    
-    # Contar productos con stock bajo (menos de 10)
-    low_stock_count = sum(1 for p in seller_products if p.get("stock", 0) < 10)
-    
-    return SellerDashboardStats(
-        seller_id=seller_id,
-        today_sales=round(today_sales, 2),
-        today_orders=len(today_orders_set),
-        month_revenue=round(month_revenue, 2),
-        month_orders=len(month_orders_set),
-        total_products=len(seller_products),
-        low_stock_products=low_stock_count,
-        total_revenue=round(total_revenue, 2),
-        total_orders=len(total_orders_set)
-    )
+            stats = SellerDashboardStats(
+                seller_id=seller_id,
+                today_sales=float(data.get("today_sales", 0)),
+                today_orders=int(data.get("today_orders", 0)),
+                month_revenue=float(data.get("month_revenue", 0)),
+                month_orders=int(data.get("month_orders", 0)),
+                total_products=int(data.get("total_products", 0)),
+                low_stock_products=int(data.get("low_stock_products", 0)),
+                total_revenue=float(data.get("total_revenue", 0)),
+                total_orders=int(data.get("total_orders", 0)),
+                pending_orders=int(data.get("pending_orders", 0))
+            )
+            
+            total_time = (time.time() - request_start) * 1000
+            print(f"⏱️ [REPORT_SERVICE] TOTAL TIME for seller {seller_id}: {total_time:.2f}ms (HTTP: {http_time:.2f}ms)")
+            return stats
+    except httpx.HTTPError as e:
+        print(f"❌ [REPORT_SERVICE] Error fetching seller dashboard stats: {e}")
+        # Fallback: retornar valores en cero
+        return SellerDashboardStats(
+            seller_id=seller_id,
+            today_sales=0.0,
+            today_orders=0,
+            month_revenue=0.0,
+            month_orders=0,
+            total_products=0,
+            low_stock_products=0,
+            total_revenue=0.0,
+            total_orders=0,
+            pending_orders=0
+        )
 
 async def get_seller_best_products(seller_id: int, start_date: date, end_date: date, limit: int = 10):
     """
-    Obtiene los productos más vendidos de un vendedor específico
+    Obtiene los productos más vendidos de un vendedor específico.
+    OPTIMIZADO: Usa endpoint optimizado con SQL en REST service.
     """
     from app.reports.schema import BestProductsReport, ProductSalesItem
     
+    print(f"🔍 [get_seller_best_products] Called with seller_id={seller_id}, start_date={start_date}, end_date={end_date}, limit={limit}")
+    
+    try:
+        # Llamar al endpoint optimizado del REST service
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = {
+                "X-Service-Token": "internal-service-graphql-reports-2024",
+                "X-Internal-Service": "report-service"
+            }
+            
+            params = {
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "limit": limit
+            }
+            
+            url = f"{REST_API_URL}/statistics/seller/{seller_id}/best-products"
+            print(f"📡 [get_seller_best_products] Calling URL: {url}")
+            print(f"📡 [get_seller_best_products] Params: {params}")
+            
+            response = await client.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            data = response.json()
+            
+            print(f"✅ [get_seller_best_products] Response received: {data}")
+            
+            if not data or not isinstance(data, dict):
+                print(f"❌ [get_seller_best_products] Invalid response type")
+                return BestProductsReport(
+                    period_start=start_date,
+                    period_end=end_date,
+                    best_products=[]
+                )
+            
+            # Convertir respuesta a objetos ProductSalesItem
+            best_products_data = data.get("best_products", [])
+            print(f"📦 [get_seller_best_products] best_products_data: {best_products_data}")
+            
+            best_products = [
+                ProductSalesItem(
+                    product_id=item["product_id"],
+                    product_name=item["product_name"],
+                    category_name=item["category_name"],
+                    units_sold=item["units_sold"],
+                    total_revenue=item["total_revenue"],
+                    average_price=item["average_price"]
+                )
+                for item in best_products_data
+            ]
+            
+            print(f"✅ [get_seller_best_products] Returning {len(best_products)} products")
+            
+            return BestProductsReport(
+                period_start=start_date,
+                period_end=end_date,
+                best_products=best_products
+            )
+        
+    except Exception as e:
+        print(f"❌ [get_seller_best_products] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        # Fallback a respuesta vacía
+        return BestProductsReport(
+            period_start=start_date,
+            period_end=end_date,
+            best_products=[]
+        )
+
+
+# CÓDIGO VIEJO COMENTADO PARA REFERENCIA
+"""
+async def get_seller_best_products_OLD(seller_id: int, start_date: date, end_date: date, limit: int = 10):
     # Obtener productos del vendedor
     products = await fetch_data("/products")
     if not isinstance(products, list):
@@ -1076,4 +1131,4 @@ async def get_seller_best_products(seller_id: int, start_date: date, end_date: d
         period_end=end_date,
         best_products=best_products[:limit]
     )
-
+"""

@@ -29,6 +29,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import apiClient from '@/api/client';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAuth } from '@/context/AuthContext';
 
 interface Product {
   id_product: number;
@@ -44,6 +46,7 @@ interface Product {
 }
 
 export function AdminProducts() {
+  const { user, token } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [sellers, setSellers] = useState<any[]>([]);
@@ -56,6 +59,25 @@ export function AdminProducts() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // WebSocket para actualizaciones en tiempo real
+  const { isConnected } = useWebSocket({
+    token: token,
+    onStatsUpdate: (event) => {
+      console.log('🔔 [AdminProducts] WebSocket event received:', event);
+      
+      // Refrescar productos cuando hay cambios
+      if (event.type === 'PRODUCT_CREATED' || 
+          event.type === 'PRODUCT_UPDATED' || 
+          event.type === 'PRODUCT_DELETED' ||
+          event.type === 'ADMIN_STATS_UPDATED' ||
+          event.event === 'product_updated') {
+        console.log('🔄 [AdminProducts] Refreshing products...');
+        fetchData();
+      }
+    },
+    debug: true
+  });
 
   useEffect(() => {
     fetchData();

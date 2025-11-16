@@ -137,8 +137,13 @@ export function useWebSocket(options: UseWebSocketOptions) {
           const data = JSON.parse(event.data);
           log('Message received:', data);
 
-          // Verificar si es un evento de estadísticas
-          if (data.type === 'ADMIN_STATS_UPDATED' || data.type === 'SELLER_STATS_UPDATED') {
+          // Verificar si es un evento de estadísticas o productos
+          if (data.type === 'ADMIN_STATS_UPDATED' || 
+              data.type === 'SELLER_STATS_UPDATED' ||
+              data.type === 'PRODUCT_CREATED' ||
+              data.type === 'PRODUCT_UPDATED' ||
+              data.type === 'PRODUCT_DELETED' ||
+              data.event === 'product_updated') {
             onStatsUpdate?.(data as StatsEvent);
           }
         } catch (error) {

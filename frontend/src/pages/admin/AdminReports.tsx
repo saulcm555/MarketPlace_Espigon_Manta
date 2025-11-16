@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useQuery, gql } from '@apollo/client';
+import { useAuth } from '@/context/AuthContext';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import {
   Card,
   CardContent,
@@ -122,6 +124,8 @@ interface CriticalProduct {
 }
 
 export function AdminReports() {
+  const { token } = useAuth();
+  
   // Estado para el rango de fechas
   const [startDate, setStartDate] = useState(
     new Date(new Date().setDate(1)).toISOString().split('T')[0] // Primer día del mes
@@ -149,9 +153,11 @@ export function AdminReports() {
   };
 
   // Queries
-  const { data: statsData, loading: statsLoading, error: statsError } = useQuery<{
+  const { data: statsData, loading: statsLoading, error: statsError, refetch: refetchStats } = useQuery<{
     dashboard_stats: DashboardStats;
-  }>(DASHBOARD_STATS);
+  }>(DASHBOARD_STATS, {
+    fetchPolicy: 'cache-and-network',
+  });
 
   const {
     data: categorySalesData,
@@ -171,6 +177,7 @@ export function AdminReports() {
         end_date: endDate,
       },
     },
+    fetchPolicy: 'cache-and-network',
   });
 
   const {
@@ -186,18 +193,27 @@ export function AdminReports() {
     };
   }>(INVENTORY_REPORT, {
     variables: { threshold: 10 },
+    fetchPolicy: 'cache-and-network',
+  });
+
+  // 🔔 WEBSOCKET: Conectar y escuchar eventos de actualización de estadísticas admin
+  useWebSocket({
+    token: token,
+    onStatsUpdate: (event) => {
+      console.log('📊 [AdminReports] Stats event received:', event.type);
+      
+      // Si el evento es para admin, refetch las queries
+      if (event.type === 'ADMIN_STATS_UPDATED') {
+        console.log('🔄 [AdminReports] Refetching admin data');
+        refetchStats();
+        refetchCategorySales();
+      }
+    },
+    debug: true
   });
 
   // Stats Cards
   const statCards = [
-    {
-      title: 'Ventas Hoy',
-      value: statsData?.dashboard_stats?.today_sales || 0,
-      icon: DollarSign,
-      description: `${statsData?.dashboard_stats?.today_orders || 0} órdenes`,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-    },
     {
       title: 'Ventas del Mes',
       value: statsData?.dashboard_stats?.month_revenue || 0,
@@ -254,9 +270,9 @@ export function AdminReports() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {statsLoading
-          ? Array(4)
+          ? Array(3)
               .fill(0)
               .map((_, i) => (
                 <Card key={i}>

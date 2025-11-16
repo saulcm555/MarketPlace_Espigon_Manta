@@ -35,6 +35,7 @@ interface SellerDashboardStats {
     low_stock_products: number;
     total_revenue: number;
     total_orders: number;
+    pending_orders?: number;
   };
 }
 
@@ -79,7 +80,8 @@ export function SellerAnalytics() {
     GET_SELLER_DASHBOARD_STATS,
     {
       variables: { sellerId },
-      fetchPolicy: 'cache-and-network',
+      fetchPolicy: 'cache-and-network', // ⚡ Mostrar caché mientras actualiza
+      notifyOnNetworkStatusChange: true, // Notificar cambios de red
     }
   );
 
@@ -92,6 +94,7 @@ export function SellerAnalytics() {
         limit: 5,
       },
       fetchPolicy: 'cache-and-network',
+      notifyOnNetworkStatusChange: true,
     }
   );
 
@@ -99,22 +102,33 @@ export function SellerAnalytics() {
   const { isConnected } = useWebSocket({
     token: token,
     onStatsUpdate: (event) => {
-      console.log('📊 Stats update received:', event);
+      console.log('📊 [SellerAnalytics] Stats event received:', {
+        type: event.type,
+        seller_id: event.seller_id,
+        my_seller_id: sellerId,
+        match: event.seller_id === sellerId?.toString()
+      });
       
       // Si el evento es para este vendedor, refetch las queries
       if (event.type === 'SELLER_STATS_UPDATED' && event.seller_id === sellerId?.toString()) {
-        console.log('🔄 Refetching seller stats...');
-        refetchStats();
-        refetchProducts();
+        console.log('🔄 [SellerAnalytics] Refetching data for seller', sellerId);
+        console.log('📊 [BEFORE REFETCH] Current stats:', statsData?.seller_dashboard_stats);
+        
+        refetchStats().then((result) => {
+          console.log('✅ Stats refetched successfully');
+          console.log('📊 [AFTER REFETCH] New stats:', result.data?.seller_dashboard_stats);
+        }).catch((err) => {
+          console.error('❌ Error refetching stats:', err);
+        });
+        
+        refetchProducts().then(() => {
+          console.log('✅ Products refetched');
+        }).catch((err) => {
+          console.error('❌ Error refetching products:', err);
+        });
       }
     },
-    onConnect: () => {
-      console.log('✅ WebSocket connected');
-    },
-    onDisconnect: () => {
-      console.log('❌ WebSocket disconnected');
-    },
-    debug: true // Habilitar logs en desarrollo
+    debug: false
   });
 
   const stats = statsData?.seller_dashboard_stats;
@@ -201,7 +215,9 @@ export function SellerAnalytics() {
                   {formatPrice(stats?.today_sales || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {stats?.today_orders || 0} pedido{stats?.today_orders !== 1 ? 's' : ''}
+                  {stats?.today_orders === 0 && 'Aún no hay ventas hoy'}
+                  {stats?.today_orders === 1 && '1 pedido realizado'}
+                  {stats && stats.today_orders > 1 && `${stats.today_orders} pedidos realizados`}
                 </p>
               </>
             )}
@@ -223,7 +239,9 @@ export function SellerAnalytics() {
                   {formatPrice(stats?.month_revenue || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {stats?.month_orders || 0} pedidos
+                  {stats?.month_orders === 0 && 'Sin ventas este mes'}
+                  {stats?.month_orders === 1 && '1 pedido este mes'}
+                  {stats && stats.month_orders > 1 && `${stats.month_orders} pedidos este mes`}
                 </p>
               </>
             )}
@@ -245,17 +263,19 @@ export function SellerAnalytics() {
                   {formatPrice(stats?.total_revenue || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {stats?.total_orders || 0} pedidos totales
+                  {stats?.total_orders === 0 && 'Comienza a vender'}
+                  {stats?.total_orders === 1 && 'Desde tu primer pedido'}
+                  {stats && stats.total_orders > 1 && `Total de ${stats.total_orders} pedidos`}
                 </p>
               </>
             )}
           </CardContent>
         </Card>
 
-        {/* Mis Productos */}
+        {/* Pedidos Pendientes */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Mis Productos</CardTitle>
+            <CardTitle className="text-sm font-medium">Pedidos Pendientes</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -263,11 +283,11 @@ export function SellerAnalytics() {
               <Skeleton className="h-8 w-20" />
             ) : (
               <>
-                <div className="text-2xl font-bold text-purple-600">
-                  {stats?.total_products || 0}
+                <div className="text-2xl font-bold text-orange-600">
+                  {stats?.pending_orders || 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  En tu inventario
+                  En proceso de entrega
                 </p>
               </>
             )}
@@ -338,88 +358,6 @@ export function SellerAnalytics() {
           )}
         </CardContent>
       </Card>
-
-      {/* Resumen General */}
-      {stats && (
-        <Card className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 border-blue-200 dark:border-blue-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-blue-600" />
-              Resumen de Rendimiento
-            </CardTitle>
-            <CardDescription>
-              Métricas adicionales de tu tienda
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              {/* Ventas de Hoy */}
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Ventas de Hoy</p>
-                  <p className="text-xl font-bold">
-                    {formatPrice(stats.today_sales || 0)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {stats.today_orders || 0} pedido{stats.today_orders !== 1 ? 's' : ''}
-                  </p>
-                </div>
-              </div>
-
-              {/* Ventas del Mes */}
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-green-100 dark:bg-green-900 rounded-full">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Ventas del Mes</p>
-                  <p className="text-xl font-bold text-green-600">
-                    {formatPrice(stats.month_revenue || 0)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {stats.month_orders || 0} pedido{stats.month_orders !== 1 ? 's' : ''}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Promedio por Pedido */}
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-cyan-100 dark:bg-cyan-900 rounded-full">
-                  <ArrowUp className="w-5 h-5 text-cyan-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Promedio por Pedido</p>
-                  <p className="text-xl font-bold">
-                    {formatPrice(stats.month_orders > 0 ? stats.month_revenue / stats.month_orders : 0)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Del mes actual
-                  </p>
-                </div>
-              </div>
-
-              {/* Stock Bajo */}
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-full">
-                  <AlertTriangle className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Stock Bajo</p>
-                  <p className="text-xl font-bold text-orange-600">
-                    {stats.low_stock_products || 0}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    producto{stats.low_stock_products !== 1 ? 's' : ''}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

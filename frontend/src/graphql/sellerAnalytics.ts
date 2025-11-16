@@ -15,6 +15,7 @@ export const GET_SELLER_DASHBOARD_STATS = gql`
       low_stock_products
       total_revenue
       total_orders
+      pending_orders
     }
   }
 `;

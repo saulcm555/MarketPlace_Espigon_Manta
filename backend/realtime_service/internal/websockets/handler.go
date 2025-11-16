@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -62,7 +63,7 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 	clientID := fmt.Sprintf("conn-%d", time.Now().UnixNano())
 
 	// Extraer rol y seller_id de los claims
-	role := claims.Role
+	role := strings.ToUpper(claims.Role) // Normalizar a mayúsculas
 	if role == "" {
 		role = "CLIENT" // Valor por defecto
 	}
@@ -72,6 +73,12 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 	client := NewClient(clientID, claims.UserID, role, sellerID, conn)
 	h.Register(client)
 	log.Printf("client connected: id=%s user=%s role=%s seller_id=%s", client.ID, client.UserID, client.Role, client.SellerID)
+
+	// Auto-unir administradores a la sala 'admins'
+	if role == "ADMIN" {
+		h.JoinRoom("admins", client)
+		log.Printf("admin auto-joined to 'admins' room: id=%s", client.ID)
+	}
 
 	// Asegurar limpieza al salir
 	defer func() {

@@ -7,6 +7,8 @@ import { InventoryService } from "../../../domain/services/InventoryService";
 import { ProductRepositoryImpl } from "../../repositories/ProductRepositoryImpl";
 import { InventoryRepositoryImpl } from "../../repositories/InventoryRepositoryImpl";
 import { asyncHandler, NotFoundError, BadRequestError, UnauthorizedError } from "../../middlewares/errors";
+import { notifySellerStatsUpdated, notifyAdminStatsUpdated } from "../../clients/statsEventClient";
+import { notifyProductUpdated, notifyAdmins } from "../../clients/notificationClient";
 
 // Instancias de dependencias
 const productRepository = new ProductRepositoryImpl();
@@ -53,6 +55,15 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
   
   const createProductUseCase = new CreateProduct(productService, inventoryService);
   const product = await createProductUseCase.execute(productData);
+  
+  // Notificar actualización de estadísticas
+  await notifySellerStatsUpdated(user.id_seller.toString());
+  await notifyAdminStatsUpdated();
+  
+  // Notificar creación de producto
+  await notifyProductUpdated(product.id_product, user.id_seller.toString(), product);
+  await notifyAdmins('PRODUCT_CREATED', { product });
+  
   res.status(201).json(product);
 });
 
@@ -120,6 +131,17 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
     // Actualizar producto
     const updatedProduct = await productService.updateProduct(id.toString(), updateData);
     console.log('✅ Producto actualizado exitosamente');
+    
+    // Notificar actualización de estadísticas
+    if (updatedProduct.id_seller) {
+      await notifySellerStatsUpdated(updatedProduct.id_seller.toString());
+      await notifyAdminStatsUpdated();
+      
+      // Notificar actualización de producto
+      await notifyProductUpdated(updatedProduct.id_product, updatedProduct.id_seller.toString(), updatedProduct);
+      await notifyAdmins('PRODUCT_UPDATED', { product: updatedProduct });
+    }
+    
     res.json(updatedProduct);
   } catch (error) {
     console.error('❌ Error en updateProduct:', error);
@@ -149,6 +171,13 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
   if (!success) {
     throw new NotFoundError("Producto");
   }
+  
+  // Notificar actualización de estadísticas
+  await notifySellerStatsUpdated(product.id_seller.toString());
+  await notifyAdminStatsUpdated();
+  
+  // Notificar eliminación de producto
+  await notifyAdmins('PRODUCT_DELETED', { product_id: id, seller_id: product.id_seller });
   
   res.json({ message: "Producto eliminado correctamente" });
 });

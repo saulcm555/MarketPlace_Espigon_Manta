@@ -214,7 +214,8 @@ class ReportQueries:
             start_date = date_range.start_date
             end_date = date_range.end_date
         else:
+            # Sin filtro de fechas: mostrar TODAS las ventas históricas
             end_date = date.today()
-            start_date = end_date - timedelta(days=30)
+            start_date = date.today() - timedelta(days=3650)  # 10 años atrás
         
         return await get_seller_best_products(seller_id, start_date, end_date, limit)

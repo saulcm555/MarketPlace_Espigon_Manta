@@ -179,6 +179,7 @@ class DashboardStats:
     month_orders: int
 
 @strawberry.type
+@strawberry.type
 class SellerDashboardStats:
     """Estadísticas específicas para un vendedor"""
     seller_id: int
@@ -190,6 +191,7 @@ class SellerDashboardStats:
     low_stock_products: int  # Solo productos de este vendedor con stock bajo
     total_revenue: float  # Ingresos totales históricos
     total_orders: int  # Pedidos totales históricos
+    pending_orders: int = 0  # Pedidos pendientes de procesar
     
 @strawberry.input
 class DateRangeInput:

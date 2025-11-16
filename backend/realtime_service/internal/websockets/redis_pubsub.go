@@ -3,6 +3,7 @@ package websockets
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"strings"
 	"sync"
@@ -83,12 +84,14 @@ func (r *RedisPubSub) Start(handler func(room string, payload []byte)) error {
 					// Distinguir entre mensajes de salas y eventos de estadísticas
 					if msg.Channel == "events" {
 						// Evento de estadísticas: usar BroadcastStatsEvent
+						log.Printf("📊 [RedisPubSub] Stats event received on channel: %s", msg.Channel)
 						if r.hub != nil {
 							r.hub.BroadcastStatsEvent([]byte(msg.Payload))
 						}
 					} else {
 						// Mensaje de sala normal: usar handler
 						room := strings.TrimPrefix(msg.Channel, "ws:room:")
+						log.Printf("🔔 [RedisPubSub] Room message received - Channel: %s, Room: %s, Payload: %s", msg.Channel, room, msg.Payload)
 						handler(room, []byte(msg.Payload))
 					}
 				}

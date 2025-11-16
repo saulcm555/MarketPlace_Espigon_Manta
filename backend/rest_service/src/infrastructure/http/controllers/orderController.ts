@@ -50,6 +50,25 @@ export const getOrderById = asyncHandler(async (req: Request, res: Response) => 
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
   const createOrderUseCase = new CreateOrder(orderService, cartService);
   const order = await createOrderUseCase.execute(req.body);
+  
+  // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Nuevo pedido creado
+  if (order) {
+    const sellerId = order.productOrders?.[0]?.product?.id_seller?.toString();
+    if (sellerId) {
+      notifySellerStatsUpdated(sellerId, {
+        order_id: order.id_order,
+        status: order.status,
+        action: 'order_created'
+      }).catch(err => console.error('Error notifying seller stats:', err));
+    }
+    
+    notifyAdminStatsUpdated({
+      order_id: order.id_order,
+      status: order.status,
+      action: 'order_created'
+    }).catch(err => console.error('Error notifying admin stats:', err));
+  }
+  
   res.status(201).json(order);
 });
 
@@ -61,6 +80,24 @@ export const updateOrder = asyncHandler(async (req: Request, res: Response) => {
     id_order: id,
     status: req.body.status,
   });
+  
+  // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Estado de pedido actualizado
+  if (order) {
+    const sellerId = order.productOrders?.[0]?.product?.id_seller?.toString();
+    if (sellerId) {
+      notifySellerStatsUpdated(sellerId, {
+        order_id: order.id_order,
+        status: order.status,
+        action: 'order_status_updated'
+      }).catch(err => console.error('Error notifying seller stats:', err));
+    }
+    
+    notifyAdminStatsUpdated({
+      order_id: order.id_order,
+      status: order.status,
+      action: 'order_status_updated'
+    }).catch(err => console.error('Error notifying admin stats:', err));
+  }
   
   res.json(order);
 });
@@ -131,8 +168,26 @@ export const updatePaymentReceipt = asyncHandler(async (req: Request, res: Respo
   // Actualizar la orden con el comprobante y cambiar status
   const updatedOrder = await orderService.updateOrder(id, {
     payment_receipt_url,
-    status: 'payment_pending_verification'
+    status: 'payment_pending_verification',
   });
+
+  // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Comprobante de pago subido
+  if (updatedOrder) {
+    const sellerId = updatedOrder.productOrders?.[0]?.product?.id_seller?.toString();
+    if (sellerId) {
+      notifySellerStatsUpdated(sellerId, {
+        order_id: updatedOrder.id_order,
+        status: updatedOrder.status,
+        action: 'payment_receipt_uploaded'
+      }).catch(err => console.error('Error notifying seller stats:', err));
+    }
+    
+    notifyAdminStatsUpdated({
+      order_id: updatedOrder.id_order,
+      status: updatedOrder.status,
+      action: 'payment_receipt_uploaded'
+    }).catch(err => console.error('Error notifying admin stats:', err));
+  }
 
   res.json({
     message: "Comprobante de pago actualizado correctamente",

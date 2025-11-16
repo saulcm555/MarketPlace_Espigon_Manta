@@ -44,7 +44,8 @@ export function AdminDashboard() {
   
   // GraphQL Queries
   const { data, loading, error, refetch: refetchStats } = useQuery<{ dashboard_stats: DashboardStats }>(DASHBOARD_STATS, {
-    pollInterval: 30000,
+    fetchPolicy: 'cache-and-network', // ⚡ Mostrar caché mientras actualiza
+    notifyOnNetworkStatusChange: true, // Notificar cuando actualice desde red
   });
 
   // Sales report for last 7 days
@@ -58,12 +59,17 @@ export function AdminDashboard() {
     variables: {
       period: 'DAILY',
     },
+    fetchPolicy: 'cache-and-network', // ⚡ Mostrar caché mientras actualiza
+    notifyOnNetworkStatusChange: true,
   });
 
   // Clients report
   const { data: clientsData, loading: clientsLoading, refetch: refetchClients } = useQuery<{
     clients_report: ClientsReportData;
-  }>(CLIENTS_REPORT);
+  }>(CLIENTS_REPORT, {
+    fetchPolicy: 'cache-and-network', // ⚡ Mostrar caché mientras actualiza
+    notifyOnNetworkStatusChange: true,
+  });
 
   // 🔔 WEBSOCKET: Conectar y escuchar eventos de actualización de estadísticas
   const { isConnected } = useWebSocket({
@@ -74,9 +80,10 @@ export function AdminDashboard() {
       // Si el evento es para administradores, refetch todas las queries
       if (event.type === 'ADMIN_STATS_UPDATED') {
         console.log('🔄 Refetching admin dashboard stats...');
-        refetchStats();
-        refetchSales();
-        refetchClients();
+        // Refetch para forzar actualización desde servidor
+        refetchStats().then(() => console.log('✅ Stats refetched'));
+        refetchSales().then(() => console.log('✅ Sales refetched'));
+        refetchClients().then(() => console.log('✅ Clients refetched'));
       }
     },
     onConnect: () => {
@@ -92,7 +99,10 @@ export function AdminDashboard() {
   const salesByPeriod = salesData?.sales_report?.sales_by_period || [];
   const clientsReport = clientsData?.clients_report;
 
-  if (loading) {
+  // Solo mostrar skeleton en carga inicial, no en refetch (cuando ya hay datos)
+  const isInitialLoading = loading && !data;
+
+  if (isInitialLoading) {
     return (
       <div className="space-y-6">
         <div>

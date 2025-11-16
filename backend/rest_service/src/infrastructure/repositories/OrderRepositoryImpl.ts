@@ -19,10 +19,36 @@ export class OrderRepositoryImpl implements IOrderRepository {
 
   async update(id: string, data: Partial<OrderEntity>): Promise<OrderEntity> {
     const repo = AppDataSource.getRepository(OrderEntity);
+    const paymentMethodRepo = AppDataSource.getRepository(PaymentMethodEntity);
     const orderId = parseInt(id, 10);
+    
     await repo.update(orderId, data);
-    const updated = await repo.findOneBy({ id_order: orderId });
+    
+    // Cargar la orden con todas sus relaciones después de actualizar
+    const updated = await repo.findOne({
+      where: { id_order: orderId },
+      relations: [
+        "client",
+        "productOrders", 
+        "productOrders.product",
+        "cart",
+        "cart.productCarts",
+        "cart.productCarts.product"
+      ]
+    });
+    
     if (!updated) throw new Error(`Order with id ${id} not found`);
+    
+    // Cargar manualmente el método de pago si existe
+    if (updated.id_payment_method) {
+      const paymentMethod = await paymentMethodRepo.findOne({
+        where: { id_payment_method: updated.id_payment_method }
+      });
+      if (paymentMethod) {
+        (updated as any).payment_method = paymentMethod;
+      }
+    }
+    
     return updated;
   }
 

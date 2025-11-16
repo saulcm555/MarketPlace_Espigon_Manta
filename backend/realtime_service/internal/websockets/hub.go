@@ -122,6 +122,8 @@ func (h *Hub) BroadcastRoom(room string, msg []byte) {
 	}
 	h.mu.RUnlock()
 
+	log.Printf("📢 [Hub] Broadcasting to room '%s': %d clients, message: %s", room, len(clients), string(msg))
+
 	// Enviar fuera del lock para evitar bloqueos
 	for _, c := range clients {
 		if !c.Send(msg) {
