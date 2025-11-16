@@ -1,12 +1,15 @@
 import { useQuery } from '@apollo/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Package, Users, ShoppingCart, AlertTriangle, TrendingUp, Store, FileText, BarChart3, UsersRound } from 'lucide-react';
+import { DollarSign, Package, Users, ShoppingCart, AlertTriangle, TrendingUp, Store, FileText, BarChart3, UsersRound, Wifi, WifiOff } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DASHBOARD_STATS, SALES_REPORT, CLIENTS_REPORT } from '@/graphql/adminDashboard';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/context/AuthContext';
 
 interface DashboardStats {
   today_sales: number;
@@ -37,14 +40,15 @@ interface ClientsReportData {
 
 export function AdminDashboard() {
   const navigate = useNavigate();
+  const { token } = useAuth();
   
   // GraphQL Queries
-  const { data, loading, error } = useQuery<{ dashboard_stats: DashboardStats }>(DASHBOARD_STATS, {
+  const { data, loading, error, refetch: refetchStats } = useQuery<{ dashboard_stats: DashboardStats }>(DASHBOARD_STATS, {
     pollInterval: 30000,
   });
 
   // Sales report for last 7 days
-  const { data: salesData, loading: salesLoading } = useQuery<{
+  const { data: salesData, loading: salesLoading, refetch: refetchSales } = useQuery<{
     sales_report: {
       total_revenue: number;
       total_orders: number;
@@ -57,9 +61,32 @@ export function AdminDashboard() {
   });
 
   // Clients report
-  const { data: clientsData, loading: clientsLoading } = useQuery<{
+  const { data: clientsData, loading: clientsLoading, refetch: refetchClients } = useQuery<{
     clients_report: ClientsReportData;
   }>(CLIENTS_REPORT);
+
+  // 🔔 WEBSOCKET: Conectar y escuchar eventos de actualización de estadísticas
+  const { isConnected } = useWebSocket({
+    token: token,
+    onStatsUpdate: (event) => {
+      console.log('📊 Admin stats update received:', event);
+      
+      // Si el evento es para administradores, refetch todas las queries
+      if (event.type === 'ADMIN_STATS_UPDATED') {
+        console.log('🔄 Refetching admin dashboard stats...');
+        refetchStats();
+        refetchSales();
+        refetchClients();
+      }
+    },
+    onConnect: () => {
+      console.log('✅ Admin WebSocket connected');
+    },
+    onDisconnect: () => {
+      console.log('❌ Admin WebSocket disconnected');
+    },
+    debug: true
+  });
 
   const stats = data?.dashboard_stats;
   const salesByPeriod = salesData?.sales_report?.sales_by_period || [];
@@ -123,12 +150,46 @@ export function AdminDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Dashboard General
+          Dashboard Administrativo
         </h1>
         <p className="text-muted-foreground mt-2">
-          Vista estratégica del marketplace • Actualización en tiempo real
+          Panel de control y estadísticas globales del marketplace
         </p>
       </div>
+
+      {/* Indicador de conexión WebSocket */}
+      <Card className={isConnected ? 'border-green-200 bg-green-50/50 dark:bg-green-950/20' : 'border-yellow-200 bg-yellow-50/50 dark:bg-yellow-950/20'}>
+        <CardContent className="pt-4 pb-3">
+          <div className="flex items-center gap-2 text-sm">
+            {isConnected ? (
+              <>
+                <Wifi className="h-4 w-4 text-green-600" />
+                <span className="text-green-700 dark:text-green-400 font-medium">
+                  Actualizaciones en tiempo real activadas
+                </span>
+                <Badge variant="outline" className="ml-auto bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-300">
+                  Conectado
+                </Badge>
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-4 w-4 text-yellow-600" />
+                <span className="text-yellow-700 dark:text-yellow-400 font-medium">
+                  Reconectando al servidor en tiempo real...
+                </span>
+                <Badge variant="outline" className="ml-auto bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400 border-yellow-300">
+                  Desconectado
+                </Badge>
+              </>
+            )}
+          </div>
+          {isConnected && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Las estadísticas globales se actualizarán automáticamente cuando ocurran cambios en el sistema
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Acciones Rápidas */}
       <div>

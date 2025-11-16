@@ -2,6 +2,7 @@ import { UpdateOrderStatusDto } from "../../dtos/orders/UpdateOrderStatus.dto";
 import { OrderService } from "../../../domain/services/OrderService";
 import { Order } from "../../../domain/entities/order";
 import { notifyOrderUpdated } from "../../../infrastructure/clients/notificationClient";
+import { notifySellerStatsUpdated, notifyAdminStatsUpdated } from "../../../infrastructure/clients/statsEventClient";
 
 /**
  * Caso de uso para actualizar el estado de una orden
@@ -65,7 +66,21 @@ export class UpdateOrderStatus {
         ).catch(err => {
           console.error('Error sending order update notification:', err);
         });
+
+        // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Notificar actualización de stats
+        notifySellerStatsUpdated(sellerId, {
+          order_id: updatedOrder.id_order,
+          status: updatedOrder.status,
+          action: 'status_updated'
+        }).catch(err => console.error('Error notifying seller stats:', err));
       }
+      
+      // También notificar a admin
+      notifyAdminStatsUpdated({
+        order_id: updatedOrder.id_order,
+        status: updatedOrder.status,
+        action: 'status_updated'
+      }).catch(err => console.error('Error notifying admin stats:', err));
     }
 
     return updatedOrder;

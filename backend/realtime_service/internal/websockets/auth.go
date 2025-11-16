@@ -15,9 +15,11 @@ var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 // Claims contiene la información del usuario extraída del JWT.
 // Incluye RegisteredClaims para validar exp/nbf/iat.
 type Claims struct {
-	UserID   string `json:"user_id"`
-	Role     string `json:"role,omitempty"`
-	SellerID string `json:"seller_id,omitempty"`
+	UserID   string  `json:"user_id"`
+	ID       float64 `json:"id,omitempty"`        // ID numérico del usuario
+	IDSeller float64 `json:"id_seller,omitempty"` // ID del vendedor (viene como id_seller en JWT)
+	Role     string  `json:"role,omitempty"`
+	SellerID string  // Campo calculado a partir de IDSeller
 	jwt.RegisteredClaims
 }
 
@@ -63,7 +65,19 @@ func ValidateToken(authorizationHeader string) (*Claims, error) {
 			if uid, ok := mc["user_id"].(string); ok {
 				claims.UserID = uid
 			}
+			// Si no hay user_id, usar id
+			if claims.UserID == "" {
+				if id, ok := mc["id"].(float64); ok {
+					claims.UserID = fmt.Sprintf("%.0f", id)
+					claims.ID = id
+				}
+			}
 		}
+	}
+
+	// Extraer seller_id de id_seller si existe
+	if claims.IDSeller > 0 {
+		claims.SellerID = fmt.Sprintf("%.0f", claims.IDSeller)
 	}
 
 	// devolver claims (userID puede estar vacío dependiendo del token)

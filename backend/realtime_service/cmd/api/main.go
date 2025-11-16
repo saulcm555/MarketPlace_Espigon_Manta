@@ -39,11 +39,11 @@ func main() {
 
 	// Configurar Redis Pub/Sub si está disponible
 	if db.RedisClient != nil {
-		ps := websockets.NewRedisPubSub(cfg.RedisAddr, cfg.RedisPassword)
+		ps := websockets.NewRedisPubSub(cfg.RedisAddr, cfg.RedisPassword, hub)
 		if err := hub.SetPubSub(ps); err != nil {
 			log.Printf("Warning: could not start redis pubsub: %v", err)
 		} else {
-			log.Printf("Redis pub/sub started successfully")
+			log.Printf("Redis pub/sub started successfully (listening to 'ws:room:*' and 'events')")
 		}
 	}
 

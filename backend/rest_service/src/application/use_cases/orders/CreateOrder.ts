@@ -7,6 +7,7 @@ import { OrderEntity, ProductOrderEntity } from "../../../models/orderModel";
 import { ProductEntity } from "../../../models/productModel";
 import { PaymentMethodEntity } from "../../../models/paymentMethodModel";
 import { notifyOrderCreated } from "../../../infrastructure/clients/notificationClient";
+import { notifySellerStatsUpdated, notifyAdminStatsUpdated } from "../../../infrastructure/clients/statsEventClient";
 
 /**
  * Caso de uso para crear una nueva orden a partir de un carrito
@@ -186,6 +187,23 @@ export class CreateOrder {
           // Log del error pero no fallar el caso de uso
           console.error('Error sending order creation notification:', err);
         });
+
+        // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Notificar actualización de stats
+        // Esto hace que el frontend actualice las estadísticas en tiempo real
+        if (sellerId) {
+          notifySellerStatsUpdated(sellerId, {
+            order_id: savedOrder.id_order,
+            status: savedOrder.status,
+            action: 'order_created'
+          }).catch(err => console.error('Error notifying seller stats:', err));
+        }
+        
+        // También notificar a admin
+        notifyAdminStatsUpdated({
+          order_id: savedOrder.id_order,
+          status: savedOrder.status,
+          action: 'order_created'
+        }).catch(err => console.error('Error notifying admin stats:', err));
       }
 
       return orderWithProducts as unknown as Order;

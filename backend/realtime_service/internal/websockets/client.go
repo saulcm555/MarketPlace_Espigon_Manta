@@ -20,10 +20,12 @@ const (
 // Client representa una conexión WebSocket activa.
 // Mantiene información del cliente conectado, su conexión y las salas suscritas.
 type Client struct {
-	ID     string          // Identificador único de la conexión
-	UserID string          // ID del usuario autenticado
-	Conn   *websocket.Conn // Conexión WebSocket
-	Rooms  map[string]bool // Salas a las que está suscrito
+	ID       string          // Identificador único de la conexión
+	UserID   string          // ID del usuario autenticado
+	Role     string          // Rol del usuario: "ADMIN", "SELLER", "CLIENT"
+	SellerID string          // ID del vendedor (solo si Role == "SELLER")
+	Conn     *websocket.Conn // Conexión WebSocket
+	Rooms    map[string]bool // Salas a las que está suscrito
 
 	// Canal para enviar mensajes al cliente de forma asíncrona
 	send chan []byte
@@ -33,13 +35,15 @@ type Client struct {
 }
 
 // NewClient crea un nuevo cliente e inicia su write pump.
-func NewClient(id, userID string, conn *websocket.Conn) *Client {
+func NewClient(id, userID, role, sellerID string, conn *websocket.Conn) *Client {
 	c := &Client{
-		ID:     id,
-		UserID: userID,
-		Conn:   conn,
-		Rooms:  make(map[string]bool),
-		send:   make(chan []byte, sendChannelSize),
+		ID:       id,
+		UserID:   userID,
+		Role:     role,
+		SellerID: sellerID,
+		Conn:     conn,
+		Rooms:    make(map[string]bool),
+		send:     make(chan []byte, sendChannelSize),
 	}
 
 	// Iniciar la goroutine de escritura

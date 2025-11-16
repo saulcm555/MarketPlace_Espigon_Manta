@@ -32,7 +32,15 @@ const app = express();
 // CORS Configuration (permite frontend acceder al backend)
 // ============================================
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:8080', 'http://localhost:8081'], // Frontend URLs
+  origin: [
+    'http://localhost:5173', 
+    'http://localhost:5174', 
+    'http://localhost:8080', 
+    'http://localhost:8081',
+    'http://192.168.56.1:8080',
+    'http://192.168.1.87:8080',
+    'http://172.20.64.1:8080'
+  ], // Frontend URLs (localhost + network IPs)
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']

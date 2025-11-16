@@ -46,7 +46,7 @@ func TestWritePump(t *testing.T) {
 	}
 
 	// Crear cliente con write pump
-	client := NewClient("test-1", "user-1", conn)
+	client := NewClient("test-1", "user-1", "CLIENT", "", conn)
 	defer client.Close()
 
 	// Enviar varios mensajes
@@ -86,7 +86,7 @@ func TestClientSlowHandling(t *testing.T) {
 		t.Fatalf("Failed to dial: %v", err)
 	}
 
-	client := NewClient("test-2", "user-2", conn)
+	client := NewClient("test-2", "user-2", "CLIENT", "", conn)
 	defer client.Close()
 
 	// Intentar llenar el buffer (256 mensajes)
@@ -128,7 +128,7 @@ func TestClientClose(t *testing.T) {
 		t.Fatalf("Failed to dial: %v", err)
 	}
 
-	client := NewClient("test-3", "user-3", conn)
+	client := NewClient("test-3", "user-3", "CLIENT", "", conn)
 
 	// Enviar mensaje
 	if !client.Send([]byte("test")) {

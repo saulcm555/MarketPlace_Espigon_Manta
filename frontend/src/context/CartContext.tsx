@@ -42,10 +42,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Obtener carrito del usuario con productos incluidos
+  // Solo para clientes (no para vendedores ni administradores)
   const { data: carts = [], isLoading } = useQuery({
     queryKey: ['cart', user?.id],
     queryFn: getMyCartWithProducts,
-    enabled: isAuthenticated && !!user,
+    enabled: isAuthenticated && !!user && user.role === 'client',
   });
 
   const cart = carts.length > 0 ? carts[0] : null;

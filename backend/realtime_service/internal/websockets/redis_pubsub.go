@@ -23,10 +23,13 @@ type RedisPubSub struct {
 	sub    *redis.PubSub
 	mu     sync.Mutex
 	wg     sync.WaitGroup
+
+	// Hub para enviar eventos de estadísticas
+	hub *Hub
 }
 
 // NewRedisPubSub crea una nueva instancia conectada a la dirección dada.
-func NewRedisPubSub(addr, password string) *RedisPubSub {
+func NewRedisPubSub(addr, password string, hub *Hub) *RedisPubSub {
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &RedisPubSub{
 		client: redis.NewClient(&redis.Options{Addr: addr, Password: password}),
@@ -34,6 +37,7 @@ func NewRedisPubSub(addr, password string) *RedisPubSub {
 		pass:   password,
 		ctx:    ctx,
 		cancel: cancel,
+		hub:    hub,
 	}
 	return r
 }
@@ -57,7 +61,10 @@ func (r *RedisPubSub) Start(handler func(room string, payload []byte)) error {
 
 			// intentar subscribir
 			r.mu.Lock()
-			r.sub = r.client.PSubscribe(r.ctx, "ws:room:*")
+			// Suscribirse a dos patrones:
+			// 1. ws:room:* para mensajes de salas normales
+			// 2. events para eventos de actualización de estadísticas
+			r.sub = r.client.PSubscribe(r.ctx, "ws:room:*", "events")
 			r.mu.Unlock()
 
 			ch := r.sub.Channel()
@@ -72,8 +79,18 @@ func (r *RedisPubSub) Start(handler func(room string, payload []byte)) error {
 						okloop = false
 						break
 					}
-					room := strings.TrimPrefix(msg.Channel, "ws:room:")
-					handler(room, []byte(msg.Payload))
+
+					// Distinguir entre mensajes de salas y eventos de estadísticas
+					if msg.Channel == "events" {
+						// Evento de estadísticas: usar BroadcastStatsEvent
+						if r.hub != nil {
+							r.hub.BroadcastStatsEvent([]byte(msg.Payload))
+						}
+					} else {
+						// Mensaje de sala normal: usar handler
+						room := strings.TrimPrefix(msg.Channel, "ws:room:")
+						handler(room, []byte(msg.Payload))
+					}
 				}
 			}
 

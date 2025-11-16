@@ -11,6 +11,7 @@ import { asyncHandler, NotFoundError } from "../../middlewares/errors";
 import type { ProductCart } from "../../../domain/entities/cart";
 import AppDataSource from "../../database/data-source";
 import { ProductOrderEntity } from "../../../models/orderModel";
+import { notifySellerStatsUpdated, notifyAdminStatsUpdated } from "../../clients/statsEventClient";
 
 // Instancias de dependencias
 const orderRepository = new OrderRepositoryImpl();
@@ -178,6 +179,24 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
 
   const updatedOrder = await orderService.updateOrder(id, updateData);
 
+  // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Pago verificado
+  if (updatedOrder) {
+    const sellerId = updatedOrder.productOrders?.[0]?.product?.id_seller?.toString();
+    if (sellerId) {
+      notifySellerStatsUpdated(sellerId, {
+        order_id: updatedOrder.id_order,
+        status: updatedOrder.status,
+        action: approved ? 'payment_verified' : 'payment_rejected'
+      }).catch(err => console.error('Error notifying seller stats:', err));
+    }
+    
+    notifyAdminStatsUpdated({
+      order_id: updatedOrder.id_order,
+      status: updatedOrder.status,
+      action: approved ? 'payment_verified' : 'payment_rejected'
+    }).catch(err => console.error('Error notifying admin stats:', err));
+  }
+
   res.json({
     message: approved 
       ? "Pago verificado y aprobado correctamente" 
@@ -314,6 +333,24 @@ export const markOrderAsDelivered = asyncHandler(async (req: Request, res: Respo
     id_order: Number(id),
     status: 'delivered',
   });
+
+  // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Pedido entregado
+  if (updatedOrder) {
+    const sellerId = updatedOrder.productOrders?.[0]?.product?.id_seller?.toString();
+    if (sellerId) {
+      notifySellerStatsUpdated(sellerId, {
+        order_id: updatedOrder.id_order,
+        status: 'delivered',
+        action: 'order_delivered'
+      }).catch(err => console.error('Error notifying seller stats:', err));
+    }
+    
+    notifyAdminStatsUpdated({
+      order_id: updatedOrder.id_order,
+      status: 'delivered',
+      action: 'order_delivered'
+    }).catch(err => console.error('Error notifying admin stats:', err));
+  }
 
   res.json({
     message: "Pedido marcado como entregado correctamente",

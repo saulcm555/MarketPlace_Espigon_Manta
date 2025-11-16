@@ -5,6 +5,7 @@
 
 import { useQuery } from '@apollo/client';
 import { useAuth } from '@/context/AuthContext';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +18,9 @@ import {
   ArrowUp,
   Activity,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { GET_SELLER_DASHBOARD_STATS, GET_SELLER_BEST_PRODUCTS } from '@/graphql/sellerAnalytics';
 
@@ -48,7 +51,7 @@ interface SellerBestProductsReport {
 }
 
 export function SellerAnalytics() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   
   // Obtener el seller_id del usuario autenticado
   const sellerId = user?.id_seller || user?.id;
@@ -72,7 +75,7 @@ export function SellerAnalytics() {
   }
 
   // Query para estadísticas del dashboard del vendedor
-  const { data: statsData, loading: statsLoading, error: statsError } = useQuery<SellerDashboardStats>(
+  const { data: statsData, loading: statsLoading, error: statsError, refetch: refetchStats } = useQuery<SellerDashboardStats>(
     GET_SELLER_DASHBOARD_STATS,
     {
       variables: { sellerId },
@@ -81,7 +84,7 @@ export function SellerAnalytics() {
   );
 
   // Query para productos más vendidos del vendedor (últimos 30 días, top 5)
-  const { data: productsData, loading: productsLoading } = useQuery<SellerBestProductsReport>(
+  const { data: productsData, loading: productsLoading, refetch: refetchProducts } = useQuery<SellerBestProductsReport>(
     GET_SELLER_BEST_PRODUCTS,
     {
       variables: {
@@ -91,6 +94,28 @@ export function SellerAnalytics() {
       fetchPolicy: 'cache-and-network',
     }
   );
+
+  // 🔔 WEBSOCKET: Conectar y escuchar eventos de actualización de estadísticas
+  const { isConnected } = useWebSocket({
+    token: token,
+    onStatsUpdate: (event) => {
+      console.log('📊 Stats update received:', event);
+      
+      // Si el evento es para este vendedor, refetch las queries
+      if (event.type === 'SELLER_STATS_UPDATED' && event.seller_id === sellerId?.toString()) {
+        console.log('🔄 Refetching seller stats...');
+        refetchStats();
+        refetchProducts();
+      }
+    },
+    onConnect: () => {
+      console.log('✅ WebSocket connected');
+    },
+    onDisconnect: () => {
+      console.log('❌ WebSocket disconnected');
+    },
+    debug: true // Habilitar logs en desarrollo
+  });
 
   const stats = statsData?.seller_dashboard_stats;
   const bestProducts = productsData?.seller_best_products;
@@ -125,6 +150,40 @@ export function SellerAnalytics() {
 
   return (
     <div className="space-y-6">
+      {/* Indicador de conexión WebSocket */}
+      <Card className={isConnected ? 'border-green-200 bg-green-50/50 dark:bg-green-950/20' : 'border-yellow-200 bg-yellow-50/50 dark:bg-yellow-950/20'}>
+        <CardContent className="pt-4 pb-3">
+          <div className="flex items-center gap-2 text-sm">
+            {isConnected ? (
+              <>
+                <Wifi className="h-4 w-4 text-green-600" />
+                <span className="text-green-700 dark:text-green-400 font-medium">
+                  Actualizaciones en tiempo real activadas
+                </span>
+                <Badge variant="outline" className="ml-auto bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 border-green-300">
+                  Conectado
+                </Badge>
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-4 w-4 text-yellow-600" />
+                <span className="text-yellow-700 dark:text-yellow-400 font-medium">
+                  Reconectando al servidor en tiempo real...
+                </span>
+                <Badge variant="outline" className="ml-auto bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400 border-yellow-300">
+                  Desconectado
+                </Badge>
+              </>
+            )}
+          </div>
+          {isConnected && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Las estadísticas se actualizarán automáticamente cuando cambien tus ventas
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Estadísticas Principales */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Ventas de Hoy */}

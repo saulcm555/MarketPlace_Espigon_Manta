@@ -61,10 +61,17 @@ func ServeWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 	// id simple a partir del timestamp (PoC)
 	clientID := fmt.Sprintf("conn-%d", time.Now().UnixNano())
 
+	// Extraer rol y seller_id de los claims
+	role := claims.Role
+	if role == "" {
+		role = "CLIENT" // Valor por defecto
+	}
+	sellerID := claims.SellerID
+
 	// Crear cliente con NewClient que inicia el writePump automáticamente
-	client := NewClient(clientID, claims.UserID, conn)
+	client := NewClient(clientID, claims.UserID, role, sellerID, conn)
 	h.Register(client)
-	log.Printf("client connected: id=%s user=%s", client.ID, client.UserID)
+	log.Printf("client connected: id=%s user=%s role=%s seller_id=%s", client.ID, client.UserID, client.Role, client.SellerID)
 
 	// Asegurar limpieza al salir
 	defer func() {
