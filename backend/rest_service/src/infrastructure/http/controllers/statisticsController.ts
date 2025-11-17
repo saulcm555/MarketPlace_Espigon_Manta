@@ -55,36 +55,55 @@ export const getSellerDashboardStats = async (req: Request, res: Response): Prom
     today.setHours(0, 0, 0, 0);
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    console.log(`🔍 [DEBUG] Querying stats for seller ${sellerId}`);
+    console.log(`🔍 [DEBUG] Date range: Today=${today.toISOString()}, Month start=${firstDayOfMonth.toISOString()}`);
+
     // Query SQL ÚNICA optimizada - combina todo en una sola query
     const queryStart = Date.now();
     const result = await AppDataSource.query(`
       SELECT
         -- Estadísticas de ventas y órdenes
         COALESCE(SUM(CASE 
-          WHEN DATE(o.order_date) = CURRENT_DATE AND o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed')
+          WHEN DATE(o.order_date AT TIME ZONE 'America/Guayaquil') = CURRENT_DATE 
+            AND o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed')
           THEN po.subtotal 
           ELSE 0 
         END), 0) as today_sales,
         
         COUNT(DISTINCT CASE 
-          WHEN DATE(o.order_date) = CURRENT_DATE AND o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed')
+          WHEN DATE(o.order_date AT TIME ZONE 'America/Guayaquil') = CURRENT_DATE 
+            AND o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed')
           THEN o.id_order 
         END) as today_orders,
         
         COALESCE(SUM(CASE 
-          WHEN o.order_date >= $2::timestamp AND o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed')
+          WHEN DATE(o.order_date AT TIME ZONE 'America/Guayaquil') >= DATE($2) 
+            AND o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed')
           THEN po.subtotal 
           ELSE 0 
         END), 0) as month_revenue,
         
         COUNT(DISTINCT CASE 
-          WHEN o.order_date >= $2::timestamp AND o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed')
+          WHEN DATE(o.order_date AT TIME ZONE 'America/Guayaquil') >= DATE($2) 
+            AND o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed')
           THEN o.id_order 
         END) as month_orders,
         
-        COALESCE(SUM(CASE WHEN o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed') THEN po.subtotal ELSE 0 END), 0) as total_revenue,
-        COUNT(DISTINCT CASE WHEN o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed') THEN o.id_order END) as total_orders,
-        COUNT(DISTINCT CASE WHEN o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing') THEN o.id_order END) as pending_orders,
+        COALESCE(SUM(CASE 
+          WHEN o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed') 
+          THEN po.subtotal 
+          ELSE 0 
+        END), 0) as total_revenue,
+        
+        COUNT(DISTINCT CASE 
+          WHEN o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing', 'shipped', 'delivered', 'completed') 
+          THEN o.id_order 
+        END) as total_orders,
+        
+        COUNT(DISTINCT CASE 
+          WHEN o.status IN ('pending', 'payment_pending_verification', 'payment_confirmed', 'processing') 
+          THEN o.id_order 
+        END) as pending_orders,
         
         -- Estadísticas de productos (calculadas en la misma query)
         COUNT(DISTINCT p.id_product) as total_products,
@@ -96,6 +115,12 @@ export const getSellerDashboardStats = async (req: Request, res: Response): Prom
       WHERE p.id_seller = $1
     `, [sellerId, firstDayOfMonth]);
     const queryTime = Date.now() - queryStart;
+    
+    // Debug: Log raw result from database
+    console.log(`🔍 [DEBUG] Raw DB result for seller ${sellerId}:`, result[0]);
+    console.log(`🔍 [DEBUG] today_sales raw value: "${result[0].today_sales}" (type: ${typeof result[0].today_sales})`);
+    console.log(`🔍 [DEBUG] today_orders raw value: "${result[0].today_orders}" (type: ${typeof result[0].today_orders})`);
+    console.log(`🔍 [DEBUG] Current date in DB:`, await AppDataSource.query('SELECT CURRENT_DATE, NOW() AT TIME ZONE \'America/Guayaquil\' as now_ec'));
     
     const statsResult = {
       seller_id: sellerId,

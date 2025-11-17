@@ -20,8 +20,11 @@ import {
   Loader2,
   AlertTriangle,
   Wifi,
-  WifiOff
+  WifiOff,
+  BarChart3,
+  LineChart as LineChartIcon
 } from 'lucide-react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { GET_SELLER_DASHBOARD_STATS, GET_SELLER_BEST_PRODUCTS } from '@/graphql/sellerAnalytics';
 
 interface SellerDashboardStats {
@@ -290,6 +293,176 @@ export function SellerAnalytics() {
                   En proceso de entrega
                 </p>
               </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gráficos de Ventas */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Gráfico de Ventas del Mes */}
+        <Card className="shadow-lg border-green-100">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-green-600" />
+                  Ventas del Mes
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Comparación mensual
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-[250px] w-full" />
+            ) : stats ? (
+              <>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart 
+                    data={[
+                      {
+                        name: 'Hoy',
+                        Ventas: stats.today_sales,
+                      },
+                      {
+                        name: 'Mes',
+                        Ventas: stats.month_revenue,
+                      },
+                    ]}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="name" 
+                      stroke="#6b7280"
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      stroke="#6b7280"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `$${value.toFixed(0)}`}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Ventas']}
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        padding: '10px'
+                      }}
+                    />
+                    <Bar dataKey="Ventas" fill="#10b981" name="Ventas ($)" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Ventas Hoy</p>
+                    <p className="text-lg font-bold text-green-600">
+                      {formatPrice(stats.today_sales)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {stats.today_orders} {stats.today_orders === 1 ? 'orden' : 'órdenes'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Ventas del Mes</p>
+                    <p className="text-lg font-bold text-green-600">
+                      {formatPrice(stats.month_revenue)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {stats.month_orders} {stats.month_orders === 1 ? 'orden' : 'órdenes'}
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                No hay datos disponibles
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Gráfico de Ventas Totales */}
+        <Card className="shadow-lg border-blue-100">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <LineChartIcon className="h-5 w-5 text-blue-600" />
+                  Historial de Ventas
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Evolución de ingresos
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-[250px] w-full" />
+            ) : stats ? (
+              <>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart 
+                    data={[
+                      { periodo: 'Inicio', ventas: 0 },
+                      { periodo: 'Acumulado', ventas: stats.total_revenue },
+                    ]}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="periodo" 
+                      stroke="#6b7280"
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      stroke="#6b7280"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `$${value.toFixed(0)}`}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'Ventas Totales']}
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        padding: '10px'
+                      }}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="ventas" 
+                      stroke="#3b82f6" 
+                      strokeWidth={3}
+                      name="Ingresos Acumulados"
+                      dot={{ fill: '#3b82f6', r: 5 }}
+                      activeDot={{ r: 7 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+                <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Ingresos Totales</p>
+                    <p className="text-lg font-bold text-blue-600">
+                      {formatPrice(stats.total_revenue)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Órdenes Totales</p>
+                    <p className="text-lg font-bold">
+                      {stats.total_orders}
+                    </p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                No hay datos disponibles
+              </div>
             )}
           </CardContent>
         </Card>

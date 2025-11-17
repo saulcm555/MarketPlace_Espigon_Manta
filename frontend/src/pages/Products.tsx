@@ -16,6 +16,9 @@ import { Slider } from '@/components/ui/slider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import {
   Select,
   SelectContent,
@@ -500,6 +503,10 @@ interface ProductCardProps {
 
 const ProductCard = ({ product, viewMode }: ProductCardProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { addItem } = useCart();
+  const { isAuthenticated, user } = useAuth();
+  const [isAdding, setIsAdding] = useState(false);
   
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-EC', {
@@ -510,6 +517,61 @@ const ProductCard = ({ product, viewMode }: ProductCardProps) => {
 
   const handleProductClick = () => {
     navigate(`/products/${product.id_product}`);
+  };
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Verificar autenticación
+    if (!isAuthenticated || !user) {
+      toast({
+        title: "Inicia sesión",
+        description: "Debes iniciar sesión para agregar productos al carrito",
+        variant: "destructive",
+      });
+      navigate('/login');
+      return;
+    }
+
+    // Verificar que sea cliente
+    if (user.role !== 'client') {
+      toast({
+        title: "Acceso restringido",
+        description: "Solo los clientes pueden agregar productos al carrito",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Verificar stock
+    if (product.stock === 0) {
+      toast({
+        title: "Producto agotado",
+        description: "Este producto no está disponible en este momento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsAdding(true);
+      await addItem(product.id_product, 1);
+      
+      toast({
+        title: "¡Agregado al carrito! 🛒",
+        description: `${product.product_name} se agregó correctamente`,
+        className: "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800",
+      });
+    } catch (error: any) {
+      console.error('Error al agregar al carrito:', error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo agregar el producto al carrito",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAdding(false);
+    }
   };
 
   if (viewMode === 'list') {
@@ -567,15 +629,12 @@ const ProductCard = ({ product, viewMode }: ProductCardProps) => {
                   {formatPrice(product.price)}
                 </span>
                 <Button 
-                  disabled={product.stock === 0} 
+                  disabled={product.stock === 0 || isAdding} 
                   className="gap-2"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // TODO: Agregar al carrito
-                  }}
+                  onClick={handleAddToCart}
                 >
                   <ShoppingCart className="w-4 h-4" />
-                  {product.stock === 0 ? 'Agotado' : 'Agregar'}
+                  {isAdding ? 'Agregando...' : product.stock === 0 ? 'Agotado' : 'Agregar'}
                 </Button>
               </div>
             </div>
@@ -636,15 +695,12 @@ const ProductCard = ({ product, viewMode }: ProductCardProps) => {
           </span>
           <Button 
             size="sm" 
-            disabled={product.stock === 0} 
+            disabled={product.stock === 0 || isAdding} 
             className="gap-2"
-            onClick={(e) => {
-              e.stopPropagation();
-              // TODO: Agregar al carrito
-            }}
+            onClick={handleAddToCart}
           >
             <ShoppingCart className="w-4 h-4" />
-            {product.stock === 0 ? 'Agotado' : 'Agregar'}
+            {isAdding ? 'Agregando...' : product.stock === 0 ? 'Agotado' : 'Agregar'}
           </Button>
         </div>
       </CardContent>
