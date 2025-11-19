@@ -5,6 +5,7 @@ import config from '@/config/env';
  * Evento de estadísticas recibido desde el WebSocket
  */
 export interface StatsEvent {
+  event: string;
   type: 'ADMIN_STATS_UPDATED' | 'SELLER_STATS_UPDATED';
   seller_id?: string;
   timestamp: string;

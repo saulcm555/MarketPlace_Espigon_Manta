@@ -51,21 +51,7 @@ import {
 } from 'lucide-react';
 import apiClient from '@/api/client';
 import { toast } from 'sonner';
-
-// GraphQL Queries
-const GET_ALL_SELLERS = gql`
-  query GetAllSellers {
-    all_sellers {
-      id_seller
-      seller_name
-      seller_email
-      phone
-      bussines_name
-      location
-      created_at
-    }
-  }
-`;
+import { GET_ALL_SELLERS } from '@/graphql/adminSellers';
 
 interface Seller {
   id_seller: number;
