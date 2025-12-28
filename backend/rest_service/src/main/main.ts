@@ -25,6 +25,7 @@ import deliveryRoutes from "../infrastructure/http/routes/deliveryRoutes";
 import wsAuthRoutes from "../infrastructure/http/routes/wsAuthRoutes";
 import uploadRoutes from "../infrastructure/http/routes/uploadRoutes";
 import statisticsRoutes from "../infrastructure/http/routes/statisticsRoutes";
+import reportsRoutes from "../infrastructure/http/routes/reportsRoutes";
 
 const app = express();
 
@@ -95,6 +96,7 @@ app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/ws", wsAuthRoutes); // 🔔 Rutas de autorización WebSocket
 app.use("/api/upload", uploadRoutes); // 📤 Rutas de subida de archivos
 app.use("/api/statistics", statisticsRoutes); // 📊 Estadísticas del marketplace
+app.use("/api/reports", reportsRoutes); // 📄 Generación de reportes PDF
 
 // ============================================
 // ERROR HANDLING MIDDLEWARES

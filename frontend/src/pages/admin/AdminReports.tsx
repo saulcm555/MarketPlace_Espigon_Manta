@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, gql } from '@apollo/client';
+import { useQuery } from '@apollo/client';
 import { useAuth } from '@/context/AuthContext';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import {
@@ -26,7 +26,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { generateSalesReportPDF, generateInventoryReportPDF } from '@/utils/pdfReports';
+import { reportsApi } from '@/api/reports';
+import { useToast } from '@/hooks/use-toast';
 import { 
   BarChart, 
   Bar, 
@@ -42,57 +43,14 @@ import {
   Cell,
   Legend
 } from 'recharts';
-
-// GraphQL Queries
-const DASHBOARD_STATS = gql`
-  query DashboardStats {
-    dashboard_stats {
-      today_sales
-      today_orders
-      total_active_clients
-      total_active_sellers
-      total_products
-      pending_deliveries
-      low_stock_products
-      month_revenue
-      month_orders
-    }
-  }
-`;
-
-const CATEGORY_SALES = gql`
-  query CategorySales($dateRange: DateRangeInput) {
-    category_sales_report(date_range: $dateRange) {
-      period_start
-      period_end
-      categories {
-        category_id
-        category_name
-        total_sales
-        total_orders
-        products_count
-      }
-    }
-  }
-`;
-
-const INVENTORY_REPORT = gql`
-  query InventoryReport($threshold: Int!) {
-    inventory_report(min_stock_threshold: $threshold) {
-      total_products
-      out_of_stock
-      low_stock
-      critical_products {
-        product_id
-        product_name
-        seller_name
-        current_stock
-        min_stock_threshold
-        status
-      }
-    }
-  }
-`;
+import { DASHBOARD_STATS } from '@/graphql/adminDashboard';
+import { 
+  CATEGORY_SALES_REPORT, 
+  INVENTORY_REPORT,
+  TOP_SELLERS_REPORT,
+  BEST_PRODUCTS_REPORT,
+  DELIVERY_PERFORMANCE_REPORT
+} from '@/graphql/adminReports';
 
 interface DashboardStats {
   today_sales: number;
@@ -125,6 +83,7 @@ interface CriticalProduct {
 
 export function AdminReports() {
   const { token } = useAuth();
+  const { toast } = useToast();
   
   // Estado para el rango de fechas
   const [startDate, setStartDate] = useState(
@@ -170,7 +129,7 @@ export function AdminReports() {
       period_end: string;
       categories: CategorySale[];
     };
-  }>(CATEGORY_SALES, {
+  }>(CATEGORY_SALES_REPORT, {
     variables: {
       dateRange: {
         start_date: startDate,
@@ -315,10 +274,18 @@ export function AdminReports() {
 
       {/* Tabs */}
       <Tabs defaultValue="sales" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="sales">
             <BarChart3 className="h-4 w-4 mr-2" />
-            Ventas por Categoría
+            Categorías
+          </TabsTrigger>
+          <TabsTrigger value="sellers">
+            <Users className="h-4 w-4 mr-2" />
+            Vendedores
+          </TabsTrigger>
+          <TabsTrigger value="products">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Productos
           </TabsTrigger>
           <TabsTrigger value="inventory">
             <Package className="h-4 w-4 mr-2" />
@@ -345,13 +312,25 @@ export function AdminReports() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      if (categorySalesData?.category_sales_report.categories) {
-                        generateSalesReportPDF(
-                          categorySalesData.category_sales_report.categories,
-                          startDate,
-                          endDate
-                        );
+                    onClick={async () => {
+                      try {
+                        toast({
+                          title: "Generando reporte...",
+                          description: "Por favor espera mientras se genera el PDF",
+                        });
+                        const pdfUrl = await reportsApi.generateCategorySalesReport(startDate, endDate);
+                        window.open(pdfUrl, '_blank');
+                        toast({
+                          title: "✅ Reporte generado",
+                          description: "El PDF se ha abierto en una nueva pestaña",
+                        });
+                      } catch (error) {
+                        console.error("Error generando reporte:", error);
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "No se pudo generar el reporte PDF",
+                        });
                       }
                     }}
                     disabled={
@@ -510,9 +489,25 @@ export function AdminReports() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    if (inventoryData?.inventory_report) {
-                      generateInventoryReportPDF(inventoryData.inventory_report);
+                  onClick={async () => {
+                    try {
+                      toast({
+                        title: "Generando reporte...",
+                        description: "Por favor espera mientras se genera el PDF",
+                      });
+                      const pdfUrl = await reportsApi.generateInventoryReport(10);
+                      window.open(pdfUrl, '_blank');
+                      toast({
+                        title: "✅ Reporte generado",
+                        description: "El PDF se ha abierto en una nueva pestaña",
+                      });
+                    } catch (error) {
+                      console.error("Error generando reporte:", error);
+                      toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "No se pudo generar el reporte PDF",
+                      });
                     }
                   }}
                   disabled={inventoryLoading || !inventoryData?.inventory_report}
@@ -651,22 +646,160 @@ export function AdminReports() {
           </Card>
         </TabsContent>
 
-        {/* Entregas */}
-        <TabsContent value="deliveries">
+        {/* Top Vendedores */}
+        <TabsContent value="sellers">
           <Card>
             <CardHeader>
-              <CardTitle>Estado de Entregas</CardTitle>
-              <CardDescription>
-                Próximamente: Reporte de entregas pendientes y completadas
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Top Vendedores</CardTitle>
+                  <CardDescription className="mt-1.5">
+                    Período: {startDate} - {endDate}
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      toast({
+                        title: "Generando reporte...",
+                        description: "Por favor espera mientras se genera el PDF",
+                      });
+                      const pdfUrl = await reportsApi.generateTopSellersReport(startDate, endDate, 10);
+                      window.open(pdfUrl, '_blank');
+                      toast({
+                        title: "✅ Reporte generado",
+                        description: "El PDF se ha abierto en una nueva pestaña",
+                      });
+                    } catch (error) {
+                      console.error("Error generando reporte:", error);
+                      toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "No se pudo generar el reporte PDF",
+                      });
+                    }
+                  }}
+                  className="gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Ver PDF
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Esta sección estará disponible cuando haya datos de entregas.
-                  Actualmente no hay entregas pendientes:{' '}
-                  {statsData?.dashboard_stats?.pending_deliveries || 0}
+                  Usa el botón "Ver PDF" para generar el reporte de top vendedores.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Mejores Productos */}
+        <TabsContent value="products">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Mejores Productos</CardTitle>
+                  <CardDescription className="mt-1.5">
+                    Período: {startDate} - {endDate}
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      toast({
+                        title: "Generando reporte...",
+                        description: "Por favor espera mientras se genera el PDF",
+                      });
+                      const pdfUrl = await reportsApi.generateBestProductsReport(startDate, endDate, 10);
+                      window.open(pdfUrl, '_blank');
+                      toast({
+                        title: "✅ Reporte generado",
+                        description: "El PDF se ha abierto en una nueva pestaña",
+                      });
+                    } catch (error) {
+                      console.error("Error generando reporte:", error);
+                      toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "No se pudo generar el reporte PDF",
+                      });
+                    }
+                  }}
+                  className="gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Ver PDF
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Usa el botón "Ver PDF" para generar el reporte de mejores productos.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Entregas */}
+        <TabsContent value="deliveries">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Rendimiento de Entregas</CardTitle>
+                  <CardDescription className="mt-1.5">
+                    Período: {startDate} - {endDate}
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      toast({
+                        title: "Generando reporte...",
+                        description: "Por favor espera mientras se genera el PDF",
+                      });
+                      const pdfUrl = await reportsApi.generateDeliveryPerformanceReport(startDate, endDate);
+                      window.open(pdfUrl, '_blank');
+                      toast({
+                        title: "✅ Reporte generado",
+                        description: "El PDF se ha abierto en una nueva pestaña",
+                      });
+                    } catch (error) {
+                      console.error("Error generando reporte:", error);
+                      toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "No se pudo generar el reporte PDF",
+                      });
+                    }
+                  }}
+                  className="gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Ver PDF
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Usa el botón "Ver PDF" para generar el reporte de rendimiento de entregas.
+                  Pendientes: {statsData?.dashboard_stats?.pending_deliveries || 0}
                 </AlertDescription>
               </Alert>
             </CardContent>
