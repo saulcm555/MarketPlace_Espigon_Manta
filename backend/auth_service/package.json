@@ -1,0 +1,42 @@
+{
+  "name": "auth_service",
+  "version": "1.0.0",
+  "description": "Microservicio de Autenticación - MarketPlace Espigón Manta (Pilar 1)",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --clear src/main.ts",
+    "build": "rimraf ./dist && tsc",
+    "start": "node dist/main.js",
+    "start:prod": "npm run build && npm start",
+    "typeorm": "typeorm-ts-node-commonjs"
+  },
+  "keywords": ["auth", "jwt", "microservice", "marketplace"],
+  "author": "MarketPlace Espigón Manta Team",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.16.3",
+    "rate-limiter-flexible": "^9.0.1",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.28",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.0.3",
+    "@types/uuid": "^10.0.0",
+    "rimraf": "^6.1.2",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
+  }
+}
