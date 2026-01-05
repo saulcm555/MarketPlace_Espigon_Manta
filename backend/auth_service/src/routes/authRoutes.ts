@@ -3,74 +3,47 @@
  * Define todos los endpoints del Auth Service
  */
 
-import { Router, Request, Response } from "express";
+import { Router } from "express";
+import * as authController from "../controllers/authController";
+import { authMiddleware } from "../middlewares/authMiddleware";
+import { rateLimitLogin, rateLimitRegister, rateLimitRefresh } from "../middlewares/rateLimiter";
 
 const router = Router();
 
 // ============================================
 // POST /auth/register - Registro de usuarios
+// Rate Limit: 5 intentos por minuto
 // ============================================
-router.post("/register", async (req: Request, res: Response) => {
-  // TODO: Implementar en Fase 3
-  res.status(501).json({ 
-    message: "Endpoint en desarrollo",
-    endpoint: "POST /auth/register"
-  });
-});
+router.post("/register", rateLimitRegister, authController.register);
 
 // ============================================
 // POST /auth/login - Inicio de sesión
+// Rate Limit: 10 intentos por minuto
 // ============================================
-router.post("/login", async (req: Request, res: Response) => {
-  // TODO: Implementar en Fase 3
-  res.status(501).json({ 
-    message: "Endpoint en desarrollo",
-    endpoint: "POST /auth/login"
-  });
-});
+router.post("/login", rateLimitLogin, authController.login);
 
 // ============================================
 // POST /auth/logout - Cerrar sesión
+// Requiere: Bearer Token
 // ============================================
-router.post("/logout", async (req: Request, res: Response) => {
-  // TODO: Implementar en Fase 3
-  res.status(501).json({ 
-    message: "Endpoint en desarrollo",
-    endpoint: "POST /auth/logout"
-  });
-});
+router.post("/logout", authMiddleware, authController.logout);
 
 // ============================================
 // POST /auth/refresh - Renovar access token
+// Rate Limit: 30 intentos por minuto
 // ============================================
-router.post("/refresh", async (req: Request, res: Response) => {
-  // TODO: Implementar en Fase 3
-  res.status(501).json({ 
-    message: "Endpoint en desarrollo",
-    endpoint: "POST /auth/refresh"
-  });
-});
+router.post("/refresh", rateLimitRefresh, authController.refresh);
 
 // ============================================
 // GET /auth/me - Obtener usuario actual
+// Requiere: Bearer Token
 // ============================================
-router.get("/me", async (req: Request, res: Response) => {
-  // TODO: Implementar en Fase 3
-  res.status(501).json({ 
-    message: "Endpoint en desarrollo",
-    endpoint: "GET /auth/me"
-  });
-});
+router.get("/me", authMiddleware, authController.getMe);
 
 // ============================================
 // GET /auth/validate - Validar token (interno)
+// No requiere auth (valida el token que recibe)
 // ============================================
-router.get("/validate", async (req: Request, res: Response) => {
-  // TODO: Implementar en Fase 3
-  res.status(501).json({ 
-    message: "Endpoint en desarrollo",
-    endpoint: "GET /auth/validate"
-  });
-});
+router.get("/validate", authController.validate);
 
 export default router;

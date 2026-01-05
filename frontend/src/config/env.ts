@@ -6,6 +6,7 @@
 export const config = {
   // API Configuration
   apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  authServiceUrl: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:4001',
   wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:8081',
   
   // App Configuration
