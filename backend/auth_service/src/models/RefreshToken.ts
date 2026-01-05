@@ -14,7 +14,7 @@ import {
 } from "typeorm";
 import { User } from "./User";
 
-@Entity({ name: "refresh_tokens", schema: "auth" })
+@Entity({ name: "refresh_tokens", schema: "auth_service" })
 export class RefreshToken {
   @PrimaryGeneratedColumn("uuid")
   id!: string;

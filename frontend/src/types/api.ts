@@ -14,9 +14,26 @@ export interface LoginRequest {
   password: string;
 }
 
+// Respuesta del Auth Service (nuevo formato)
 export interface LoginResponse {
+  message: string;
+  user: User;
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}
+
+// Para compatibilidad con código existente
+export interface LegacyLoginResponse {
   token: string;
   user: User;
+}
+
+// Respuesta de refresh token
+export interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
 }
 
 export interface RegisterClientRequest {
@@ -36,15 +53,26 @@ export interface RegisterSellerRequest {
   location: string;
 }
 
+// Request para el Auth Service (nuevo formato unificado)
+export interface AuthRegisterRequest {
+  email: string;
+  password: string;
+  role: UserRole;
+  reference_id: number;
+  name?: string;
+}
+
 export interface User {
-  id: number;
+  id: number | string;  // Puede ser number (legacy) o string UUID (Auth Service)
   email: string;
   name: string;
   role: UserRole;
+  reference_id?: number;  // id_client, id_seller, o id_admin
   phone?: number;
   address?: string;
+  email_verified?: boolean;
   created_at?: string;
- // Para sellers
+  // Para sellers
   id_seller?: number;
   // Para clients
   id_client?: number;

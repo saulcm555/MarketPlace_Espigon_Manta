@@ -1,0 +1,608 @@
+openapi: 3.0.3
+info:
+  title: Auth Service API - MarketPlace Espigón Manta
+  description: |
+    ## Pilar 1: Microservicio de Autenticación
+    
+    API REST para autenticación y autorización del MarketPlace Espigón Manta.
+    
+    ### Características principales:
+    - 🔐 JWT Access Tokens (15 min) + Refresh Tokens (7 días)
+    - 🛡️ Rate Limiting para protección contra ataques
+    - 📝 Token Blacklist para logout seguro
+    - 🔄 Token Rotation en refresh
+    - 🏷️ Claims personalizados (role, reference_id)
+    
+    ### Roles soportados:
+    - `customer` - Cliente
+    - `seller` - Vendedor
+    - `delivery` - Repartidor
+    - `admin` - Administrador
+    
+    ### Integración con otros servicios:
+    Este servicio es consumido por:
+    - REST Service (NestJS)
+    - Realtime Service (Go)
+    - Frontend (React)
+  version: 1.0.0
+  contact:
+    name: MarketPlace Espigón Manta Team
+    email: soporte@marketplace-espigon.com
+  license:
+    name: ISC
+    url: https://opensource.org/licenses/ISC
+
+servers:
+  - url: http://localhost:4001
+    description: Servidor de desarrollo
+  - url: https://auth.marketplace-espigon.com
+    description: Servidor de producción
+
+tags:
+  - name: Auth
+    description: Endpoints de autenticación
+  - name: Internal
+    description: Endpoints internos para otros servicios
+  - name: Health
+    description: Health checks
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health Check
+      description: Verifica el estado del servicio
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: healthy
+                service: auth-service
+                timestamp: '2024-01-15T10:30:00.000Z'
+
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Registrar nuevo usuario
+      description: |
+        Registra un nuevo usuario en el sistema de autenticación.
+        
+        **Rate Limit:** 5 intentos por minuto
+        
+        La contraseña debe cumplir:
+        - Mínimo 8 caracteres
+        - Al menos una mayúscula
+        - Al menos una minúscula
+        - Al menos un número
+        - Al menos un carácter especial (@$!%*?&)
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: usuario@ejemplo.com
+              password: Password123!
+              role: customer
+              reference_id: cust_12345
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: El email ya está registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit excedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Iniciar sesión
+      description: |
+        Autentica un usuario y retorna tokens JWT.
+        
+        **Rate Limit:** 10 intentos por minuto (bloqueo de 5 minutos después)
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: usuario@ejemplo.com
+              password: Password123!
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit excedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refrescar tokens
+      description: |
+        Obtiene nuevos tokens usando el refresh token.
+        
+        El refresh token usado será invalidado y se generará uno nuevo
+        (Token Rotation para mayor seguridad).
+      operationId: refresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            example:
+              refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Tokens refrescados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Refresh token no proporcionado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Refresh token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Cerrar sesión
+      description: |
+        Cierra la sesión del usuario.
+        
+        - Revoca el access token actual
+        - Elimina el refresh token de la base de datos
+      operationId: logout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+            example:
+              refreshToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Sesión cerrada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Sesión cerrada exitosamente
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/verify:
+    get:
+      tags:
+        - Auth
+      summary: Verificar token
+      description: |
+        Verifica si el access token es válido y retorna información del usuario.
+        
+        Usado por el frontend para verificar sesión.
+      operationId: verify
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token válido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+        '401':
+          description: Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/validate:
+    post:
+      tags:
+        - Internal
+      summary: Validar token (Interno)
+      description: |
+        **Endpoint interno para otros microservicios.**
+        
+        Valida un token y retorna el payload completo.
+        
+        Usado por:
+        - REST Service para validar requests
+        - Realtime Service para validar conexiones WebSocket
+      operationId: validate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateRequest'
+            example:
+              token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Token válido con payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateResponse'
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: Token inválido o expirado
+
+  /api/auth/change-password:
+    post:
+      tags:
+        - Auth
+      summary: Cambiar contraseña
+      description: |
+        Cambia la contraseña del usuario autenticado.
+        
+        Requiere proporcionar la contraseña actual para verificación.
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+            example:
+              currentPassword: Password123!
+              newPassword: NewPassword456!
+      responses:
+        '200':
+          description: Contraseña actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Contraseña actualizada exitosamente
+        '400':
+          description: Nueva contraseña no cumple requisitos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Contraseña actual incorrecta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Access Token.
+        
+        Obtenerlo via /api/auth/login o /api/auth/register.
+        
+        Formato: `Bearer <token>`
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - role
+        - reference_id
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email único del usuario
+          example: usuario@ejemplo.com
+        password:
+          type: string
+          minLength: 8
+          description: |
+            Contraseña (mín 8 chars, 1 mayúscula, 1 minúscula, 1 número, 1 especial)
+          example: Password123!
+        role:
+          type: string
+          enum: [customer, seller, delivery, admin]
+          description: Rol del usuario
+          example: customer
+        reference_id:
+          type: string
+          description: ID de referencia en el sistema principal (REST Service)
+          example: cust_12345
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email del usuario
+          example: usuario@ejemplo.com
+        password:
+          type: string
+          description: Contraseña del usuario
+          example: Password123!
+
+    RefreshRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh token válido
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    LogoutRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh token a invalidar
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    ValidateRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          description: Access token a validar
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - currentPassword
+        - newPassword
+      properties:
+        currentPassword:
+          type: string
+          description: Contraseña actual
+          example: Password123!
+        newPassword:
+          type: string
+          minLength: 8
+          description: Nueva contraseña
+          example: NewPassword456!
+
+    AuthResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Usuario registrado exitosamente
+        user:
+          $ref: '#/components/schemas/UserInfo'
+        tokens:
+          $ref: '#/components/schemas/Tokens'
+
+    TokenResponse:
+      type: object
+      properties:
+        tokens:
+          $ref: '#/components/schemas/Tokens'
+
+    VerifyResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          example: true
+        user:
+          $ref: '#/components/schemas/UserInfo'
+
+    ValidateResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          example: true
+        payload:
+          $ref: '#/components/schemas/JWTPayload'
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          example: usuario@ejemplo.com
+        role:
+          type: string
+          enum: [customer, seller, delivery, admin]
+          example: customer
+        reference_id:
+          type: string
+          example: cust_12345
+
+    Tokens:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT Access Token (expira en 15 min)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refreshToken:
+          type: string
+          description: JWT Refresh Token (expira en 7 días)
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expiresIn:
+          type: integer
+          description: Tiempo de expiración del access token en segundos
+          example: 900
+
+    JWTPayload:
+      type: object
+      description: Payload del JWT decodificado
+      properties:
+        jti:
+          type: string
+          format: uuid
+          description: ID único del token
+          example: 550e8400-e29b-41d4-a716-446655440001
+        sub:
+          type: string
+          format: uuid
+          description: ID del usuario
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          example: usuario@ejemplo.com
+        role:
+          type: string
+          enum: [customer, seller, delivery, admin]
+          example: customer
+        reference_id:
+          type: string
+          description: ID de referencia en el sistema principal
+          example: cust_12345
+        iss:
+          type: string
+          description: Emisor del token
+          example: auth-service
+        aud:
+          type: string
+          description: Audiencia del token
+          example: marketplace-espigon
+        iat:
+          type: integer
+          description: Timestamp de emisión
+          example: 1705312200
+        exp:
+          type: integer
+          description: Timestamp de expiración
+          example: 1705313100
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: healthy
+        service:
+          type: string
+          example: auth-service
+        timestamp:
+          type: string
+          format: date-time
+          example: '2024-01-15T10:30:00.000Z'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Mensaje de error
+          example: Credenciales inválidas
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+          description: Detalles de errores de validación

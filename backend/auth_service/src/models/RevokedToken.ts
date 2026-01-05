@@ -11,7 +11,7 @@ import {
   Index,
 } from "typeorm";
 
-@Entity({ name: "revoked_tokens", schema: "auth" })
+@Entity({ name: "revoked_tokens", schema: "auth_service" })
 export class RevokedToken {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
