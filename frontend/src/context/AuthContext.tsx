@@ -1,16 +1,20 @@
 /**
  * Authentication Context
  * Maneja el estado global de autenticación del usuario
+ * ACTUALIZADO: Soporte para access + refresh tokens (Pilar 1)
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { 
   login as apiLogin, 
   logout as apiLogout, 
   saveAuthData,
   getSavedUser,
   getAuthToken,
-  verifyToken 
+  getRefreshToken,
+  verifyToken,
+  refreshTokens,
+  isTokenExpiringSoon
 } from '@/api/auth';
 import { clearLoginAttempts } from '@/utils/securityConfig';
 import type { User, UserRole, LoginRequest, LoginResponse } from '@/types/api';
@@ -25,8 +29,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (credentials: LoginRequest, role: UserRole) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateUser: (user: User) => void;
+  refreshAuth: () => Promise<boolean>;
 }
 
 // ============================================
@@ -49,6 +54,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   // ============================================
+  // Refresh Auth - Refrescar tokens si es necesario
+  // ============================================
+  const refreshAuth = useCallback(async (): Promise<boolean> => {
+    const currentRefreshToken = getRefreshToken();
+    
+    if (!currentRefreshToken) {
+      return false;
+    }
+    
+    try {
+      const tokenResponse = await refreshTokens();
+      
+      if (tokenResponse) {
+        setToken(tokenResponse.access_token);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error refreshing auth:', error);
+      return false;
+    }
+  }, []);
+
+  // ============================================
   // Initialize auth state from localStorage
   // ============================================
   useEffect(() => {
@@ -58,27 +88,64 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const savedUser = getSavedUser();
 
         if (savedToken && savedUser) {
-          // Verify token is still valid
-          const { valid } = await verifyToken();
-          
-          if (valid) {
-            setToken(savedToken);
-            setUser(savedUser);
+          // Verificar si el token está próximo a expirar
+          if (isTokenExpiringSoon()) {
+            console.log('🔄 Token próximo a expirar, refrescando...');
+            const refreshed = await refreshAuth();
+            
+            if (refreshed) {
+              setToken(getAuthToken());
+              setUser(savedUser);
+            } else {
+              // No se pudo refrescar, verificar token actual
+              const { valid } = await verifyToken();
+              
+              if (valid) {
+                setToken(savedToken);
+                setUser(savedUser);
+              } else {
+                await apiLogout();
+              }
+            }
           } else {
-            // Token expired, clear auth
-            apiLogout();
+            // Token aún válido
+            const { valid, user: verifiedUser } = await verifyToken();
+            
+            if (valid) {
+              setToken(savedToken);
+              setUser(verifiedUser || savedUser);
+            } else {
+              await apiLogout();
+            }
           }
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        apiLogout();
+        await apiLogout();
       } finally {
         setIsLoading(false);
       }
     };
 
     initAuth();
-  }, []);
+  }, [refreshAuth]);
+
+  // ============================================
+  // Auto-refresh timer (cada 13 minutos)
+  // ============================================
+  useEffect(() => {
+    if (!token) return;
+    
+    // Refrescar 2 minutos antes de que expire (tokens de 15 min)
+    const refreshInterval = setInterval(async () => {
+      if (isTokenExpiringSoon()) {
+        console.log('🔄 Auto-refresh de token...');
+        await refreshAuth();
+      }
+    }, 13 * 60 * 1000); // 13 minutos
+    
+    return () => clearInterval(refreshInterval);
+  }, [token, refreshAuth]);
 
   // ============================================
   // Login Function
@@ -87,12 +154,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response: LoginResponse = await apiLogin(credentials, role);
       
+      // Determinar el token a usar (nuevo formato vs legacy)
+      const accessToken = response.access_token || (response as any).token;
+      const refreshToken = response.refresh_token;
+      const expiresIn = response.expires_in;
+      
       // Save to state
-      setToken(response.token);
+      setToken(accessToken);
       setUser(response.user);
       
       // Save to localStorage
-      saveAuthData(response.token, response.user);
+      saveAuthData(accessToken, response.user, refreshToken, expiresIn);
       
       // Limpiar intentos fallidos de login para este email
       clearLoginAttempts(credentials.email);
@@ -106,10 +178,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================
   // Logout Function
   // ============================================
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    apiLogout();
+  const logout = async () => {
+    try {
+      await apiLogout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setToken(null);
+      setUser(null);
+    }
   };
 
   // ============================================
@@ -131,6 +208,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     updateUser,
+    refreshAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
