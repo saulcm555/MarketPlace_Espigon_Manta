@@ -15,3 +15,8 @@ class OrderModel(BaseModel):
     id_delivery: Optional[int] = None
     payment_receipt_url: Optional[str] = None  # URL del comprobante de pago
     payment_verified_at: Optional[datetime] = None  # Fecha de verificación del pago
+    
+    # Payment Service fields (Pilar 2)
+    transaction_id: Optional[str] = None  # ID de transacción del Payment Service
+    payment_status: Optional[str] = None  # Estado del pago: pending, paid, failed
+    payment_error: Optional[str] = None  # Mensaje de error si el pago falló

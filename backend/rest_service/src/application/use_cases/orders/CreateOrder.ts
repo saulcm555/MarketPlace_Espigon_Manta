@@ -8,6 +8,7 @@ import { ProductEntity } from "../../../models/productModel";
 import { PaymentMethodEntity } from "../../../models/paymentMethodModel";
 import { notifyOrderCreated } from "../../../infrastructure/clients/notificationClient";
 import { notifySellerStatsUpdated, notifyAdminStatsUpdated } from "../../../infrastructure/clients/statsEventClient";
+import { processPayment } from "../../../infrastructure/clients/paymentClient";
 
 /**
  * Caso de uso para crear una nueva orden a partir de un carrito
@@ -147,6 +148,64 @@ export class CreateOrder {
       }
 
       await queryRunner.commitTransaction();
+
+      // 💳 PROCESAR PAGO AUTOMÁTICO: Solo para tarjetas de crédito/débito
+      // Obtener el método de pago para verificar si requiere procesamiento automático
+      const paymentMethodRepo = AppDataSource.getRepository(PaymentMethodEntity);
+      const selectedPaymentMethod = await paymentMethodRepo.findOne({
+        where: { id_payment_method: data.id_payment_method }
+      });
+
+      const isCardPayment = selectedPaymentMethod?.method_name?.toLowerCase().includes('tarjeta');
+      const isTransfer = selectedPaymentMethod?.method_name?.toLowerCase().includes('transferencia');
+
+      if (isCardPayment) {
+        // Procesar pago automáticamente con Payment Service
+        console.log(`💳 Procesando pago con tarjeta para orden ${savedOrder.id_order}...`);
+        
+        const paymentResult = await processPayment({
+          orderId: savedOrder.id_order,
+          customerId: data.id_client,
+          amount: total_amount,
+          currency: "USD",
+          description: `Orden #${savedOrder.id_order} - ${data.productOrders?.length || 0} producto(s)`,
+          metadata: {
+            delivery_type: data.delivery_type,
+            payment_method_id: data.id_payment_method,
+            items_count: data.productOrders?.length || 0
+          }
+        });
+
+        // Actualizar orden con resultado del pago
+        if (paymentResult.success) {
+          await orderRepo.update(savedOrder.id_order, {
+            status: "confirmed",
+            payment_status: "paid",
+            transaction_id: paymentResult.transactionId
+          });
+          savedOrder.status = "confirmed";
+          (savedOrder as any).payment_status = "paid";
+          (savedOrder as any).transaction_id = paymentResult.transactionId;
+          
+          console.log(`✅ Pago con tarjeta exitoso para orden ${savedOrder.id_order} - Transacción: ${paymentResult.transactionId}`);
+        } else {
+          await orderRepo.update(savedOrder.id_order, {
+            status: "payment_failed",
+            payment_status: "failed",
+            payment_error: paymentResult.errorMessage || "Error desconocido"
+          });
+          savedOrder.status = "payment_failed";
+          (savedOrder as any).payment_status = "failed";
+          (savedOrder as any).payment_error = paymentResult.errorMessage || "Error desconocido";
+          
+          console.error(`❌ Pago con tarjeta fallido para orden ${savedOrder.id_order}: ${paymentResult.errorMessage}`);
+        }
+      } else {
+        // Para efectivo, transferencia, etc. - NO procesar pago automáticamente
+        console.log(`📋 Orden ${savedOrder.id_order} creada con método de pago manual (${selectedPaymentMethod?.method_name})`);
+        // El estado ya fue establecido correctamente en initialStatus
+        // No hacer nada más, dejar que el flujo manual siga
+      }
 
       // Retornar la orden con sus productOrders
       const orderWithProducts = await orderRepo.findOne({
