@@ -1,15 +1,74 @@
-/.env
+# ============================================
+# Variables de Entorno (NUNCA subir al repo)
+# ============================================
+.env
+.env.local
+.env.*.local
+**/.env
 backend/.env
-backend/gateway_service/marketplace.sqlite
-backend/rest_service/node_modules
-/backend/rest_service/dist
-node_modules
-marketplace.sqlite
+backend/auth_service/.env
 backend/rest_service/.env
+backend/payment_service/.env
+backend/mcp_service/.env
+backend/report_service/.env
+backend/realtime_service/.env
+frontend/.env
 
+# ============================================
+# Dependencias
+# ============================================
+node_modules/
+**/node_modules/
+
+# ============================================
+# Build outputs
+# ============================================
+dist/
+**/dist/
+dist-ssr/
+backend/rest_service/dist
+
+# ============================================
+# Bases de datos locales
+# ============================================
+*.sqlite
+*.sqlite3
+marketplace.sqlite
+backend/gateway_service/marketplace.sqlite
+
+# ============================================
+# Uploads (archivos subidos por usuarios)
+# ============================================
+uploads/
+**/uploads/
+
+# ============================================
+# Logs
+# ============================================
+*.log
+logs/
+**/logs/
+
+# ============================================
 # Go binaries
+# ============================================
+*.exe
 /backend/realtime_service/*.exe
 /backend/realtime_service/bin/
 backend/realtime_service/api.exe
 backend/realtime_service/main.exe
-backend/realtime_service/.env
+
+# ============================================
+# Docker
+# ============================================
+.dockerignore
+
+# ============================================
+# IDEs y editores
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store

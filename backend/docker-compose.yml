@@ -1,0 +1,281 @@
+# ============================================
+# Docker Compose - MarketPlace Espigón Manta
+# Orquestación de todos los microservicios
+# ============================================
+
+networks:
+  marketplace-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:
+
+services:
+  # ==========================================
+  # Infraestructura - Redis
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: marketplace-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - marketplace-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # Auth Service (Puerto 4001)
+  # ==========================================
+  auth-service:
+    build:
+      context: ./auth_service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: unless-stopped
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=4001
+      # JWT Configuration
+      - JWT_SECRET=${JWT_SECRET:-supersecreto123}
+      - JWT_ACCESS_EXPIRES_IN=${JWT_ACCESS_EXPIRES_IN:-15m}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
+      - JWT_ISSUER=auth-service
+      - JWT_AUDIENCE=marketplace-espigon
+      # Database (Supabase)
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE:-postgres}
+      - DB_SCHEMA=${DB_SCHEMA_AUTH:-auth_service}
+      # Rate Limiting
+      - RATE_LIMIT_LOGIN_POINTS=10
+      - RATE_LIMIT_LOGIN_DURATION=60
+      - RATE_LIMIT_LOGIN_BLOCK_DURATION=300
+      - RATE_LIMIT_REGISTER_POINTS=5
+      - RATE_LIMIT_REGISTER_DURATION=60
+      - RATE_LIMIT_REGISTER_BLOCK_DURATION=600
+      # Bcrypt
+      - BCRYPT_SALT_ROUNDS=10
+      # REST Service URL
+      - REST_SERVICE_URL=http://rest-service:3000
+    networks:
+      - marketplace-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================
+  # REST Service (Puerto 3000)
+  # ==========================================
+  rest-service:
+    build:
+      context: ./rest_service
+      dockerfile: Dockerfile
+    container_name: rest-service
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3000
+      # Database (Supabase) - rest-service usa DB_USER y DB_NAME
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-6543}
+      - DB_USER=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_DATABASE:-postgres}
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis:6379
+      # Supabase Storage
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      # JWT
+      - JWT_SECRET=${JWT_SECRET:-supersecreto123}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      # WebSocket Service
+      - REALTIME_SERVICE_URL=http://realtime-service:8080
+      # Admin Seed
+      - ADMIN_NAME=${ADMIN_NAME:-Saul Castro}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-saulcastrocm@hotmail.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-SuperContraseña123}
+      - ADMIN_PHONE=${ADMIN_PHONE:-0987280590}
+    depends_on:
+      - redis
+    networks:
+      - marketplace-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ==========================================
+  # Payment Service (Puerto 3001)
+  # ==========================================
+  payment-service:
+    build:
+      context: ./payment_service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3001
+      # Database (Supabase)
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE:-postgres}
+      - DB_SCHEMA=${DB_SCHEMA_PAYMENT:-public}
+      # Payment Provider
+      - PAYMENT_PROVIDER=${PAYMENT_PROVIDER:-mock}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      # Webhooks
+      - WEBHOOK_TIMEOUT=${WEBHOOK_TIMEOUT:-10000}
+      - WEBHOOK_RETRY_ATTEMPTS=${WEBHOOK_RETRY_ATTEMPTS:-3}
+      # Internal API Key
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+    networks:
+      - marketplace-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================
+  # Report Service - GraphQL (Puerto 4000)
+  # ==========================================
+  report-service:
+    build:
+      context: ./report_service
+      dockerfile: Dockerfile
+    container_name: report-service
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}
+    networks:
+      - marketplace-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================
+  # Realtime Service - WebSocket (Puerto 8080)
+  # ==========================================
+  realtime-service:
+    build:
+      context: ./realtime_service
+      dockerfile: Dockerfile
+    container_name: realtime-service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ENVIRONMENT=${NODE_ENV:-development}
+      - JWT_SECRET=${JWT_SECRET:-supersecreto123}
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    depends_on:
+      - redis
+    networks:
+      - marketplace-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================
+  # MCP Service - Chatbot IA (Puerto 3003)
+  # ==========================================
+  mcp-service:
+    build:
+      context: ./mcp_service
+      dockerfile: Dockerfile
+    container_name: mcp-service
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3003
+      - REST_SERVICE_URL=http://rest-service:3000
+      - PAYMENT_SERVICE_URL=http://payment-service:3001
+      # API Keys para IA
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      - rest-service
+      - payment-service
+    networks:
+      - marketplace-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# ==========================================
+# Notas de Uso
+# ==========================================
+# 
+# Iniciar todos los servicios:
+#   docker-compose up -d
+#
+# Ver logs de todos los servicios:
+#   docker-compose logs -f
+#
+# Ver logs de un servicio específico:
+#   docker-compose logs -f auth-service
+#
+# Detener todos los servicios:
+#   docker-compose down
+#
+# Reconstruir imágenes y reiniciar:
+#   docker-compose up -d --build
+#
+# Ver estado de los servicios:
+#   docker-compose ps
+#
+# Puertos:
+#   - Auth Service:     http://localhost:4001
+#   - REST Service:     http://localhost:3000
+#   - Payment Service:  http://localhost:3001
+#   - Report Service:   http://localhost:4000
+#   - Realtime Service: ws://localhost:8080
+#   - MCP Service:      http://localhost:3003
+#   - Redis:            localhost:6379
+# ==========================================

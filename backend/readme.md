@@ -2,36 +2,88 @@
 
 ## 📋 Descripción General
 
-El **backend** del MarketPlace Espigón Manta es una **arquitectura de microservicios** robusta y escalable que combina tres servicios especializados trabajando en conjunto para proporcionar todas las funcionalidades del marketplace. Esta arquitectura permite separación de responsabilidades, escalabilidad independiente y mejor mantenibilidad.
+El **backend** del MarketPlace Espigón Manta es una **arquitectura de microservicios** robusta y escalable que combina seis servicios especializados trabajando en conjunto para proporcionar todas las funcionalidades del marketplace. Esta arquitectura permite separación de responsabilidades, escalabilidad independiente y mejor mantenibilidad.
+
+## 🐳 Inicio Rápido con Docker
+
+¡Ahora puedes iniciar todos los microservicios con un solo comando usando Docker Compose!
+
+```bash
+# 1. Configurar variables de entorno
+cd backend
+cp .env.example .env
+# Edita .env con tus credenciales
+
+# 2. Iniciar todos los servicios
+docker-compose up -d
+
+# 3. Ver estado
+docker-compose ps
+
+# O usa el script de PowerShell
+.\docker-manager.ps1 start
+```
+
+📖 **[Ver documentación completa de Docker](./DOCKER_COMPOSE_README.md)**
+
+### Puertos de los Servicios
+
+| Servicio | Puerto | URL |
+|----------|--------|-----|
+| Auth Service | 4001 | http://localhost:4001 |
+| REST Service | 3000 | http://localhost:3000 |
+| Payment Service | 3001 | http://localhost:3001 |
+| Report Service | 4000 | http://localhost:4000 |
+| Realtime Service | 8080 | ws://localhost:8080 |
+| MCP Service | 3003 | http://localhost:3003 |
+| Redis | 6379 | localhost:6379 |
 
 ## 🏗️ Arquitectura de Microservicios
 
-El backend está compuesto por **tres servicios principales**, cada uno con su propósito específico:
+El backend está compuesto por **seis servicios principales**, cada uno con su propósito específico:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        FRONTEND                              │
-│                   (React + TypeScript)                       │
-└────────┬─────────────────┬──────────────────┬───────────────┘
-         │                 │                  │
-         │ REST API        │ GraphQL          │ WebSocket
-         ▼                 ▼                  ▼
-┌────────────────┐  ┌───────────────┐  ┌──────────────────┐
-│  REST SERVICE  │  │ REPORT SERVICE│  │ REALTIME SERVICE │
-│  (Node.js/TS)  │  │ (Python/FastAPI)│ │    (Go)          │
-│                │  │                │  │                  │
-│  Puerto: 3000  │  │  Puerto: 4000  │  │  Puerto: 8080    │
-└────────┬───────┘  └───────┬───────┘  └────────┬─────────┘
-         │                  │                    │
-         │ TypeORM          │ HTTP Client        │ Redis Pub/Sub
-         ▼                  ▼                    ▼
-┌─────────────────┐  ┌────────────────┐  ┌──────────────┐
-│   PostgreSQL    │  │   PostgreSQL   │  │    Redis     │
-│   (Base Datos)  │◄─┤  (Read Only)   │  │  (Pub/Sub)   │
-└─────────────────┘  └────────────────┘  └──────────────┘
-         ▲
-         │
-         └──────────── Supabase Storage (Archivos)
+┌─────────────────────────────────────────────────────────────────────┐
+│                           FRONTEND                                   │
+│                      (React + TypeScript)                            │
+└────┬──────────┬───────────┬──────────┬──────────┬──────────┬────────┘
+     │          │           │          │          │          │
+     │ REST     │ Auth      │ Payment  │ GraphQL  │ WebSocket│ AI Chat
+     ▼          ▼           ▼          ▼          ▼          ▼
+┌─────────┐┌─────────┐┌──────────┐┌─────────┐┌──────────┐┌─────────┐
+│  REST   ││  AUTH   ││ PAYMENT  ││ REPORT  ││ REALTIME ││   MCP   │
+│ SERVICE ││ SERVICE ││ SERVICE  ││ SERVICE ││ SERVICE  ││ SERVICE │
+│Node.js  ││Node.js  ││ Node.js  ││ Python  ││   Go     ││Node.js  │
+│:3000    ││:4001    ││  :3001   ││ :4000   ││  :8080   ││:3003    │
+└────┬────┘└────┬────┘└─────┬────┘└────┬────┘└─────┬────┘└────┬────┘
+     │          │            │          │           │          │
+     └──────────┴────────────┴──────────┴───────────┴──────────┘
+                             │                      │
+                             ▼                      ▼
+                    ┌─────────────────┐    ┌──────────────┐
+                    │   PostgreSQL    │    │    Redis     │
+                    │   (Supabase)    │    │  (Cache)     │
+                    └─────────────────┘    └──────────────┘
+```
+
+### Comunicación entre Servicios
+
+```
+Auth Service  ──JWT──►  REST Service  ──HTTP──►  Payment Service
+     │                       │                          │
+     │                       ▼                          ▼
+     │              ┌─────────────────┐        ┌──────────────┐
+     │              │  Report Service │        │  Webhooks    │
+     │              │    (GraphQL)    │        │  (External)  │
+     │              └─────────────────┘        └──────────────┘
+     │                       │
+     ▼                       ▼
+┌────────────────────────────────────┐
+│        Realtime Service            │
+│  (WebSocket + Redis Pub/Sub)       │
+│  - Notificaciones en tiempo real   │
+│  - Chat entre usuarios              │
+└────────────────────────────────────┘
 ```
 
 ## 🎯 Servicios del Backend
@@ -146,6 +198,100 @@ Servicio de comunicación en tiempo real mediante WebSockets para notificaciones
 **🌐 Puerto:** 8080
 
 **📚 Documentación:** Ver `realtime_service/README.md`
+
+---
+
+### 4️⃣ Auth Service - Servicio de Autenticación (Node.js/TypeScript)
+
+**📂 Ubicación:** `/backend/auth_service`
+
+**🎯 Propósito:** 
+Servicio especializado en autenticación y autorización con JWT, manejo de sesiones y seguridad de usuarios.
+
+**🔧 Tecnologías:**
+- **Node.js** + **TypeScript** 5.9.2
+- **Express** 5.2.1
+- **TypeORM** 0.3.28
+- **JWT** 9.0.3 (JSON Web Tokens)
+- **Bcrypt** 6.0.0 (Hash de contraseñas)
+- **Rate Limiter** (Protección contra ataques)
+
+**⚡ Funcionalidades:**
+- ✅ Registro de usuarios (Admin, Seller, Client)
+- ✅ Login con JWT (Access + Refresh tokens)
+- ✅ Renovación automática de tokens
+- ✅ Logout con blacklist de tokens
+- ✅ Rate limiting por endpoint
+- ✅ Validación de datos robusta
+- ✅ Hash seguro de contraseñas (bcrypt)
+- ✅ Protección contra ataques de fuerza bruta
+- ✅ Integración con REST Service
+
+**🌐 Puerto:** 4001
+
+**📚 Documentación:** Ver `auth_service/README.md`
+
+---
+
+### 5️⃣ Payment Service - Servicio de Pagos (Node.js/TypeScript)
+
+**📂 Ubicación:** `/backend/payment_service`
+
+**🎯 Propósito:** 
+Servicio especializado en procesamiento de pagos, webhooks B2B y gestión de transacciones con proveedores externos.
+
+**🔧 Tecnologías:**
+- **Node.js** + **TypeScript** 5.3.3
+- **Express** 4.18.2
+- **PostgreSQL** (TypeORM style)
+- **Stripe** 14.0.0 (Procesador de pagos)
+- **Axios** 1.6.0 (Cliente HTTP)
+- **Webhooks** (B2B Integration)
+
+**⚡ Funcionalidades:**
+- ✅ Procesamiento de pagos con Stripe
+- ✅ Modo Mock para desarrollo/testing
+- ✅ Sistema de webhooks entrantes (socios externos)
+- ✅ Sistema de webhooks salientes (notificaciones)
+- ✅ Gestión de socios comerciales (partners)
+- ✅ Registro de eventos de pago
+- ✅ Reintentos automáticos en webhooks
+- ✅ Firma y verificación de webhooks
+- ✅ API REST para consultas de pagos
+
+**🌐 Puerto:** 3001
+
+**📚 Documentación:** Ver `payment_service/README.md`
+
+---
+
+### 6️⃣ MCP Service - Servicio de Chatbot con IA (Node.js/TypeScript)
+
+**📂 Ubicación:** `/backend/mcp_service`
+
+**🎯 Propósito:** 
+Servicio de chatbot inteligente que utiliza IA (OpenAI/Anthropic) para interactuar con usuarios y asistir en operaciones del marketplace.
+
+**🔧 Tecnologías:**
+- **Node.js** + **TypeScript** 5.3.0
+- **Express** 4.18.2
+- **Axios** 1.6.0
+- **OpenAI API** (GPT-4)
+- **Anthropic Claude API**
+
+**⚡ Funcionalidades:**
+- ✅ Chat conversacional con IA
+- ✅ Consultas de productos
+- ✅ Asistencia en pedidos
+- ✅ Integración con REST Service
+- ✅ Integración con Payment Service
+- ✅ Procesamiento de lenguaje natural
+- ✅ Contexto de conversación
+- ✅ Respuestas multimodales
+
+**🌐 Puerto:** 3003
+
+**📚 Documentación:** Ver `mcp_service/README.md`
 
 ---
 
