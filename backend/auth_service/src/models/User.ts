@@ -33,11 +33,7 @@ export class User {
   })
   role!: "client" | "seller" | "admin";
 
-  @Index()
-  @Column({ type: "int", name: "reference_id" })
-  reference_id!: number; // id_client, id_seller, o id_admin
-
-  @Column({ type: "varchar", length: 100, nullable: true })
+  @Column({ type: "varchar", length: 100 })
   name!: string;
 
   @Column({ type: "boolean", default: true, name: "is_active" })

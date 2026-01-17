@@ -11,14 +11,14 @@ import { verifyAccessToken, TokenError } from "../services/tokenService";
 // ============================================
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { email, password, role, reference_id, name } = req.body;
+    const { email, password, role, name } = req.body;
 
     // Validaciones básicas
-    if (!email || !password || !role || !reference_id) {
+    if (!email || !password || !role || !name) {
       res.status(400).json({
         error: "Faltan campos requeridos",
         code: "MISSING_FIELDS",
-        required: ["email", "password", "role", "reference_id"],
+        required: ["email", "password", "role", "name"],
       });
       return;
     }
@@ -36,7 +36,6 @@ export async function register(req: Request, res: Response, next: NextFunction):
       email,
       password,
       role,
-      reference_id,
       name,
     });
 
@@ -175,7 +174,6 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
         id: userData.id,
         email: userData.email,
         role: userData.role,
-        reference_id: userData.reference_id,
         name: userData.name,
         email_verified: userData.email_verified,
         created_at: userData.created_at,
@@ -229,7 +227,6 @@ export async function validate(req: Request, res: Response, next: NextFunction):
           id: decoded.sub,
           email: decoded.email,
           role: decoded.role,
-          reference_id: decoded.reference_id,
         },
         expires_at: new Date(decoded.exp * 1000).toISOString(),
       });

@@ -32,8 +32,7 @@ export interface RegisterData {
   email: string;
   password: string;
   role: "client" | "seller" | "admin";
-  reference_id: number;
-  name?: string;
+  name: string;
 }
 
 export interface LoginData {
@@ -46,7 +45,6 @@ export interface AuthResponse {
     id: string;
     email: string;
     role: string;
-    reference_id: number;
     name: string;
   };
   access_token: string;
@@ -81,8 +79,7 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
     email: data.email,
     password_hash,
     role: data.role,
-    reference_id: data.reference_id,
-    name: data.name || "",
+    name: data.name,
     is_active: true,
     email_verified: false,
   });
@@ -100,7 +97,6 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
       id: user.id,
       email: user.email,
       role: user.role,
-      reference_id: user.reference_id,
       name: user.name,
     },
     ...tokens,
@@ -161,7 +157,6 @@ export async function login(data: LoginData, deviceInfo?: DeviceInfo): Promise<A
       id: user.id,
       email: user.email,
       role: user.role,
-      reference_id: user.reference_id,
       name: user.name,
     },
     ...tokens,
@@ -260,7 +255,7 @@ export async function refreshTokens(refreshToken: string, deviceInfo?: DeviceInf
 export async function getMe(userId: string): Promise<User | null> {
   return userRepository().findOne({
     where: { id: userId },
-    select: ["id", "email", "role", "reference_id", "name", "is_active", "email_verified", "created_at"],
+    select: ["id", "email", "role", "name", "is_active", "email_verified", "created_at"],
   });
 }
 

@@ -7,6 +7,9 @@ export class SellerEntity {
 	@PrimaryGeneratedColumn({ name: "id_seller" })
 	id_seller!: number;
 
+	@Column({ name: "user_id", type: "uuid", nullable: true })
+	user_id?: string; // Vincula con auth_service.users.id
+
 	@Column({ name: "seller_name", length: 100 })
 	@Length(3, 100)
 	seller_name!: string;

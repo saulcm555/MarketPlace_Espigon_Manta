@@ -6,6 +6,9 @@ export class AdminEntity {
 	@PrimaryGeneratedColumn({ name: "id_admin" })
 	id_admin!: number;
 
+	@Column({ name: "user_id", type: "uuid", nullable: true })
+	user_id?: string; // Vincula con auth_service.users.id
+
 	@Column({ name: "admin_name", length: 100 })
 	@Length(3, 100)
 	admin_name!: string;

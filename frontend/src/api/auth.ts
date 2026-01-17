@@ -1,11 +1,10 @@
 /**
  * Authentication API
  * Maneja login, registro y verificación de usuarios
- * ACTUALIZADO: Ahora usa Auth Service (Pilar 1) en puerto 4001
+ * ACTUALIZADO: 100% Auth Service (Pilar 1) - Sin fallbacks
  */
 
 import axios from 'axios';
-import apiClient from './client';
 import { config } from '@/config/env';
 import type { 
   LoginRequest, 
@@ -38,116 +37,48 @@ const USER_KEY = 'user';
 const TOKEN_EXPIRY_KEY = 'token_expiry';
 
 // ============================================
-// Login Endpoints (Auth Service Directo)
+// Login Endpoints (Solo Auth Service)
 // ============================================
 
 /**
- * Login unificado via Auth Service
- * El Auth Service maneja todos los tipos de usuarios
+ * Login unificado - Todos los usuarios (client/seller/admin) usan el mismo endpoint
  */
-export const loginViaAuthService = async (credentials: LoginRequest): Promise<LoginResponse> => {
+export const login = async (credentials: LoginRequest): Promise<LoginResponse> => {
   const response = await authClient.post<LoginResponse>('/auth/login', credentials);
   return response.data;
 };
 
-/**
- * Login para clientes (via REST Service para compatibilidad)
- * Este endpoint crea el usuario en Auth Service si no existe
- */
-export const loginClient = async (credentials: LoginRequest): Promise<LoginResponse> => {
-  // Primero intentamos login directo en Auth Service
-  try {
-    return await loginViaAuthService(credentials);
-  } catch (error: any) {
-    // Si el usuario no existe en Auth Service, usar REST Service
-    if (error.response?.status === 401) {
-      const response = await apiClient.post<LoginResponse>('/auth/login/client', credentials);
-      return response.data;
-    }
-    throw error;
-  }
-};
-
-/**
- * Login para vendedores
- */
-export const loginSeller = async (credentials: LoginRequest): Promise<LoginResponse> => {
-  try {
-    return await loginViaAuthService(credentials);
-  } catch (error: any) {
-    if (error.response?.status === 401) {
-      const response = await apiClient.post<LoginResponse>('/auth/login/seller', credentials);
-      return response.data;
-    }
-    throw error;
-  }
-};
-
-/**
- * Login para administradores
- */
-export const loginAdmin = async (credentials: LoginRequest): Promise<LoginResponse> => {
-  try {
-    return await loginViaAuthService(credentials);
-  } catch (error: any) {
-    if (error.response?.status === 401) {
-      const response = await apiClient.post<LoginResponse>('/auth/login/admin', credentials);
-      return response.data;
-    }
-    throw error;
-  }
-};
-
-/**
- * Login genérico - detecta el tipo de usuario automáticamente
- */
-export const login = async (credentials: LoginRequest, role: UserRole = 'client'): Promise<LoginResponse> => {
-  switch (role) {
-    case 'client':
-      return loginClient(credentials);
-    case 'seller':
-      return loginSeller(credentials);
-    case 'admin':
-      return loginAdmin(credentials);
-    default:
-      return loginClient(credentials);
-  }
-};
+// Alias para compatibilidad
+export const loginClient = login;
+export const loginSeller = login;
+export const loginAdmin = login;
 
 // ============================================
-// Register Endpoints
+// Register Endpoints (Auth Service + REST Service en 2 pasos)
 // ============================================
 
 /**
- * Registrar nuevo cliente
- * 1. Crea el cliente en REST Service
- * 2. Registra en Auth Service para JWT
+ * Registrar nuevo usuario
+ * Paso 1: POST /auth/register en Auth Service (crea user con JWT)
+ * Paso 2: Frontend debe crear perfil (client/seller/admin) en REST Service con user_id del token
  */
-export const registerClient = async (data: RegisterClientRequest): Promise<LoginResponse> => {
-  // Registrar en REST Service (crea el cliente en la BD principal)
-  const response = await apiClient.post<any>('/auth/register/client', data);
-  
-  // Si el REST Service retorna el formato nuevo del Auth Service, usarlo
-  if (response.data.access_token) {
-    return response.data as LoginResponse;
-  }
-  
-  // Si es formato legacy, intentar login en Auth Service
-  try {
-    const authResponse = await loginViaAuthService({
-      email: data.email,
-      password: data.password
-    });
-    return authResponse;
-  } catch {
-    // Fallback: retornar respuesta del REST Service
-    return response.data;
-  }
+export const register = async (data: {
+  email: string;
+  password: string;
+  role: 'client' | 'seller' | 'admin';
+  name: string;
+}): Promise<LoginResponse> => {
+  const response = await authClient.post<LoginResponse>('/auth/register', data);
+  return response.data;
 };
 
-/**
- * Registrar nuevo vendedor
- */
+// Alias para compatibilidad (el frontend debe llamar a REST Service después con el user_id)
+export const registerClient = register;
+export const registerSeller = register;
+
+// ============================================
+// Token Refresh
+// ============================================
 export const registerSeller = async (data: RegisterSellerRequest): Promise<LoginResponse> => {
   const response = await apiClient.post<any>('/auth/register/seller', data);
   

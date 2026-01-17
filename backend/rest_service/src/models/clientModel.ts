@@ -7,6 +7,9 @@ export class ClientEntity {
 	@PrimaryGeneratedColumn({ name: "id_client" })
 	id_client!: number;
 
+	@Column({ name: "user_id", type: "uuid", nullable: true })
+	user_id?: string; // Vincula con auth_service.users.id
+
 	@Column({ name: "client_name", length: 100 })
 	@Length(3, 100)
 	client_name!: string;

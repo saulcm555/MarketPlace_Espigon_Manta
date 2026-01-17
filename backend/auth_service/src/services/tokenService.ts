@@ -10,10 +10,9 @@ import { User } from "../models/User";
 // Tipos de payload
 export interface AccessTokenPayload {
   jti: string;          // JWT ID único
-  sub: string;          // User ID
+  sub: string;          // User ID (UUID)
   email: string;
   role: "client" | "seller" | "admin";
-  reference_id: number; // id_client, id_seller, o id_admin
   name: string;
   iss: string;          // Issuer
   aud: string;          // Audience
@@ -50,7 +49,6 @@ export function generateTokenPair(user: User): TokenPair {
     sub: user.id,
     email: user.email,
     role: user.role,
-    reference_id: user.reference_id,
     name: user.name || "",
     iss: env.JWT_ISSUER,
     aud: env.JWT_AUDIENCE,
