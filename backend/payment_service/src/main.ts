@@ -26,11 +26,19 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'http://localhost:8080',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'http://localhost:3003'  // MCP Service
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Webhook-Signature', 'X-Partner-Id', 'Stripe-Signature']
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Webhook-Signature', 
+    'X-Partner-Id', 
+    'Stripe-Signature',
+    'X-Internal-Api-Key'  // Para autenticación service-to-service
+  ]
 }));
 
 // Body parser

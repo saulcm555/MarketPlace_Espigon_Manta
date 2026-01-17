@@ -7,6 +7,7 @@ import { Router, Request, Response } from 'express';
 import { query } from '../config/database';
 import { WebhookSecurity } from '../utils/webhookSecurity';
 import { PaymentService } from '../services/PaymentService';
+import { DeliveryEvents, isValidEvent } from '../contracts/events';
 
 const router = Router();
 
@@ -172,28 +173,32 @@ router.get('/logs', async (req: Request, res: Response) => {
  */
 async function processPartnerEvent(event: string, data: any): Promise<void> {
   switch (event) {
-    case 'delivery.assigned':
+    case DeliveryEvents.DELIVERY_ASSIGNED:
       console.log(`🚚 Repartidor asignado a orden #${data.order_id}`);
       // Actualizar orden en tu sistema
       break;
 
-    case 'delivery.in_transit':
+    case DeliveryEvents.DELIVERY_IN_TRANSIT:
       console.log(`🚗 Pedido en tránsito: orden #${data.order_id}`);
       // Actualizar tracking
       break;
 
-    case 'delivery.completed':
+    case DeliveryEvents.DELIVERY_COMPLETED:
       console.log(`✅ Pedido entregado: orden #${data.order_id}`);
       // Marcar orden como entregada
       break;
 
-    case 'delivery.failed':
+    case DeliveryEvents.DELIVERY_FAILED:
       console.log(`❌ Fallo en entrega: orden #${data.order_id}`);
       // Manejar fallo
       break;
 
     default:
-      console.log(`ℹ️ Evento no manejado: ${event}`);
+      if (!isValidEvent(event)) {
+        console.warn(`⚠️ Evento desconocido: ${event}`);
+      } else {
+        console.log(`ℹ️ Evento válido pero no manejado: ${event}`);
+      }
   }
 }
 

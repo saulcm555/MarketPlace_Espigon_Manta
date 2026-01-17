@@ -22,4 +22,7 @@ export const env = {
   // Webhooks
   WEBHOOK_TIMEOUT: parseInt(process.env.WEBHOOK_TIMEOUT || '10000'),
   WEBHOOK_RETRY_ATTEMPTS: parseInt(process.env.WEBHOOK_RETRY_ATTEMPTS || '3'),
+  
+  // Internal API Key (service-to-service authentication)
+  INTERNAL_API_KEY: process.env.INTERNAL_API_KEY,
 };
