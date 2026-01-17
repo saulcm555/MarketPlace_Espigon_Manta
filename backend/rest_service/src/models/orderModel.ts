@@ -56,6 +56,16 @@ export class OrderEntity {
 	@Column({ name: "payment_verified_at", type: "timestamp", nullable: true })
 	payment_verified_at?: Date;
 
+	// Campos para integración con Payment Service (Pilar 2)
+	@Column({ name: "transaction_id", type: "varchar", length: 255, nullable: true })
+	transaction_id?: string;
+
+	@Column({ name: "payment_status", type: "varchar", length: 50, nullable: true, default: 'pending' })
+	payment_status?: string;
+
+	@Column({ name: "payment_error", type: "text", nullable: true })
+	payment_error?: string;
+
 	// Relación con método de pago (comentada porque causa problemas con foreign key)
 	// @ManyToOne(() => PaymentMethodEntity)
 	// @JoinColumn({ name: "id_payment_method" })

@@ -19,6 +19,11 @@ class OrderType:
     payment_receipt_url: Optional[str]  # URL del comprobante de pago
     payment_verified_at: Optional[datetime]  # Fecha de verificación del pago
     
+    # Payment Service fields (Pilar 2)
+    transaction_id: Optional[str]  # ID de transacción del Payment Service
+    payment_status: Optional[str]  # Estado del pago: pending, paid, failed
+    payment_error: Optional[str]  # Mensaje de error si el pago falló
+    
     # Relaciones
     @strawberry.field
     async def client(self) -> Optional[strawberry.LazyType["ClientType", "app.common.entities.clients.schema"]]:

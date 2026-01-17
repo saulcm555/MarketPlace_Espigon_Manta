@@ -315,12 +315,17 @@ export interface Order {
   id_payment_method: number;
   id_delivery?: number;
   total_amount: number;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'payment_pending_verification' | 'payment_confirmed' | 'payment_rejected' | 'expired' | 'delivered' | 'shipped';
+  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'payment_pending_verification' | 'payment_confirmed' | 'payment_rejected' | 'expired' | 'delivered' | 'shipped' | 'confirmed' | 'payment_failed';
   order_date: string;
   delivery_address?: string;
   delivery_type?: 'home_delivery' | 'pickup';
   payment_receipt_url?: string;
   payment_verified_at?: string;
+  
+  // Payment Service fields (Pilar 2)
+  transaction_id?: string;
+  payment_status?: 'pending' | 'paid' | 'failed';
+  payment_error?: string;
   
   // Relaciones
   client?: User;

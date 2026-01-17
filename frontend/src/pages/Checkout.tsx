@@ -62,6 +62,14 @@ const Checkout = () => {
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
 
+  // Card payment states (visual only)
+  const [cardData, setCardData] = useState({
+    cardNumber: '',
+    cardName: '',
+    expiryDate: '',
+    cvv: ''
+  });
+
   // Efecto para verificar autenticación
   useEffect(() => {
     if (!isAuthenticated) {
@@ -315,13 +323,26 @@ const Checkout = () => {
 
       const newOrder = await createOrder(orderData);
       const orderId = (newOrder as any).id_order || newOrder.id;
+      const paymentStatus = (newOrder as any).payment_status;
+      const transactionId = (newOrder as any).transaction_id;
 
       // Limpiar el carrito antes de mostrar el mensaje de éxito
       await clear();
       closeCart();
 
-      // Mostrar mensaje según el método de pago
-      if (isTransfer) {
+      // Mostrar mensaje según el estado del pago
+      if (paymentStatus === 'paid') {
+        toast({
+          title: "💳 ¡Pago exitoso!",
+          description: `Pedido #${orderId} confirmado. Transacción: ${transactionId?.slice(0, 20)}...`,
+        });
+      } else if (paymentStatus === 'failed') {
+        toast({
+          title: "❌ Pago fallido",
+          description: `Pedido #${orderId} creado pero el pago no pudo procesarse. Intenta nuevamente.`,
+          variant: "destructive",
+        });
+      } else if (isTransfer) {
         toast({
           title: "¡Pedido creado!",
           description: `Tu pedido #${orderId} está esperando verificación del pago`,
@@ -645,6 +666,92 @@ const Checkout = () => {
                                 </div>
                               </Label>
                             </div>
+
+                            {/* Formulario visual de tarjeta (solo para estética) */}
+                            {method.method_name?.toLowerCase().includes('tarjeta') && 
+                             paymentMethod === methodId?.toString() && (
+                              <div className="ml-9 border-l-2 border-primary pl-4 space-y-3">
+                                <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg p-4 space-y-4">
+                                  <p className="text-sm font-semibold text-primary mb-3">
+                                    💳 Información de la tarjeta
+                                  </p>
+                                  
+                                  <div className="space-y-2">
+                                    <Label htmlFor="cardNumber" className="text-xs">Número de tarjeta</Label>
+                                    <Input
+                                      id="cardNumber"
+                                      placeholder="1234 5678 9012 3456"
+                                      value={cardData.cardNumber}
+                                      onChange={(e) => {
+                                        let value = e.target.value.replace(/\s/g, '');
+                                        if (value.length <= 16 && /^\d*$/.test(value)) {
+                                          value = value.match(/.{1,4}/g)?.join(' ') || value;
+                                          setCardData({ ...cardData, cardNumber: value });
+                                        }
+                                      }}
+                                      maxLength={19}
+                                      className="font-mono"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor="cardName" className="text-xs">Nombre en la tarjeta</Label>
+                                    <Input
+                                      id="cardName"
+                                      placeholder="JUAN PÉREZ"
+                                      value={cardData.cardName}
+                                      onChange={(e) => setCardData({ ...cardData, cardName: e.target.value.toUpperCase() })}
+                                      className="uppercase"
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="expiryDate" className="text-xs">Fecha de vencimiento</Label>
+                                      <Input
+                                        id="expiryDate"
+                                        placeholder="MM/AA"
+                                        value={cardData.expiryDate}
+                                        onChange={(e) => {
+                                          let value = e.target.value.replace(/\D/g, '');
+                                          if (value.length <= 4) {
+                                            if (value.length >= 2) {
+                                              value = value.slice(0, 2) + '/' + value.slice(2);
+                                            }
+                                            setCardData({ ...cardData, expiryDate: value });
+                                          }
+                                        }}
+                                        maxLength={5}
+                                        className="font-mono"
+                                      />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <Label htmlFor="cvv" className="text-xs">CVV</Label>
+                                      <Input
+                                        id="cvv"
+                                        placeholder="123"
+                                        type="password"
+                                        value={cardData.cvv}
+                                        onChange={(e) => {
+                                          const value = e.target.value.replace(/\D/g, '');
+                                          if (value.length <= 4) {
+                                            setCardData({ ...cardData, cvv: value });
+                                          }
+                                        }}
+                                        maxLength={4}
+                                        className="font-mono"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                    <span>Pago procesado de forma segura</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Mostrar detalles bancarios si es transferencia y está seleccionado */}
                             {isTransfer && paymentMethod === methodId?.toString() && details && (
