@@ -6,6 +6,17 @@
 import { Router, Request, Response } from 'express';
 import { PaymentService } from '../services/PaymentService';
 import { WebhookService } from '../services/WebhookService';
+import { internalAuthMiddleware } from '../middlewares/internalAuth';
+import { PaymentEvents } from '../contracts/events';
+import { 
+  ProcessPaymentRequest, 
+  ProcessPaymentResponse,
+  RefundRequest,
+  RefundResponse,
+  TransactionDTO,
+  PaymentSuccessPayload,
+  PaymentRefundedPayload
+} from '../contracts/payment.dto';
 
 const router = Router();
 const paymentService = new PaymentService();
@@ -13,10 +24,12 @@ const paymentService = new PaymentService();
 /**
  * POST /api/payments/process
  * Procesar un pago
+ * 
+ * @protected Requiere X-Internal-Api-Key header
  */
-router.post('/process', async (req: Request, res: Response) => {
+router.post('/process', internalAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const { amount, currency, description, orderId, customerId, metadata } = req.body;
+    const { amount, currency, description, orderId, customerId, metadata } = req.body as ProcessPaymentRequest;
 
     // Validaciones
     if (!amount || amount <= 0) {
@@ -39,16 +52,17 @@ router.post('/process', async (req: Request, res: Response) => {
 
     // Si el pago fue exitoso, enviar webhook a partners
     if (result.success && result.status === 'completed') {
-      await WebhookService.broadcastEvent('payment.success', {
+      const successPayload: PaymentSuccessPayload = {
         transactionId: result.transactionId,
         orderId,
         amount,
         currency,
         timestamp: new Date().toISOString()
-      });
+      };
+      await WebhookService.broadcastEvent(PaymentEvents.PAYMENT_SUCCESS, successPayload);
     }
 
-    res.json(result);
+    res.json(result as ProcessPaymentResponse);
   } catch (error: any) {
     console.error('❌ [PaymentRoutes] Error al procesar pago:', error);
     res.status(500).json({ 
@@ -61,10 +75,12 @@ router.post('/process', async (req: Request, res: Response) => {
 /**
  * POST /api/payments/refund
  * Reembolsar un pago
+ * 
+ * @protected Requiere X-Internal-Api-Key header
  */
-router.post('/refund', async (req: Request, res: Response) => {
+router.post('/refund', internalAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const { transactionId, amount } = req.body;
+    const { transactionId, amount } = req.body as RefundRequest;
 
     if (!transactionId) {
       return res.status(400).json({ error: 'Transaction ID requerido' });
@@ -75,15 +91,16 @@ router.post('/refund', async (req: Request, res: Response) => {
 
     // Si el reembolso fue exitoso, notificar a partners
     if (result.success) {
-      await WebhookService.broadcastEvent('payment.refunded', {
+      const refundPayload: PaymentRefundedPayload = {
         transactionId,
         refundId: result.refundId,
         amount: result.amount,
         timestamp: new Date().toISOString()
-      });
+      };
+      await WebhookService.broadcastEvent(PaymentEvents.PAYMENT_REFUNDED, refundPayload);
     }
 
-    res.json(result);
+    res.json(result as RefundResponse);
   } catch (error: any) {
     console.error('❌ [PaymentRoutes] Error al procesar reembolso:', error);
     res.status(500).json({ 
@@ -96,8 +113,10 @@ router.post('/refund', async (req: Request, res: Response) => {
 /**
  * GET /api/payments/transaction/:id
  * Obtener información de una transacción
+ * 
+ * @protected Requiere X-Internal-Api-Key header
  */
-router.get('/transaction/:id', async (req: Request, res: Response) => {
+router.get('/transaction/:id', internalAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { query } = await import('../config/database');
@@ -111,7 +130,7 @@ router.get('/transaction/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Transacción no encontrada' });
     }
 
-    res.json(result.rows[0]);
+    res.json(result.rows[0] as TransactionDTO);
   } catch (error: any) {
     console.error('❌ [PaymentRoutes] Error al obtener transacción:', error);
     res.status(500).json({ 
