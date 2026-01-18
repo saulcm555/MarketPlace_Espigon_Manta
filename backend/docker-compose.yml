@@ -46,14 +46,14 @@ services:
       - NODE_ENV=${NODE_ENV:-development}
       - PORT=4001
       # JWT Configuration
-      - JWT_SECRET=${JWT_SECRET:-supersecreto123}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_ACCESS_EXPIRES_IN=${JWT_ACCESS_EXPIRES_IN:-15m}
       - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
       - JWT_ISSUER=auth-service
       - JWT_AUDIENCE=marketplace-espigon
-      # Database (Supabase)
+      # Database (Supabase) - Usa pooler port
       - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-5432}
+      - DB_PORT=${DB_PORT_POOLER:-6543}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_DATABASE=${DB_DATABASE:-postgres}
@@ -72,7 +72,7 @@ services:
     networks:
       - marketplace-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4001/health"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4001/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -92,9 +92,9 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - PORT=3000
-      # Database (Supabase) - rest-service usa DB_USER y DB_NAME
+      # Database (Supabase) - usa pooler port para mejor concurrencia
       - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-6543}
+      - DB_PORT=${DB_PORT_POOLER:-6543}
       - DB_USER=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_DATABASE:-postgres}
@@ -106,21 +106,21 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       # JWT
-      - JWT_SECRET=${JWT_SECRET:-supersecreto123}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
       # WebSocket Service
       - REALTIME_SERVICE_URL=http://realtime-service:8085
       # Admin Seed
-      - ADMIN_NAME=${ADMIN_NAME:-Saul Castro}
-      - ADMIN_EMAIL=${ADMIN_EMAIL:-saulcastrocm@hotmail.com}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-SuperContraseña123}
-      - ADMIN_PHONE=${ADMIN_PHONE:-0987280590}
+      - ADMIN_NAME=${ADMIN_NAME:-Admin}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@espigon.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - ADMIN_PHONE=${ADMIN_PHONE:-0000000000}
     depends_on:
       - redis
     networks:
       - marketplace-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -140,9 +140,9 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - PORT=3001
-      # Database (Supabase)
+      # Database (Supabase) - usa puerto directo
       - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-5432}
+      - DB_PORT=${DB_PORT_DIRECT:-5432}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_DATABASE=${DB_DATABASE:-postgres}
@@ -159,7 +159,7 @@ services:
     networks:
       - marketplace-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -179,7 +179,7 @@ services:
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
-      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}
+      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT_POOLER:-6543}/${DB_DATABASE}
     networks:
       - marketplace-network
     healthcheck:
@@ -203,7 +203,7 @@ services:
     environment:
       - PORT=8085
       - ENVIRONMENT=${NODE_ENV:-development}
-      - JWT_SECRET=${JWT_SECRET:-supersecreto123}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     depends_on:
@@ -211,14 +211,14 @@ services:
     networks:
       - marketplace-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/health"]
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8085/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
 
   # ==========================================
-  # MCP Service - Chatbot IA (Puerto 3003)
+  # MCP Service - Ejecutor de Tools (Puerto 3003)
   # ==========================================
   mcp-service:
     build:
@@ -233,16 +233,54 @@ services:
       - PORT=3003
       - REST_SERVICE_URL=http://rest-service:3000
       - PAYMENT_SERVICE_URL=http://payment-service:3001
-      # API Keys para IA
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - REPORT_SERVICE_URL=http://report-service:4000
+      # Internal API Key para autenticación entre servicios
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      # Demo Client Token para crear_orden
+      - DEMO_CLIENT_TOKEN=${DEMO_CLIENT_TOKEN}
     depends_on:
       - rest-service
       - payment-service
+      - report-service
     networks:
       - marketplace-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3003/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================
+  # AI Orchestrator - Cerebro IA (Puerto 3004)
+  # ==========================================
+  ai-orchestrator:
+    build:
+      context: ./ai_orchestrator
+      dockerfile: Dockerfile
+    container_name: ai-orchestrator
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3004
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      # MCP Service
+      - MCP_SERVICE_URL=http://mcp-service:3003
+      # Gemini API
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+      # Microservicios (para health checks)
+      - REST_SERVICE_URL=http://rest-service:3000
+      - PAYMENT_SERVICE_URL=http://payment-service:3001
+      - REPORT_SERVICE_URL=http://report-service:4000
+    depends_on:
+      - mcp-service
+    networks:
+      - marketplace-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3004/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -271,11 +309,12 @@ services:
 #   docker-compose ps
 #
 # Puertos:
-#   - Auth Service:     http://localhost:4001
-#   - REST Service:     http://localhost:3000
-#   - Payment Service:  http://localhost:3001
-#   - Report Service:   http://localhost:4000
-#   - Realtime Service: ws://localhost:8080
-#   - MCP Service:      http://localhost:3003
-#   - Redis:            localhost:6379
+#   - Auth Service:      http://localhost:4001
+#   - REST Service:      http://localhost:3000
+#   - Payment Service:   http://localhost:3001
+#   - Report Service:    http://localhost:4000
+#   - Realtime Service:  ws://localhost:8085
+#   - MCP Service:       http://localhost:3003
+#   - AI Orchestrator:   http://localhost:3004
+#   - Redis:             localhost:6379
 # ==========================================

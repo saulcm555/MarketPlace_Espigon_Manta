@@ -48,12 +48,15 @@ app.get('/tools', (req: Request, res: Response) => {
 // Ejecutar un tool
 app.post('/tools/:name/execute', async (req: Request, res: Response) => {
   const { name } = req.params;
-  const params = req.body;
+  const params = req.body.arguments || req.body;
 
   const tool = getToolByName(name);
 
   if (!tool) {
-    return res.status(404).json({ error: `Tool '${name}' no encontrado` });
+    return res.status(404).json({ 
+      success: false,
+      error: `Tool '${name}' no encontrado` 
+    });
   }
 
   try {
@@ -61,14 +64,15 @@ app.post('/tools/:name/execute', async (req: Request, res: Response) => {
     const formatted = tool.formatResponse ? tool.formatResponse(result as any) : null;
 
     res.json({
+      success: true,
       tool: name,
-      result,
+      data: result,
       formatted
     });
   } catch (error: any) {
     res.status(500).json({
-      error: 'Error al ejecutar tool',
-      message: error.message
+      success: false,
+      error: error.message || 'Error al ejecutar tool'
     });
   }
 });
@@ -98,9 +102,12 @@ app.listen(PORT, () => {
 ║                                                          ║
 ║   🌐 Puerto: ${PORT}                                         ║
 ║                                                          ║
-║   📋 Tools disponibles:                                  ║
-║   • procesar_pago                                        ║
-║   • consultar_pago                                       ║
+║   📋 Tools disponibles (5):                              ║
+║   • procesar_pago (Payment Service)                      ║
+║   • consultar_pago (Payment Service)                     ║
+║   • buscar_productos (Rest Service)                      ║
+║   • crear_orden (Rest Service)                           ║
+║   • resumen_ventas (Report Service)                      ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
   `);

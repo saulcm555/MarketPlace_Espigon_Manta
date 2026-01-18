@@ -1,8 +1,0 @@
-bin/
-build/
-*.exe
-*.test
-vendor/
-.git
-node_modules
-*.log

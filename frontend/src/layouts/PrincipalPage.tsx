@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import ChatBotWidget from "@/components/ChatBotWidget";
 
 import Index from "@/pages/Index";
 import Products from "@/pages/Products";
@@ -29,6 +30,7 @@ import Settings from "@/pages/Settings";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
+import ChatPage from "@/pages/ChatPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 import { AdminLayout } from "@/layouts/AdminLayout";
@@ -63,6 +65,7 @@ const PrincipalPage = () => (
                   <Route path="/register-seller" element={<RegisterSeller />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/chat" element={<ChatPage />} />
 
                   {/* Rutas protegidas de usuario */}
                   <Route
@@ -177,6 +180,7 @@ const PrincipalPage = () => (
                   {/* Ruta por defecto */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                <ChatBotWidget />
               </BrowserRouter>
             </TooltipProvider>
           </CartProvider>
