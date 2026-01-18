@@ -10,10 +10,7 @@ import type {
   LoginRequest, 
   LoginResponse, 
   TokenResponse,
-  RegisterClientRequest,
-  RegisterSellerRequest,
-  User,
-  UserRole 
+  User
 } from '@/types/api';
 
 // ============================================
@@ -75,27 +72,6 @@ export const register = async (data: {
 // Alias para compatibilidad (el frontend debe llamar a REST Service después con el user_id)
 export const registerClient = register;
 export const registerSeller = register;
-
-// ============================================
-// Token Refresh
-// ============================================
-export const registerSeller = async (data: RegisterSellerRequest): Promise<LoginResponse> => {
-  const response = await apiClient.post<any>('/auth/register/seller', data);
-  
-  if (response.data.access_token) {
-    return response.data as LoginResponse;
-  }
-  
-  try {
-    const authResponse = await loginViaAuthService({
-      email: data.seller_email,
-      password: data.seller_password
-    });
-    return authResponse;
-  } catch {
-    return response.data;
-  }
-};
 
 // ============================================
 // Token Refresh
