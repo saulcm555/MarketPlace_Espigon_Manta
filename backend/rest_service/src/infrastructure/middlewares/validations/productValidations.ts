@@ -65,7 +65,15 @@ export const getProductsValidation = [
   
   query('id_seller')
     .optional()
-    .isInt({ min: 1 }).withMessage('ID de vendedor inválido')
+    .custom((value) => {
+      // Aceptar tanto enteros como UUIDs (para compatibilidad con Supabase user_id)
+      const isInteger = /^\d+$/.test(value);
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+      if (!isInteger && !isUUID) {
+        throw new Error('ID de vendedor inválido (debe ser número o UUID)');
+      }
+      return true;
+    })
 ];
 
 /**

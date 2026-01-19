@@ -9,6 +9,15 @@ export const validateRequest = (req: Request, res: Response, next: NextFunction)
   const errors = validationResult(req);
   
   if (!errors.isEmpty()) {
+    // Log detallado para debugging
+    console.error('❌ Validation errors:', JSON.stringify({
+      url: req.url,
+      method: req.method,
+      params: req.params,
+      body: req.body,
+      errors: errors.array()
+    }, null, 2));
+    
     return res.status(400).json({
       status: 'error',
       message: 'Errores de validación',

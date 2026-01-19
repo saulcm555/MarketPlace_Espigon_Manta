@@ -15,6 +15,14 @@ export const getClients = async (): Promise<Client[]> => {
 };
 
 /**
+ * Obtener cliente actual (cliente autenticado)
+ */
+export const getMyClientProfile = async (): Promise<Client> => {
+  const response = await apiClient.get<Client>('/clients/profile');
+  return response.data;
+};
+
+/**
  * Obtener cliente por ID (cliente autenticado)
  */
 export const getClientById = async (id: number): Promise<Client> => {

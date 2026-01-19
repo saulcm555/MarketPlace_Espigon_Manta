@@ -15,6 +15,23 @@ export const getClients = asyncHandler(async (req: Request, res: Response) => {
   res.json(clients);
 });
 
+export const getMyClient = asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  const userEmail = (req as any).user?.email;
+  
+  if (!userId) {
+    throw new BadRequestError("No se pudo obtener el ID del usuario");
+  }
+  
+  // Usar el nuevo método que busca por user_id o email y vincula automáticamente
+  const client = await clientService.findOrLinkClientByUserIdAndEmail(userId, userEmail);
+  
+  if (!client) {
+    throw new NotFoundError("Cliente");
+  }
+  res.json(client);
+});
+
 export const getClientById = asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const client = await clientService.getClientById(id.toString());

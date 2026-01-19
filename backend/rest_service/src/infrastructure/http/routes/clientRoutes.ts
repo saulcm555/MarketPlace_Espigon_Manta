@@ -8,10 +8,11 @@ import {
   updateClientValidation,
   getClientByIdValidation
 } from "../../middlewares/validations/clientValidations";
-import { getClients, getClientById, createClient, updateClient, deleteClient } from "../controllers/clientController";
+import { getClients, getClientById, getMyClient, createClient, updateClient, deleteClient } from "../controllers/clientController";
 
 const router = Router();
 
+router.get("/profile", authMiddleware, roleMiddleware(["client"]), getMyClient); // Cliente obtiene su propio perfil
 router.get("/", authMiddleware, roleMiddleware(["admin", "service"]), getClients); // Admin y servicio interno
 router.get("/:id", getClientByIdValidation, validateRequest, authMiddleware, roleMiddleware(["client", "admin"]), ownershipMiddleware("client"), getClientById); // Cliente dueño o admin
 router.post("/", createClientValidation, validateRequest, createClient); // Público para registro

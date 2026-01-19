@@ -13,6 +13,7 @@ import { initializeDatabase } from './config/database';
 import paymentRoutes from './routes/paymentRoutes';
 import partnerRoutes from './routes/partnerRoutes';
 import webhookRoutes from './routes/webhookRoutes';
+import couponRoutes from './routes/couponRoutes';
 
 // Crear aplicación Express
 const app: Application = express();
@@ -73,6 +74,10 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/api/payments', paymentRoutes);
 app.use('/api/partners', partnerRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/coupons', couponRoutes);
+
+// Alias para integración con Gym B2B (redirige a /api/webhooks/partner)
+app.use('/api/gym', webhookRoutes);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {

@@ -5,12 +5,15 @@ import { UpdateOrderStatus } from "../../../application/use_cases/orders/UpdateO
 import { QueryOrders } from "../../../application/use_cases/orders/QueryOrders";
 import { OrderService } from "../../../domain/services/OrderService";
 import { CartService } from "../../../domain/services/CartService";
+import { GymWebhookService } from "../../../domain/services/GymWebhookService";
 import { OrderRepositoryImpl } from "../../repositories/OrderRepositoryImpl";
 import { CartRepositoryImpl } from "../../repositories/CartRepositoryImpl";
 import { asyncHandler, NotFoundError } from "../../middlewares/errors";
 import type { ProductCart } from "../../../domain/entities/cart";
 import AppDataSource from "../../database/data-source";
 import { ProductOrderEntity } from "../../../models/orderModel";
+import { ClientEntity } from "../../../models/clientModel";
+import { SellerEntity } from "../../../models/sellerModel";
 import { notifySellerStatsUpdated, notifyAdminStatsUpdated } from "../../clients/statsEventClient";
 
 // Instancias de dependencias
@@ -27,13 +30,40 @@ export const getOrders = asyncHandler(async (req: Request, res: Response) => {
 
 export const getMyOrders = asyncHandler(async (req: Request, res: Response) => {
   // Para clientes - obtener solo sus órdenes
-  const userId = (req as any).user?.id;
-  if (!userId) {
-    throw new Error("Usuario no autenticado");
+  const user = (req as any).user;
+  console.log('[getMyOrders] User from token:', JSON.stringify(user, null, 2));
+  
+  // Primero intentar obtener id_client directo del token
+  let clientIdRaw = user?.id_client ?? (user?.role === "client" ? user?.reference_id : null);
+  
+  // Si no existe, buscar en la base de datos por user_id (UUID de Supabase)
+  if (!clientIdRaw && user?.id && user?.role === "client") {
+    console.log('[getMyOrders] Buscando id_client por user_id:', user.id);
+    const clientRepo = AppDataSource.getRepository(ClientEntity);
+    const client = await clientRepo.findOne({ where: { user_id: user.id } });
+    if (client) {
+      clientIdRaw = client.id_client;
+      console.log('[getMyOrders] Encontrado id_client desde DB:', clientIdRaw);
+    }
+  }
+  
+  console.log('[getMyOrders] clientIdRaw:', clientIdRaw);
+
+  if (!clientIdRaw) {
+    throw new Error("Cliente no autenticado");
+  }
+
+  const clientId = Number(clientIdRaw);
+  console.log('[getMyOrders] clientId (numeric):', clientId);
+  
+  if (Number.isNaN(clientId)) {
+    throw new Error("Identificador de cliente inválido");
   }
 
   const queryOrdersUseCase = new QueryOrders(orderService);
-  const orders = await queryOrdersUseCase.getClientOrders({ id_client: userId });
+  const orders = await queryOrdersUseCase.getClientOrders({ id_client: clientId });
+  console.log('[getMyOrders] Found orders count:', orders.length);
+  console.log('[getMyOrders] Orders id_client values:', orders.map(o => o.id_client));
   res.json(orders);
 });
 
@@ -49,7 +79,15 @@ export const getOrderById = asyncHandler(async (req: Request, res: Response) => 
 
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
   const createOrderUseCase = new CreateOrder(orderService, cartService);
-  const order = await createOrderUseCase.execute(req.body);
+  
+  // Obtener el email del usuario autenticado para validar cupones
+  const user = (req as any).user;
+  const orderData = {
+    ...req.body,
+    customer_email: user?.email || null // Email del usuario para validar cupón
+  };
+  
+  const order = await createOrderUseCase.execute(orderData);
   
   // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Nuevo pedido creado
   if (order) {
@@ -67,6 +105,23 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
       status: order.status,
       action: 'order_created'
     }).catch(err => console.error('Error notifying admin stats:', err));
+
+    // 🎁 WEBHOOK AL GYM: Enviar cupón cuando se complete un pedido
+    // Nota: Por ahora enviamos el webhook apenas se crea el pedido
+    // En producción, deberías enviar el webhook cuando el pedido esté "completado" o "pagado"
+    if (order.status === 'pending' || order.status === 'confirmed') {
+      // Obtener datos del cliente del pedido
+      const clientEmail = order.client?.client_email || 'unknown@email.com';
+      const clientName = order.client?.client_name || 'Cliente';
+      const totalAmount = order.total_amount || 0;
+
+      GymWebhookService.sendOrderCompletedWebhook({
+        order_id: order.id_order,
+        customer_email: clientEmail,
+        customer_name: clientName,
+        total_amount: totalAmount
+      }).catch(err => console.error('[OrderController] Error enviando webhook al Gym:', err));
+    }
   }
   
   res.status(201).json(order);
@@ -265,7 +320,26 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
  * Solo muestra órdenes de productos que pertenecen al seller
  */
 export const getSellerPendingPayments = asyncHandler(async (req: Request, res: Response) => {
-  const sellerId = req.user?.id_seller || req.user?.id;
+  const user = req.user;
+  let sellerId: number | undefined;
+  
+  // Si el token tiene id_seller numérico, usarlo directamente
+  if (user?.id_seller && typeof user.id_seller === 'number') {
+    sellerId = user.id_seller;
+    console.log('[getSellerPendingPayments] Usando id_seller del token:', sellerId);
+  } else if (user?.id) {
+    // Buscar por user_id (UUID de Supabase) en la tabla seller
+    const userId = String(user.id);
+    console.log('[getSellerPendingPayments] Buscando seller por user_id (UUID):', userId);
+    const sellerRepo = AppDataSource.getRepository(SellerEntity);
+    const seller = await sellerRepo.findOne({ where: { user_id: userId } });
+    
+    if (seller) {
+      sellerId = seller.id_seller;
+      console.log('[getSellerPendingPayments] Encontrado id_seller numérico:', sellerId);
+    }
+  }
+  
   if (!sellerId) {
     return res.status(401).json({ message: "No se pudo identificar el vendedor" });
   }
@@ -290,6 +364,7 @@ export const getSellerPendingPayments = asyncHandler(async (req: Request, res: R
     return false;
   });
   
+  console.log('[getSellerPendingPayments] Total órdenes pendientes para vendedor', sellerId, ':', sellerPendingOrders.length);
   res.json(sellerPendingOrders);
 });
 
@@ -298,14 +373,34 @@ export const getSellerPendingPayments = asyncHandler(async (req: Request, res: R
  * Muestra todas las órdenes que contienen productos del vendedor
  */
 export const getSellerOrders = asyncHandler(async (req: Request, res: Response) => {
-  const sellerId = req.user?.id_seller || req.user?.id;
+  const user = req.user;
+  let sellerId: number | undefined;
+  
+  // Si el token tiene id_seller numérico, usarlo directamente
+  if (user?.id_seller && typeof user.id_seller === 'number') {
+    sellerId = user.id_seller;
+    console.log('[getSellerOrders] Usando id_seller del token:', sellerId);
+  } else if (user?.id) {
+    // Buscar por user_id (UUID de Supabase) en la tabla seller
+    const userId = String(user.id);
+    console.log('[getSellerOrders] Buscando seller por user_id (UUID):', userId);
+    const sellerRepo = AppDataSource.getRepository(SellerEntity);
+    const seller = await sellerRepo.findOne({ where: { user_id: userId } });
+    
+    if (seller) {
+      sellerId = seller.id_seller;
+      console.log('[getSellerOrders] Encontrado id_seller numérico:', sellerId);
+    }
+  }
+  
   if (!sellerId) {
+    console.log('[getSellerOrders] No se pudo identificar el vendedor');
     return res.status(401).json({ message: "No se pudo identificar el vendedor" });
   }
   
   const allOrders = await orderService.getAllOrders();
   
-  // Filtrar órdenes que contienen productos del vendedor
+  // Filtrar órdenes que contienen productos del vendedor (comparar con id_seller numérico)
   const sellerOrders = allOrders.filter(order => {
     // Verificar en productOrders (relación directa)
     if (order.productOrders && order.productOrders.length > 0) {
@@ -324,6 +419,7 @@ export const getSellerOrders = asyncHandler(async (req: Request, res: Response) 
     return false;
   });
   
+  console.log('[getSellerOrders] Total órdenes encontradas para vendedor', sellerId, ':', sellerOrders.length);
   res.json(sellerOrders);
 });
 
@@ -334,7 +430,21 @@ export const getSellerOrders = asyncHandler(async (req: Request, res: Response) 
  */
 export const markOrderAsDelivered = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const sellerId = req.user?.id_seller || req.user?.id;
+  const user = req.user;
+  let sellerId: number | undefined;
+  
+  // Si el token tiene id_seller numérico, usarlo directamente
+  if (user?.id_seller && typeof user.id_seller === 'number') {
+    sellerId = user.id_seller;
+  } else if (user?.id) {
+    // Buscar por user_id (UUID de Supabase) en la tabla seller
+    const userId = String(user.id);
+    const sellerRepo = AppDataSource.getRepository(SellerEntity);
+    const seller = await sellerRepo.findOne({ where: { user_id: userId } });
+    if (seller) {
+      sellerId = seller.id_seller;
+    }
+  }
 
   if (!id) {
     return res.status(400).json({ message: "ID de orden requerido" });

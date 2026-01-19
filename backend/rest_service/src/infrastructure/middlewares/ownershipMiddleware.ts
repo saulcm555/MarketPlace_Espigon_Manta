@@ -89,8 +89,24 @@ async function validateClientOwnership(
 		return res.status(404).json({ message: "Cliente no encontrado" });
 	}
 
-	// Verificar ownership: el id_client del token debe coincidir con el recurso
-	if (client.id_client !== user.id_client) {
+	// Obtener el id_client del usuario autenticado usando user_id (UUID) o email
+	let authenticatedClient = await clientRepo.findOne({ where: { user_id: user.id } });
+	
+	// Si no se encuentra por user_id, buscar por email y vincular
+	if (!authenticatedClient && user.email) {
+		authenticatedClient = await clientRepo.findOne({ where: { client_email: user.email } });
+		if (authenticatedClient) {
+			// Vincular el user_id para futuras búsquedas
+			await clientRepo.update(authenticatedClient.id_client, { user_id: user.id });
+		}
+	}
+
+	if (!authenticatedClient) {
+		return res.status(404).json({ message: "Cliente no encontrado para el usuario autenticado" });
+	}
+
+	// Verificar ownership: el id_client del cliente autenticado debe coincidir con el recurso
+	if (client.id_client !== authenticatedClient.id_client) {
 		return res.status(403).json({ 
 			message: "Acceso denegado: no puedes acceder a datos de otro cliente" 
 		});
@@ -238,8 +254,25 @@ async function validateCartOwnership(
 		return res.status(404).json({ message: "Carrito no encontrado" });
 	}
 
+	// Obtener el id_client del usuario autenticado usando user_id (UUID) o email
+	const clientRepo = AppDataSource.getRepository(ClientEntity);
+	let authenticatedClient = await clientRepo.findOne({ where: { user_id: user.id } });
+	
+	// Si no se encuentra por user_id, buscar por email y vincular
+	if (!authenticatedClient && user.email) {
+		authenticatedClient = await clientRepo.findOne({ where: { client_email: user.email } });
+		if (authenticatedClient) {
+			// Vincular el user_id para futuras búsquedas
+			await clientRepo.update(authenticatedClient.id_client, { user_id: user.id });
+		}
+	}
+
+	if (!authenticatedClient) {
+		return res.status(404).json({ message: "Cliente no encontrado para el usuario autenticado" });
+	}
+
 	// Verificar ownership: el carrito debe pertenecer al cliente autenticado
-	if (cart.client.id_client !== user.id_client) {
+	if (cart.client.id_client !== authenticatedClient.id_client) {
 		return res.status(403).json({ 
 			message: "Acceso denegado: este carrito pertenece a otro cliente" 
 		});

@@ -19,6 +19,7 @@ export * from './paymentMethods';
 export * from './deliveries';
 export * from './statistics';
 export * from './reports';
+export * from './coupons';
 
 // Export the base client
 export { default as apiClient } from './client';

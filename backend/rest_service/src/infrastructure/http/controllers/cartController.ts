@@ -6,25 +6,38 @@ import { UpdateCartItemQuantity } from "../../../application/use_cases/cart/Upda
 import { GetCartWithProducts } from "../../../application/use_cases/cart/GetCartWithProducts";
 import { CartService } from "../../../domain/services/CartService";
 import { CartRepositoryImpl } from "../../repositories/CartRepositoryImpl";
+import { ClientService } from "../../../domain/services/ClientService";
+import { ClientRepositoryImpl } from "../../repositories/ClientRepositoryImpl";
 import { asyncHandler, NotFoundError } from "../../middlewares/errors";
 
 // Instancias de dependencias
 const cartRepository = new CartRepositoryImpl();
 const cartService = new CartService(cartRepository);
+const clientRepository = new ClientRepositoryImpl();
+const clientService = new ClientService(clientRepository);
 
 export const getCarts = asyncHandler(async (req: Request, res: Response) => {
   // Si es admin, obtener todos los carritos
   // Si es cliente, obtener solo sus carritos
   const userId = (req as any).user?.id;
+  const userEmail = (req as any).user?.email;
   const userRole = (req as any).user?.role;
   
   if (userRole === 'admin') {
     const carts = await cartService.getAllCarts();
     res.json(carts);
   } else {
-    // Cliente obtiene solo sus carritos
+    // Obtener el id_client numérico del cliente
+    const client = await clientService.findOrLinkClientByUserIdAndEmail(userId, userEmail);
+    
+    if (!client) {
+      res.json([]);
+      return;
+    }
+    
+    // Cliente obtiene solo sus carritos filtrando por id_client numérico
     const carts = await cartService.getAllCarts();
-    const userCarts = carts.filter(cart => cart.id_client === userId);
+    const userCarts = carts.filter(cart => cart.id_client === client.id_client);
     res.json(userCarts);
   }
 });

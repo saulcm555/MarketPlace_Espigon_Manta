@@ -159,12 +159,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const refreshToken = response.refresh_token;
       const expiresIn = response.expires_in;
       
+      // Guardar user básico primero
+      let enrichedUser = response.user;
+      
       // Save to state
       setToken(accessToken);
-      setUser(response.user);
+      setUser(enrichedUser);
       
       // Save to localStorage
-      saveAuthData(accessToken, response.user, refreshToken, expiresIn);
+      saveAuthData(accessToken, enrichedUser, refreshToken, expiresIn);
       
       // Limpiar intentos fallidos de login para este email
       clearLoginAttempts(credentials.email);

@@ -9,6 +9,8 @@ import { InventoryRepositoryImpl } from "../../repositories/InventoryRepositoryI
 import { asyncHandler, NotFoundError, BadRequestError, UnauthorizedError } from "../../middlewares/errors";
 import { notifySellerStatsUpdated, notifyAdminStatsUpdated } from "../../clients/statsEventClient";
 import { notifyProductUpdated, notifyAdmins } from "../../clients/notificationClient";
+import AppDataSource from "../../database/data-source";
+import { SellerEntity } from "../../../models/sellerModel";
 
 // Instancias de dependencias
 const productRepository = new ProductRepositoryImpl();
@@ -28,7 +30,31 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
   
   if (req.query.id_category) filters.id_category = Number(req.query.id_category);
   if (req.query.id_sub_category) filters.id_sub_category = Number(req.query.id_sub_category);
-  if (req.query.id_seller) filters.id_seller = Number(req.query.id_seller);
+  
+  // Manejar id_seller - puede ser UUID (user_id) o número
+  if (req.query.id_seller) {
+    const sellerParam = req.query.id_seller as string;
+    const numericSellerId = Number(sellerParam);
+    
+    // Si es un UUID (NaN cuando se convierte a número), buscar por user_id
+    if (isNaN(numericSellerId)) {
+      console.log('[getProducts] Seller param es UUID, buscando en tabla seller:', sellerParam);
+      const sellerRepo = AppDataSource.getRepository(SellerEntity);
+      const seller = await sellerRepo.findOne({ where: { user_id: sellerParam } });
+      
+      if (seller) {
+        filters.id_seller = seller.id_seller;
+        console.log('[getProducts] Encontrado id_seller numérico:', seller.id_seller);
+      } else {
+        // Si no se encuentra el vendedor, retornar lista vacía
+        console.log('[getProducts] No se encontró vendedor con user_id:', sellerParam);
+        return res.json({ products: [], pagination: { page: 1, limit: 10, totalItems: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false } });
+      }
+    } else {
+      filters.id_seller = numericSellerId;
+    }
+  }
+  
   if (req.query.min_price) filters.min_price = Number(req.query.min_price);
   if (req.query.max_price) filters.max_price = Number(req.query.max_price);
   if (req.query.search) filters.search = req.query.search as string;

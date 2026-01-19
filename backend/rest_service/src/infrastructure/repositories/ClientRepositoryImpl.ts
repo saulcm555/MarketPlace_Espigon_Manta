@@ -30,6 +30,16 @@ export class ClientRepositoryImpl implements IClientRepository {
     return await repo.findOneBy({ id_client: clientId });
   }
 
+  async findByUserId(userId: string): Promise<ClientEntity | null> {
+    const repo = AppDataSource.getRepository(ClientEntity);
+    return await repo.findOneBy({ user_id: userId });
+  }
+
+  async findByEmail(email: string): Promise<ClientEntity | null> {
+    const repo = AppDataSource.getRepository(ClientEntity);
+    return await repo.findOneBy({ client_email: email });
+  }
+
   async findAll(): Promise<ClientEntity[]> {
     const repo = AppDataSource.getRepository(ClientEntity);
     return await repo.find();
