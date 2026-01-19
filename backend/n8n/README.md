@@ -74,6 +74,22 @@ curl -X POST http://localhost:5678/webhook/payment \
   }'
 ```
 
+### Probar Partner Handler (PowerShell):
+
+```powershell
+# Entrega completada
+Invoke-RestMethod -Uri "http://localhost:5678/webhook-test/webhook/partner" `
+  -Method POST -ContentType "application/json" `
+  -Headers @{"x-partner-id"="partner-001"; "x-webhook-signature"="test-sig"} `
+  -Body '{"event": "delivery.completed", "data": {"orderId": "order-123", "deliveredAt": "2026-01-18T15:00:00Z"}}'
+
+# Stock bajo
+Invoke-RestMethod -Uri "http://localhost:5678/webhook-test/webhook/partner" `
+  -Method POST -ContentType "application/json" `
+  -Headers @{"x-partner-id"="partner-001"; "x-webhook-signature"="test-sig"} `
+  -Body '{"event": "inventory.low_stock", "data": {"productId": "prod-456", "currentStock": 5, "threshold": 10}}'
+```
+
 ## 📝 Notas
 
 - Los workflows se exportan desde n8n UI → **"..."** → **"Download"**

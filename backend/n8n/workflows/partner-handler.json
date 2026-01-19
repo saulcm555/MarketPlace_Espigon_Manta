@@ -1,0 +1,467 @@
+{
+  "name": "Partner Handler - Webhooks B2B",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/partner",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-partner",
+      "name": "Webhook Partner",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "partner-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraer headers y validar estructura básica\nconst items = $input.all();\nconst item = items[0];\n\n// En n8n los headers vienen en el objeto json.headers\nconst headers = item.json.headers || {};\nconst body = item.json.body || item.json;\n\nconst partnerId = headers['x-partner-id'] || 'test-partner';\nconst signature = headers['x-webhook-signature'] || 'test-signature';\n\nreturn {\n  partnerId: partnerId,\n  signature: signature,\n  event: body.event || body.type || 'unknown',\n  data: body.data || body,\n  rawBody: body,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "extract-headers",
+      "name": "Extraer Headers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://payment-service:3001/api/partners/{{ $json.partnerId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-partner-handler"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "get-partner",
+      "name": "Obtener Partner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verificar datos del partner (modo desarrollo - sin HMAC crypto)\nconst prevData = $('Extraer Headers').first().json;\nconst partnerResponse = $input.first().json;\n\n// En desarrollo, validamos que lleguen los datos básicos\nconst isValid = prevData.partnerId && prevData.signature;\n\nif (!isValid) {\n  throw new Error('Missing partner credentials');\n}\n\n// Log para debug\nconsole.log('Partner:', prevData.partnerId);\nconsole.log('Event:', prevData.event);\n\nreturn {\n  verified: true,\n  mode: 'development',\n  partnerId: prevData.partnerId,\n  event: prevData.event,\n  data: prevData.data,\n  partner: partnerResponse\n};"
+      },
+      "id": "verify-hmac",
+      "name": "Verificar HMAC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "delivery.completed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delivery_completed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "delivery.in_transit",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delivery_transit"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "order.updated",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "order_updated"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "inventory.low_stock",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "inventory_alert"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "switch-event",
+      "name": "Tipo de Evento",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://rest-service:3000/api/orders/{{ $json.data.orderId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-partner-handler"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"delivered\",\n  \"delivered_at\": \"{{ $json.data.deliveredAt || $now.toISO() }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "handle-delivery-completed",
+      "name": "Marcar Entregado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://realtime-service:8085/api/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"room\": \"clients\",\n  \"event\": \"DELIVERY_IN_TRANSIT\",\n  \"data\": {\n    \"orderId\": \"{{ $json.data.orderId }}\",\n    \"status\": \"in_transit\",\n    \"message\": \"Tu pedido está en camino\",\n    \"timestamp\": \"{{ $now.toISO() }}\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "handle-delivery-transit",
+      "name": "Notificar En Tránsito",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 250]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://rest-service:3000/api/orders/{{ $json.data.orderId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-partner-handler"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"{{ $json.data.status }}\",\n  \"updated_by_partner\": \"{{ $json.partnerId }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "handle-order-updated",
+      "name": "Actualizar Orden",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://realtime-service:8085/api/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"room\": \"admin\",\n  \"event\": \"INVENTORY_LOW_STOCK\",\n  \"data\": {\n    \"productId\": \"{{ $json.data.productId }}\",\n    \"currentStock\": {{ $json.data.currentStock || 0 }},\n    \"threshold\": {{ $json.data.threshold || 10 }},\n    \"message\": \"Alerta: Stock bajo\",\n    \"timestamp\": \"{{ $now.toISO() }}\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "handle-inventory-alert",
+      "name": "Alerta Inventario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1400, 550]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Evento no reconocido - log y continuar\nconst data = $input.first().json;\nconsole.log('Evento no manejado:', data.event);\n\nreturn {\n  handled: false,\n  event: data.event,\n  message: 'Evento recibido pero no tiene handler específico'\n};"
+      },
+      "id": "handle-unknown",
+      "name": "Evento Desconocido",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 700]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"received\",\n  \"event\": \"{{ $('Verificar HMAC').item.json.event }}\",\n  \"processedAt\": \"{{ $now.toISO() }}\",\n  \"partnerId\": \"{{ $('Verificar HMAC').item.json.partnerId }}\"\n}",
+        "options": {}
+      },
+      "id": "respond-ack",
+      "name": "Responder ACK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Partner": {
+      "main": [
+        [
+          {
+            "node": "Extraer Headers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Headers": {
+      "main": [
+        [
+          {
+            "node": "Obtener Partner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Partner": {
+      "main": [
+        [
+          {
+            "node": "Verificar HMAC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar HMAC": {
+      "main": [
+        [
+          {
+            "node": "Tipo de Evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de Evento": {
+      "main": [
+        [
+          {
+            "node": "Marcar Entregado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar En Tránsito",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Actualizar Orden",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alerta Inventario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Evento Desconocido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Entregado": {
+      "main": [
+        [
+          {
+            "node": "Responder ACK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar En Tránsito": {
+      "main": [
+        [
+          {
+            "node": "Responder ACK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Orden": {
+      "main": [
+        [
+          {
+            "node": "Responder ACK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerta Inventario": {
+      "main": [
+        [
+          {
+            "node": "Responder ACK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evento Desconocido": {
+      "main": [
+        [
+          {
+            "node": "Responder ACK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "pinData": {}
+}

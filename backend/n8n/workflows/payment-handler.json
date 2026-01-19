@@ -100,13 +100,55 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "http://realtime-service:8085/api/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"room\": \"sellers\",\n  \"event\": \"PAYMENT_RECEIVED\",\n  \"data\": {\n    \"orderId\": \"{{ $('Extraer Datos Pago').item.json.orderId }}\",\n    \"amount\": {{ $('Extraer Datos Pago').item.json.amount }},\n    \"currency\": \"{{ $('Extraer Datos Pago').item.json.currency }}\",\n    \"status\": \"paid\",\n    \"message\": \"Nuevo pago recibido\",\n    \"timestamp\": \"{{ $now.toISO() }}\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "notify-websocket-success",
+      "name": "Notificar WebSocket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"received\": true,\n  \"status\": \"processed\",\n  \"paymentStatus\": \"success\",\n  \"notified\": true\n}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Responder OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1570, 200]
+    },
+    {
+      "parameters": {
         "jsCode": "// Extraer datos del evento de pago fallido\nconst event = $input.first().json.event;\nconst body = event.body || event;\nconst paymentIntent = body.data?.object || body.data;\n\nconst orderId = paymentIntent.metadata?.orderId || paymentIntent.metadata?.order_id || 'unknown';\nconst paymentId = paymentIntent.id || 'unknown';\nconst failureMessage = paymentIntent.last_payment_error?.message || 'Pago rechazado';\n\nreturn {\n  orderId: orderId,\n  paymentId: paymentId,\n  status: 'payment_failed',\n  failureMessage: failureMessage,\n  failedAt: new Date().toISOString(),\n  eventType: body.type,\n  success: false\n};"
       },
       "id": "extract-failure-data",
       "name": "Extraer Datos Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [910, 400]
+      "position": [910, 450]
     },
     {
       "parameters": {
@@ -140,31 +182,49 @@
       "name": "Marcar Orden Fallida",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1130, 400]
+      "position": [1130, 450]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"received\": true,\n  \"status\": \"processed\",\n  \"paymentStatus\": \"success\"\n}",
-        "options": {}
+        "method": "POST",
+        "url": "http://realtime-service:8085/api/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"room\": \"sellers\",\n  \"event\": \"PAYMENT_FAILED\",\n  \"data\": {\n    \"orderId\": \"{{ $('Extraer Datos Error').item.json.orderId }}\",\n    \"status\": \"payment_failed\",\n    \"reason\": \"{{ $('Extraer Datos Error').item.json.failureMessage }}\",\n    \"message\": \"Pago fallido\",\n    \"timestamp\": \"{{ $now.toISO() }}\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
       },
-      "id": "respond-success",
-      "name": "Responder OK",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [1350, 200]
+      "id": "notify-websocket-failed",
+      "name": "Notificar WS Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 450]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"received\": true,\n  \"status\": \"processed\",\n  \"paymentStatus\": \"failed\"\n}",
+        "responseBody": "={\n  \"received\": true,\n  \"status\": \"processed\",\n  \"paymentStatus\": \"failed\",\n  \"notified\": true\n}",
         "options": {}
       },
       "id": "respond-failed",
       "name": "Responder Fallo",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1350, 400]
+      "position": [1570, 450]
     }
   ],
   "connections": {
@@ -219,6 +279,28 @@
         ]
       ]
     },
+    "Actualizar Orden": {
+      "main": [
+        [
+          {
+            "node": "Notificar WebSocket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar WebSocket": {
+      "main": [
+        [
+          {
+            "node": "Responder OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Extraer Datos Error": {
       "main": [
         [
@@ -230,18 +312,18 @@
         ]
       ]
     },
-    "Actualizar Orden": {
+    "Marcar Orden Fallida": {
       "main": [
         [
           {
-            "node": "Responder OK",
+            "node": "Notificar WS Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Marcar Orden Fallida": {
+    "Notificar WS Error": {
       "main": [
         [
           {
