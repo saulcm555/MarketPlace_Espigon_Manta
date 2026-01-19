@@ -53,6 +53,16 @@ export class ChatController {
     );
 
     /**
+     * POST /api/chat/simple
+     * Endpoint simple que acepta JSON (para n8n/Telegram)
+     * - message: string (requerido)
+     */
+    this.router.post(
+      '/simple',
+      this.handleSimpleMessage.bind(this)
+    );
+
+    /**
      * GET /api/chat/conversation/:id
      * Obtener historial de conversación
      */
@@ -132,6 +142,43 @@ export class ChatController {
       });
     } catch (error: any) {
       console.error('[ChatController] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Error procesando mensaje'
+      });
+    }
+  }
+
+  /**
+   * Manejar mensaje simple (JSON) - para n8n/Telegram
+   */
+  private async handleSimpleMessage(req: Request, res: Response): Promise<void> {
+    try {
+      const { message } = req.body;
+
+      // Validar mensaje
+      if (!message || typeof message !== 'string' || message.trim() === '') {
+        res.status(400).json({
+          success: false,
+          error: 'El campo "message" es requerido'
+        });
+        return;
+      }
+
+      console.log(`[ChatController] Simple message: ${message.substring(0, 50)}...`);
+
+      // Llamar al LLM Service
+      const response = await this.llmService.chat({
+        message: message.trim()
+      });
+
+      res.json({
+        success: true,
+        response: response.message,
+        conversationId: response.conversationId
+      });
+    } catch (error: any) {
+      console.error('[ChatController] Simple Error:', error);
       res.status(500).json({
         success: false,
         error: error.message || 'Error procesando mensaje'

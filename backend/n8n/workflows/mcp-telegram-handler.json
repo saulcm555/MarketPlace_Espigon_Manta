@@ -1,0 +1,215 @@
+{
+  "name": "MCP Input Handler - Telegram Chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extraer datos del mensaje de Telegram\nconst message = $input.first().json.message || $input.first().json;\n\nconst chatId = message.chat?.id || message.from?.id;\nconst userId = message.from?.id;\nconst username = message.from?.username || 'usuario';\nconst firstName = message.from?.first_name || 'Usuario';\nconst text = message.text || '';\n\n// Ignorar comandos de sistema\nif (text.startsWith('/start')) {\n  return {\n    skip: true,\n    response: `¡Hola ${firstName}! 👋\\n\\nSoy el asistente de MarketPlace El Espigón.\\n\\nPuedes preguntarme sobre:\\n• Productos disponibles\\n• Estado de pedidos\\n• Información de la tienda\\n\\n¿En qué te puedo ayudar?`\n  };\n}\n\nreturn {\n  skip: false,\n  chatId: chatId,\n  userId: userId,\n  username: username,\n  firstName: firstName,\n  text: text,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "extract-message",
+      "name": "Extraer Mensaje",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-skip",
+      "name": "¿Es Comando?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ai-orchestrator:3004/api/chat",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Source",
+              "value": "telegram"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": \"{{ $json.text }}\",\n  \"userId\": \"telegram_{{ $json.userId }}\",\n  \"context\": {\n    \"platform\": \"telegram\",\n    \"username\": \"{{ $json.username }}\",\n    \"chatId\": \"{{ $json.chatId }}\"\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "call-ai",
+      "name": "Llamar AI Orchestrator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesar respuesta del AI Orchestrator\nconst aiResponse = $input.first().json;\nconst prevData = $('Extraer Mensaje').first().json;\n\nlet responseText = '';\n\nif (aiResponse.error) {\n  responseText = '❌ Lo siento, hubo un error procesando tu mensaje. Intenta de nuevo.';\n} else if (aiResponse.response) {\n  responseText = aiResponse.response;\n} else if (aiResponse.message) {\n  responseText = aiResponse.message;\n} else {\n  responseText = '🤔 No pude entender tu mensaje. ¿Podrías reformularlo?';\n}\n\n// Limitar longitud para Telegram (4096 chars max)\nif (responseText.length > 4000) {\n  responseText = responseText.substring(0, 4000) + '...';\n}\n\nreturn {\n  chatId: prevData.chatId,\n  text: responseText\n};"
+      },
+      "id": "format-response",
+      "name": "Formatear Respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-response",
+      "name": "Enviar Respuesta",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1350, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extraer Mensaje').item.json.chatId }}",
+        "text": "={{ $json.response }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-welcome",
+      "name": "Enviar Bienvenida",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [910, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CREDENTIAL_ID",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extraer Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Mensaje": {
+      "main": [
+        [
+          {
+            "node": "¿Es Comando?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Comando?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Bienvenida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Llamar AI Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llamar AI Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Formatear Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "pinData": {}
+}
