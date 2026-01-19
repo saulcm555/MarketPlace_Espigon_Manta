@@ -10,6 +10,7 @@ networks:
 volumes:
   redis-data:
   postgres-data:
+  n8n-data:
 
 services:
   # ==========================================
@@ -286,6 +287,64 @@ services:
       retries: 3
       start_period: 10s
 
+  # ==========================================
+  # n8n - Event Bus (Puerto 5678) - PILAR 4
+  # ==========================================
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: marketplace-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # Autenticación básica
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-admin123}
+      # Configuración de n8n
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
+      - GENERIC_TIMEZONE=America/Guayaquil
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-changeme-encryption-key-32chars}
+      # URLs de microservicios internos (para HTTP Request nodes)
+      - REST_SERVICE_URL=http://rest-service:3000
+      - PAYMENT_SERVICE_URL=http://payment-service:3001
+      - REALTIME_SERVICE_URL=http://realtime-service:8085
+      - AI_ORCHESTRATOR_URL=http://ai-orchestrator:3004
+      - REPORT_SERVICE_URL=http://report-service:4000
+      - AUTH_SERVICE_URL=http://auth-service:4001
+      # Credenciales para comunicación interna
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      # Stripe (para validar webhooks)
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      # Telegram Bot (opcional)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      # SMTP para envío de emails
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-noreply@espigon.com}
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - marketplace-network
+    depends_on:
+      - rest-service
+      - payment-service
+      - realtime-service
+      - ai-orchestrator
+      - report-service
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
 # ==========================================
 # Notas de Uso
 # ==========================================
@@ -316,5 +375,6 @@ services:
 #   - Realtime Service:  ws://localhost:8085
 #   - MCP Service:       http://localhost:3003
 #   - AI Orchestrator:   http://localhost:3004
+#   - n8n Event Bus:     http://localhost:5678
 #   - Redis:             localhost:6379
 # ==========================================
