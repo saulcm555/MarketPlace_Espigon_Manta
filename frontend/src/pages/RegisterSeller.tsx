@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Store, Mail, Lock, Phone, MapPin, Building } from 'lucide-react';
 import type { RegisterSellerRequest } from '@/types/api';
+import logoEspigon from '@/assets/logo.jpg';
 
 const RegisterSeller = () => {
   const navigate = useNavigate();
@@ -71,9 +72,9 @@ const RegisterSeller = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4">
-            <Store className="w-8 h-8 text-white" />
-          </div>
+          <Link to="/" className="inline-block mx-auto mb-4">
+            <img src={logoEspigon} alt="El Espigón" className="h-16 w-16 rounded-full object-cover hover:opacity-80 transition-opacity" />
+          </Link>
           <CardTitle className="text-2xl">Registrarse como Vendedor</CardTitle>
           <CardDescription>
             Únete al mercado del Espigón y vende tus productos

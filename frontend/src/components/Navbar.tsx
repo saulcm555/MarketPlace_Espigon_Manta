@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Menu, ShoppingCart, User, LogOut, Settings, Package, Receipt, Clock, Cog } from "lucide-react";
+import { Menu, ShoppingCart, User, LogOut, Settings, Package, Receipt, Clock, Cog, MessageCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { Link, useNavigate } from "react-router-dom";

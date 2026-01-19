@@ -208,31 +208,26 @@ backend/ai_orchestrator/
 
 #### Endpoints a Implementar
 ```typescript
-// POST /api/chat/message - Mensaje de texto simple
-{
-  "userId": "uuid",
-  "message": "Busca productos de electrónica bajo $100",
-  "conversationId": "uuid | null" // null = nueva conversación
-}
+// POST /api/chat/message - Mensaje (texto + opcional PDF)
+// FORMATO: FormData (no JSON)
+// Campos:
+//   - userId: string
+//   - message: string
+//   - conversationId?: string (null = nueva conversación)
+//   - files?: File[] (PDFs opcionales)
+
+Example Request (FormData):
+  userId: "uuid"
+  message: "Busca productos de electrónica bajo $100"
+  conversationId: "uuid-123" (opcional)
+  files: [File] (opcional, solo PDFs)
+
 → Response: {
   "conversationId": "uuid",
   "response": "Encontré 5 productos...",
   "toolsUsed": ["buscar_productos"],
-  "confidence": 0.95
-}
-
-// POST /api/chat/multimodal - Texto + PDFs (SOLO PDF, sin imágenes)
-{
-  "userId": "uuid",
-  "message": "¿Qué dice esta factura?",
-  "documents": [{"name": "factura.pdf", "data": "base64"}],
-  "conversationId": "uuid | null"
-}
-→ Response: {
-  "conversationId": "uuid",
-  "response": "La factura muestra un total de $49.99...",
-  "extractedText": "Texto extraído del PDF...",
-  "toolsUsed": ["consultar_pago"]
+  "confidence": 0.95,
+  "extractedText": "..." // solo si hay PDFs
 }
 
 // GET /api/chat/history/:userId - Historial de conversaciones
@@ -334,7 +329,7 @@ export class GeminiAdapter implements LLMAdapter {
   private genAI: GoogleGenerativeAI;
   private model: any;
 
-  constructor(apiKey: string, modelName: string = 'gemini-2.0-flash-exp') {
+  constructor(apiKey: string, modelName: string = 'gemini-2.0-flash') {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({ model: modelName });
   }
@@ -388,8 +383,8 @@ export class GeminiAdapter implements LLMAdapter {
     images: Buffer[];
     documents: ProcessedDocument[];
   }): Promise<LLMResponse> {
-    // Usar gemini-2.0-flash-exp para multimodal
-    const visionModel = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    // Usar gemini-2.0-flash para multimodal
+    const visionModel = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     // Construir contenido multimodal
     const parts = [
@@ -445,7 +440,7 @@ export class GeminiAdapter implements LLMAdapter {
 ```
 
 #### Preguntas Clave
-1. **¿Usar Gemini 2.0 Flash (rápido/económico) o Pro (más potente)?**
+1. **¿Usar Gemini 2.0 Flash Pro**
    - Flash: 1M tokens/min, $0.075/1M tokens
    - Pro: 2M tokens/min, $1.25/1M tokens
    - **Recomendación**: Flash para producción, Pro para testing
@@ -549,8 +544,7 @@ export const buscar_productos: MCPTool = {
     for (const product of result.products) {
       response += `📦 **${product.name}**\n`;
       response += `   💰 Precio: $${product.price}\n`;
-      response += `   📊 Stock: ${product.stock} unidades\n`;
-      response += `   🏪 Vendedor: ${product.seller}\n\n`;
+      response += `   📊 Stock: ${product.stock} unidades\n\n`;
     }
     return response;
   }
@@ -603,17 +597,14 @@ export class ProductClient {
 **Endpoint Real:** `POST /api/orders` (Rest Service)  
 **Autenticación:** 🔒 Requiere Bearer token (rol `client`)
 
-### ⚠️ DECISIÓN REQUERIDA: CÓMO OBTENER EL BEARER TOKEN
+### ✅ AUTH RESUELTA: USAR TOKEN DEMO FIJO (Opción B)
 
-El endpoint `POST /api/orders` requiere un Bearer token del cliente. **ELIGE UNA OPCIÓN:**
+El endpoint `POST /api/orders` requiere un Bearer token del cliente.
 
-| Opción | Descripción | Pros | Contras |
-|--------|-------------|------|--------|
-| **A. Token del Usuario** | Frontend envía JWT al AI Orchestrator → MCP Service | Seguro, trazable | Requiere auth completo |
-| **B. Token Demo Fijo** | Token hardcodeado en .env (solo desarrollo) | Rápido | Inseguro en prod |
-| **C. Service Account** | MCP Service tiene token de servicio propio | Escalable | Requiere rol especial |
-
-**👉 RECOMENDACIÓN:** Opción B para desarrollo, migrar a A para producción.
+**DECISIÓN TOMADA:** Usar **Opción B (Token Demo)** para desarrollo.
+- Crear un usuario client de prueba en Auth Service
+- Hacer login y copiar su Bearer token al .env del MCP Service
+- Más adelante migrar a Opción A (token del usuario real desde frontend)
 
 **Implementación Opción B (Demo):**
 ```typescript
@@ -770,12 +761,11 @@ export const resumen_ventas: MCPTool = {
   },
 
   formatResponse(result: any): string {
-    let response = `📊 **Resumen de Ventas**\n\n`;
-    response += `💰 Ingresos totales: $${result.revenue}\n`;
-    response += `📦 Total de ventas: ${result.totalSales}\n\n`;
-    response += `🏆 Top Productos:\n`;
-    for (const product of result.topProducts) {
-      response += `   - ${product.name}: ${product.units_sold} unidades\n`;
+    let response = `📊 **Top Vendedores**\n\n`;
+    for (const seller of result.topSellers) {
+      response += `🏆 ${seller.seller_name}\n`;
+      response += `   💰 Ventas totales: $${seller.total_sales}\n`;
+      response += `   📦 Órdenes: ${seller.total_orders}\n\n`;
     }
     return response;
   }
@@ -995,7 +985,7 @@ NODE_ENV=development
 
 # Gemini API
 GEMINI_API_KEY=tu_api_key_aquí
-GEMINI_MODEL=gemini-2.0-flash-exp
+GEMINI_MODEL=gemini-2.0-flash
 
 # MCP Service
 MCP_SERVICE_URL=http://localhost:3003
@@ -1042,11 +1032,18 @@ REDIS_URL=redis://localhost:6379
 8. ¿Implementar rate limiting por usuario? **→ SÍ (opcional pero recomendado)**
 9. ¿Prefieren React Chat UI o Telegram Bot como primera interfaz? **→ Decidir según UX deseada**
 
-### ✅ Validación de Infraestructura COMPLETADA
+### ⚠️ Validación de Infraestructura
 10. ¿El Rest Service ya tiene endpoints de búsqueda de productos? **✅ SÍ: GET /api/products con filtros**
 11. ¿El Rest Service tiene endpoints de creación de órdenes? **✅ SÍ: POST /api/orders (requiere Bearer token)**
 12. ¿El Report Service tiene endpoint de resumen de ventas? **✅ SÍ: query GraphQL top_sellers_report**
-13. ¿Todos los microservicios aceptan autenticación con `X-Internal-Api-Key`? **✅ SÍ (Payment listo, Rest/Report por verificar)**
+13. ¿Todos los microservicios aceptan autenticación con `X-Internal-Api-Key`? **⚠️ VERIFICAR:**
+    - ✅ Payment Service: Ya configurado
+    - ❓ Rest Service: Revisar si tiene middleware de X-Internal-Api-Key
+    - ❓ Report Service: Revisar si tiene middleware de X-Internal-Api-Key
+    - **Si NO tienen:** Opciones:
+      - Agregar middleware en Rest/Report (recomendado)
+      - Usar Bearer token de servicio
+      - Dejar endpoints públicos temporalmente (solo demo)
 
 ---
 

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, ArrowLeft, KeyRound } from 'lucide-react';
+import logoEspigon from '@/assets/logo.jpg';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -42,6 +43,9 @@ const ForgotPassword = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
+            <Link to="/" className="inline-block mx-auto mb-4">
+              <img src={logoEspigon} alt="El Espigón" className="h-16 w-16 rounded-full object-cover hover:opacity-80 transition-opacity" />
+            </Link>
             <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
               <Mail className="w-8 h-8 text-green-600" />
             </div>
@@ -88,9 +92,9 @@ const ForgotPassword = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver al inicio de sesión
           </Link>
-          <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4">
-            <KeyRound className="w-8 h-8 text-white" />
-          </div>
+          <Link to="/" className="inline-block mx-auto mb-4">
+            <img src={logoEspigon} alt="El Espigón" className="h-16 w-16 rounded-full object-cover hover:opacity-80 transition-opacity" />
+          </Link>
           <CardTitle className="text-2xl">¿Olvidaste tu contraseña?</CardTitle>
           <CardDescription>
             Ingresa tu correo electrónico y te enviaremos un enlace para recuperarla
