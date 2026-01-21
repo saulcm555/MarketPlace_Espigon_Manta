@@ -77,3 +77,58 @@ export const deleteClient = asyncHandler(async (req: Request, res: Response) => 
   
   res.json({ message: "Cliente eliminado correctamente" });
 });
+
+/**
+ * POST /api/clients/find-or-create
+ * Endpoint interno para crear clientes automáticamente cuando llegan cupones B2B
+ * Si el cliente ya existe (por email), lo retorna. Si no, lo crea.
+ */
+export const findOrCreateClient = asyncHandler(async (req: Request, res: Response) => {
+  const { email, name, source } = req.body;
+  
+  if (!email) {
+    throw new BadRequestError("El email es requerido");
+  }
+  
+  console.log(`🔍 [findOrCreateClient] Buscando cliente: ${email}`);
+  
+  // Buscar cliente existente por email
+  let client = await clientService.getClientByEmail(email);
+  
+  if (client) {
+    console.log(`✅ [findOrCreateClient] Cliente encontrado: ${client.id_client}`);
+    return res.json({ 
+      client, 
+      created: false,
+      message: "Cliente ya existe"
+    });
+  }
+  
+  // Crear cliente nuevo usando promesa
+  console.log(`📝 [findOrCreateClient] Creando cliente nuevo: ${email}`);
+  
+  const newClientData = {
+    client_name: name || email.split('@')[0],
+    email: email,
+    password: `temp_${Date.now()}`, // Password temporal
+    source: source || 'partner_coupon'
+  };
+  
+  // Wrap callback en promesa
+  const newClient = await new Promise<any>((resolve, reject) => {
+    clientService.createClient(newClientData as any, (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+  });
+  
+  console.log(`✅ [findOrCreateClient] Cliente creado: ${newClient?.id_client}`);
+  
+  res.status(201).json({ 
+    client: newClient, 
+    created: true,
+    message: "Cliente creado automáticamente"
+  });
+});
+
+

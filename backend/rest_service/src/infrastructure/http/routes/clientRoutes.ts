@@ -8,9 +8,12 @@ import {
   updateClientValidation,
   getClientByIdValidation
 } from "../../middlewares/validations/clientValidations";
-import { getClients, getClientById, getMyClient, createClient, updateClient, deleteClient } from "../controllers/clientController";
+import { getClients, getClientById, getMyClient, createClient, updateClient, deleteClient, findOrCreateClient } from "../controllers/clientController";
 
 const router = Router();
+
+// 🤝 B2B: Endpoint interno para crear clientes automáticamente (desde webhooks)
+router.post("/find-or-create", findOrCreateClient);
 
 router.get("/profile", authMiddleware, roleMiddleware(["client"]), getMyClient); // Cliente obtiene su propio perfil
 router.get("/", authMiddleware, roleMiddleware(["admin", "service"]), getClients); // Admin y servicio interno
@@ -20,3 +23,4 @@ router.put("/:id", getClientByIdValidation, updateClientValidation, validateRequ
 router.delete("/:id", getClientByIdValidation, validateRequest, authMiddleware, roleMiddleware("admin"), deleteClient); // Solo admin
 
 export default router;
+

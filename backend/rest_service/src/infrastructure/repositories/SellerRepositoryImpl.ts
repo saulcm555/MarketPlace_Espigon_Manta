@@ -41,4 +41,9 @@ export class SellerRepositoryImpl implements ISellerRepository {
     const result = await repo.delete(sellerId);
     return !!result.affected && result.affected > 0;
   }
+
+  async findByUserId(userId: string): Promise<SellerEntity | null> {
+    const repo = AppDataSource.getRepository(SellerEntity);
+    return await repo.findOneBy({ user_id: userId });
+  }
 }

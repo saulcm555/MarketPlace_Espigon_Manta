@@ -110,10 +110,12 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
     // Nota: Por ahora enviamos el webhook apenas se crea el pedido
     // En producción, deberías enviar el webhook cuando el pedido esté "completado" o "pagado"
     if (order.status === 'pending' || order.status === 'confirmed') {
-      // Obtener datos del cliente del pedido
-      const clientEmail = order.client?.client_email || 'unknown@email.com';
-      const clientName = order.client?.client_name || 'Cliente';
+      // Obtener datos del cliente - priorizar user del token, fallback a order.client
+      const clientEmail = user?.email || order.client?.client_email || 'unknown@email.com';
+      const clientName = user?.name || order.client?.client_name || 'Cliente';
       const totalAmount = order.total_amount || 0;
+
+      console.log(`[OrderController] Enviando webhook Gym - Email: ${clientEmail}, Name: ${clientName}, Amount: ${totalAmount}`);
 
       GymWebhookService.sendOrderCompletedWebhook({
         order_id: order.id_order,

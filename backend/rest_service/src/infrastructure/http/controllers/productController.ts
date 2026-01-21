@@ -6,7 +6,7 @@ import { ProductService } from "../../../domain/services/ProductService";
 import { InventoryService } from "../../../domain/services/InventoryService";
 import { ProductRepositoryImpl } from "../../repositories/ProductRepositoryImpl";
 import { InventoryRepositoryImpl } from "../../repositories/InventoryRepositoryImpl";
-import { asyncHandler, NotFoundError, BadRequestError, UnauthorizedError } from "../../middlewares/errors";
+import { asyncHandler, NotFoundError, BadRequestError, ForbiddenError } from "../../middlewares/errors";
 import { notifySellerStatsUpdated, notifyAdminStatsUpdated } from "../../clients/statsEventClient";
 import { notifyProductUpdated, notifyAdmins } from "../../clients/notificationClient";
 import AppDataSource from "../../database/data-source";
@@ -69,25 +69,50 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
   // Obtener id_seller desde el usuario autenticado
   const user = (req as any).user;
   
-  if (!user || !user.id_seller) {
-    throw new BadRequestError("Usuario no autenticado o no es vendedor");
+  if (!user) {
+    throw new BadRequestError("Usuario no autenticado");
   }
   
-  // Combinar datos del body con el id_seller del usuario autenticado
+  // Resolver id_seller: puede venir directo en el token o hay que buscarlo por UUID
+  let sellerId = user.id_seller;
+  
+  if (!sellerId && user.id) {
+    const sellerRepo = AppDataSource.getRepository(SellerEntity);
+    let seller = await sellerRepo.findOne({ where: { user_id: user.id } });
+    
+    // Fallback: buscar por email
+    if (!seller && user.email) {
+      seller = await sellerRepo.findOne({ where: { seller_email: user.email } });
+      if (seller) {
+        // Vincular para futuras búsquedas
+        await sellerRepo.update(seller.id_seller, { user_id: user.id });
+      }
+    }
+    
+    if (seller) {
+      sellerId = seller.id_seller;
+    }
+  }
+  
+  if (!sellerId) {
+    throw new BadRequestError("No se pudo identificar el vendedor");
+  }
+  
+  // Combinar datos del body con el id_seller resuelto
   const productData = {
     ...req.body,
-    id_seller: user.id_seller
+    id_seller: sellerId
   };
   
   const createProductUseCase = new CreateProduct(productService, inventoryService);
   const product = await createProductUseCase.execute(productData);
   
   // Notificar actualización de estadísticas
-  await notifySellerStatsUpdated(user.id_seller.toString());
+  await notifySellerStatsUpdated(sellerId.toString());
   await notifyAdminStatsUpdated();
   
   // Notificar creación de producto
-  await notifyProductUpdated(product.id_product, user.id_seller.toString(), product);
+  await notifyProductUpdated(product.id_product, sellerId.toString(), product);
   await notifyAdmins('PRODUCT_CREATED', { product });
   
   res.status(201).json(product);
@@ -128,12 +153,34 @@ export const updateProduct = asyncHandler(async (req: Request, res: Response) =>
     
     // Verificar permisos: admin puede actualizar cualquiera, seller solo sus productos
     const user = (req as any).user;
-    console.log('👤 Usuario:', user.role, 'ID:', user.id_seller || user.id);
+    
+    // Resolver id_seller del usuario autenticado
+    let authenticatedSellerId = user.id_seller;
+    
+    if (!authenticatedSellerId && user.id && user.role === 'seller') {
+      const sellerRepo = AppDataSource.getRepository(SellerEntity);
+      let seller = await sellerRepo.findOne({ where: { user_id: user.id } });
+      
+      // Fallback: buscar por email
+      if (!seller && user.email) {
+        seller = await sellerRepo.findOne({ where: { seller_email: user.email } });
+        if (seller) {
+          // Vincular para futuras búsquedas
+          await sellerRepo.update(seller.id_seller, { user_id: user.id });
+        }
+      }
+      
+      if (seller) {
+        authenticatedSellerId = seller.id_seller;
+      }
+    }
+    
+    console.log('👤 Usuario:', user.role, 'ID resuelto:', authenticatedSellerId);
     console.log('🏪 Producto pertenece a:', existingProduct.id_seller);
     
-    if (user.role === 'seller' && existingProduct.id_seller !== user.id_seller && existingProduct.id_seller !== user.id) {
+    if (user.role === 'seller' && existingProduct.id_seller !== authenticatedSellerId) {
       console.log('🚫 Permiso denegado');
-      throw new UnauthorizedError("No tienes permiso para actualizar este producto");
+      throw new ForbiddenError("No tienes permiso para actualizar este producto");
     }
     
     console.log('✅ Permisos verificados, actualizando...');
@@ -189,8 +236,28 @@ export const deleteProduct = asyncHandler(async (req: Request, res: Response) =>
   
   // Verificar permisos: admin puede eliminar cualquiera, seller solo sus productos
   const user = (req as any).user;
-  if (user.role === 'seller' && product.id_seller !== user.id_seller && product.id_seller !== user.id) {
-    throw new UnauthorizedError("No tienes permiso para eliminar este producto");
+  
+  // Resolver id_seller del usuario autenticado
+  let authenticatedSellerId = user.id_seller;
+  
+  if (!authenticatedSellerId && user.id && user.role === 'seller') {
+    const sellerRepo = AppDataSource.getRepository(SellerEntity);
+    let seller = await sellerRepo.findOne({ where: { user_id: user.id } });
+    
+    if (!seller && user.email) {
+      seller = await sellerRepo.findOne({ where: { seller_email: user.email } });
+      if (seller) {
+        await sellerRepo.update(seller.id_seller, { user_id: user.id });
+      }
+    }
+    
+    if (seller) {
+      authenticatedSellerId = seller.id_seller;
+    }
+  }
+  
+  if (user.role === 'seller' && product.id_seller !== authenticatedSellerId) {
+    throw new ForbiddenError("No tienes permiso para eliminar este producto");
   }
   
   const success = await productService.deleteProduct(id.toString());

@@ -21,7 +21,12 @@ router.post('/partner', async (req: Request, res: Response) => {
   try {
     const signature = req.headers['x-webhook-signature'] as string;
     const partnerIdHeader = req.headers['x-partner-id'] as string;
-    const { event, data } = req.body;
+    // Extract signature from body if present to avoid verification mismatch
+    const bodyWithoutSignature = { ...req.body };
+    if ('signature' in bodyWithoutSignature) {
+      delete bodyWithoutSignature.signature;
+    }
+    const { event, data } = bodyWithoutSignature;
 
     // Validaciones
     if (!signature || !partnerIdHeader) {
@@ -46,8 +51,8 @@ router.post('/partner', async (req: Request, res: Response) => {
 
     const partner = partnerResult.rows[0];
 
-    // Verificar firma HMAC
-    const isValid = WebhookSecurity.verifySignature(req.body, signature, partner.secret);
+    // Verificar firma HMAC (usando body sin signature)
+    const isValid = WebhookSecurity.verifySignature(bodyWithoutSignature, signature, partner.secret);
     
     if (!isValid) {
       await logWebhook(partnerId, 'received', event, req.body, signature, 'failed', null, 'Firma inválida');
@@ -81,10 +86,15 @@ router.post('/partner', async (req: Request, res: Response) => {
  * Recibir webhook directamente del Gym B2B
  * Este endpoint usa el secret compartido para verificación
  */
-router.post('/webhook', async (req: Request, res: Response) => {
+router.post(['/webhook', '/marketplace'], async (req: Request, res: Response) => {
   try {
     const signature = req.headers['x-webhook-signature'] as string;
-    const { event, data, timestamp } = req.body;
+    // Extract signature from body if present to avoid verification mismatch
+    const bodyWithoutSignature = { ...req.body };
+    if ('signature' in bodyWithoutSignature) {
+      delete bodyWithoutSignature.signature;
+    }
+    const { event, data, timestamp } = bodyWithoutSignature;
 
     console.log(`📨 [GymWebhook] Recibido evento: ${event}`);
     console.log(`📨 [GymWebhook] Timestamp: ${timestamp}`);
@@ -101,8 +111,8 @@ router.post('/webhook', async (req: Request, res: Response) => {
     // Secret compartido con el Gym
     const GYM_SHARED_SECRET = process.env.GYM_WEBHOOK_SECRET || 'super-secure-gym-marketplace-2026';
 
-    // Verificar firma HMAC
-    const isValid = WebhookSecurity.verifySignature(req.body, signature, GYM_SHARED_SECRET);
+    // Verificar firma HMAC (usando body sin signature)
+    const isValid = WebhookSecurity.verifySignature(bodyWithoutSignature, signature, GYM_SHARED_SECRET);
     
     if (!isValid) {
       console.error('❌ [GymWebhook] Firma inválida');

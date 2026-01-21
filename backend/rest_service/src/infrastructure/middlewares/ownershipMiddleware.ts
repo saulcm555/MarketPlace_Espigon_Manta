@@ -139,8 +139,28 @@ async function validateSellerOwnership(
 		return res.status(404).json({ message: "Vendedor no encontrado" });
 	}
 
+	// Obtener el id_seller del usuario autenticado
+	let authenticatedSellerId = user.id_seller;
+	
+	// Si no viene en el token, buscarlo por user_id (UUID)
+	if (!authenticatedSellerId && user.id) {
+		const authenticatedSeller = await sellerRepo.findOne({ 
+			where: { user_id: user.id } 
+		});
+		
+		if (authenticatedSeller) {
+			authenticatedSellerId = authenticatedSeller.id_seller;
+		}
+	}
+	
+	if (!authenticatedSellerId) {
+		return res.status(404).json({ 
+			message: "No se pudo identificar el vendedor autenticado" 
+		});
+	}
+
 	// Verificar ownership: el id_seller del token debe coincidir con el recurso
-	if (seller.id_seller !== user.id_seller) {
+	if (seller.id_seller !== authenticatedSellerId) {
 		return res.status(403).json({ 
 			message: "Acceso denegado: no puedes acceder a datos de otro vendedor" 
 		});
@@ -174,16 +194,48 @@ async function validateProductOwnership(
 		return res.status(404).json({ message: "Producto no encontrado" });
 	}
 
-	// Verificar ownership: el producto debe pertenecer al seller autenticado
-	// ProductEntity tiene id_seller directamente
-	const sellerRepo = AppDataSource.getRepository(SellerEntity);
-	const seller = await sellerRepo.findOne({ where: { id_seller: product.id_seller } });
+	// Obtener el id_seller del usuario autenticado
+	// Primero verificar si viene directamente en el token
+	let authenticatedSellerId = user.id_seller;
 	
-	if (!seller) {
-		return res.status(404).json({ message: "Vendedor del producto no encontrado" });
+	console.log(`[validateProductOwnership] User data: id_seller=${user.id_seller}, id=${user.id}, role=${user.role}, email=${user.email}`);
+	
+	// Si no viene en el token, buscarlo por user_id (UUID)
+	if (!authenticatedSellerId && user.id) {
+		const sellerRepo = AppDataSource.getRepository(SellerEntity);
+		const authenticatedSeller = await sellerRepo.findOne({ 
+			where: { user_id: user.id } 
+		});
+		
+		if (authenticatedSeller) {
+			authenticatedSellerId = authenticatedSeller.id_seller;
+			console.log(`[validateProductOwnership] Seller encontrado por UUID: ${authenticatedSellerId}`);
+		} else {
+			// Intentar buscar por email como fallback
+			console.log(`[validateProductOwnership] Seller no encontrado por UUID, buscando por email: ${user.email}`);
+			const sellerByEmail = await sellerRepo.findOne({ 
+				where: { seller_email: user.email } 
+			});
+			if (sellerByEmail) {
+				authenticatedSellerId = sellerByEmail.id_seller;
+				console.log(`[validateProductOwnership] Seller encontrado por email: ${authenticatedSellerId}`);
+				// Vincular el user_id para futuras búsquedas
+				await sellerRepo.update(sellerByEmail.id_seller, { user_id: user.id });
+				console.log(`[validateProductOwnership] Vinculado user_id ${user.id} con seller ${authenticatedSellerId}`);
+			}
+		}
+	}
+	
+	if (!authenticatedSellerId) {
+		console.log(`[validateProductOwnership] ERROR: No se pudo encontrar seller para user: ${JSON.stringify({ id: user.id, email: user.email })}`);
+		return res.status(404).json({ 
+			message: "No se pudo identificar el vendedor autenticado" 
+		});
 	}
 
-	if (seller.id_seller !== user.id_seller) {
+	// Verificar ownership: el producto debe pertenecer al seller autenticado
+	if (product.id_seller !== authenticatedSellerId) {
+		console.log(`[validateProductOwnership] Ownership failed: product.id_seller=${product.id_seller}, authenticatedSellerId=${authenticatedSellerId}`);
 		return res.status(403).json({ 
 			message: "Acceso denegado: este producto pertenece a otro vendedor" 
 		});

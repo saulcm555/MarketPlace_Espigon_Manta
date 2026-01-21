@@ -16,15 +16,17 @@ async def resolve_seller_id(seller_identifier: str) -> int:
     """
     Resuelve un seller_identifier (UUID o int) a id_seller numérico.
     Si ya es un número, lo devuelve directamente.
-    Si es UUID, consulta la tabla sellers para obtener el id_seller.
+    Si es UUID, consulta el nuevo endpoint /sellers/by-user/:userId.
     """
     # Intentar convertir directamente a int
     try:
-        return int(seller_identifier)
+        seller_id = int(seller_identifier)
+        print(f"✅ [resolve_seller_id] Already numeric: {seller_id}")
+        return seller_id
     except (ValueError, TypeError):
         pass
     
-    # Es un UUID, hacer lookup en la tabla sellers
+    # Es un UUID, hacer lookup usando el nuevo endpoint
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             headers = {
@@ -32,22 +34,33 @@ async def resolve_seller_id(seller_identifier: str) -> int:
                 "X-Internal-Service": "report-service"
             }
             
-            # Llamar al endpoint de sellers filtrando por user_id (UUID)
-            url = f"{BASE_URL}/sellers"
-            response = await client.get(url, headers=headers, params={"user_id": seller_identifier})
+            # Usar el nuevo endpoint by-user
+            url = f"{BASE_URL}/sellers/by-user/{seller_identifier}"
+            print(f"🔍 [resolve_seller_id] Calling: {url}")
+            
+            response = await client.get(url, headers=headers)
             response.raise_for_status()
             data = response.json()
             
-            # Extraer el primer seller que coincida
-            if isinstance(data, list) and len(data) > 0:
-                return int(data[0]["id_seller"])
-            elif isinstance(data, dict) and "id_seller" in data:
-                return int(data["id_seller"])
+            print(f"✅ [resolve_seller_id] Response: {data}")
+            
+            # Extraer id_seller
+            if isinstance(data, dict) and "id_seller" in data:
+                seller_id = int(data["id_seller"])
+                print(f"✅ [resolve_seller_id] Resolved UUID {seller_identifier} to id_seller={seller_id}")
+                return seller_id
             else:
-                raise ValueError(f"No seller found with user_id={seller_identifier}")
+                print(f"❌ [resolve_seller_id] Invalid response format: {data}")
+                raise ValueError(f"Invalid response format from /sellers/by-user")
                 
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            print(f"❌ [resolve_seller_id] Seller not found for user_id={seller_identifier}")
+            raise ValueError(f"No seller found with user_id={seller_identifier}")
+        print(f"❌ [resolve_seller_id] HTTP error {e.response.status_code}: {e}")
+        raise ValueError(f"HTTP error resolving seller: {e}")
     except Exception as e:
-        print(f"❌ Error resolving seller_id for {seller_identifier}: {str(e)}")
+        print(f"❌ [resolve_seller_id] Unexpected error: {str(e)}")
         raise ValueError(f"Could not resolve seller_id from identifier: {seller_identifier}")
 
 async def fetch_data(endpoint: str, params: Dict[str, Any] = None) -> Any:

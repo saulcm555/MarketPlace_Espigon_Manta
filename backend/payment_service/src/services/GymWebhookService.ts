@@ -45,6 +45,7 @@ export class GymWebhookService {
   /**
    * Procesa el evento coupon.issued del Gym
    * Guarda el cupón en la base de datos para que el usuario lo pueda usar
+   * ✅ NUEVO: Crea el cliente automáticamente si no existe
    */
   async processCouponIssued(data: any): Promise<void> {
     console.log('📨 Procesando cupón recibido del Gym:', data);
@@ -55,25 +56,50 @@ export class GymWebhookService {
         throw new Error('Datos de cupón incompletos: se requiere email y código');
       }
 
-      // En una implementación real, aquí guardarías en la base de datos
-      // Por ahora, notificamos al REST Service para que lo guarde
       const restServiceUrl = process.env.REST_SERVICE_URL || 'http://rest-service:3000';
       
+      // ✅ PASO 1: Crear cliente automáticamente si no existe
+      console.log(`🔍 Verificando/creando cliente: ${data.customer_email}`);
+      try {
+        const clientResponse = await fetch(`${restServiceUrl}/api/clients/find-or-create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Service-Token': process.env.INTERNAL_SERVICE_TOKEN || 'dev-token'
+          },
+          body: JSON.stringify({
+            email: data.customer_email,
+            name: data.customer_name || data.customer_email.split('@')[0],
+            source: 'gym_coupon'
+          })
+        });
+
+        if (clientResponse.ok) {
+          const clientResult = await clientResponse.json() as any;
+          console.log(`✅ Cliente ${clientResult.created ? 'CREADO' : 'ENCONTRADO'}: ${data.customer_email}`);
+        } else {
+          console.warn(`⚠️ No se pudo verificar/crear cliente: ${await clientResponse.text()}`);
+        }
+      } catch (clientError) {
+        console.error('⚠️ Error al verificar/crear cliente (continuando):', clientError);
+        // Continuar guardando el cupón aunque falle la creación del cliente
+      }
+      
+      // ✅ PASO 2: Guardar el cupón
       const response = await fetch(`${restServiceUrl}/api/coupons/store`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Incluir token interno para autenticar servicio-a-servicio
           'X-Service-Token': process.env.INTERNAL_SERVICE_TOKEN || 'dev-token'
         },
         body: JSON.stringify({
           code: data.coupon_code,
-          discount_percent: data.discount_percent || 15,
+          discount_percent: data.discount_value || data.discount_percent || 15,
           discount_type: data.discount_type || 'percentage',
           valid_for: data.valid_for || 'marketplace_products',
-          expires_at: data.expires_at,
+          expires_at: data.valid_until || data.expires_at,
           issued_by: data.issued_by || 'Gym Management',
-          minimum_purchase: data.minimum_purchase || 0,
+          minimum_purchase: data.min_purchase || data.minimum_purchase || 0,
           customer_email: data.customer_email,
           customer_name: data.customer_name,
           is_active: true,

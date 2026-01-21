@@ -54,3 +54,19 @@ export const deleteSeller = asyncHandler(async (req: Request, res: Response) => 
   
   res.json({ message: "Seller eliminado correctamente" });
 });
+
+export const getSellerByUserId = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.params.userId;
+  
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
+  }
+  
+  const seller = await sellerService.getSellerByUserId(userId);
+  
+  if (!seller) {
+    throw new NotFoundError("Seller");
+  }
+  
+  res.json(seller);
+});

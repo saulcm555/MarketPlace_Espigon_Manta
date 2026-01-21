@@ -98,7 +98,8 @@ export class GymWebhookService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-signature': signature
+          'x-signature': signature,
+          'ngrok-skip-browser-warning': 'true' // Bypass ngrok warning page
         },
         body: payloadString
       });
