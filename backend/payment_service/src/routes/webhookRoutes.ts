@@ -8,8 +8,10 @@ import { query } from '../config/database';
 import { WebhookSecurity } from '../utils/webhookSecurity';
 import { PaymentService } from '../services/PaymentService';
 import { DeliveryEvents, isValidEvent } from '../contracts/events';
+import { GymWebhookService } from '../services/GymWebhookService';
 
 const router = Router();
+const gymWebhookService = new GymWebhookService();
 
 /**
  * POST /api/webhooks/partner
@@ -19,7 +21,12 @@ router.post('/partner', async (req: Request, res: Response) => {
   try {
     const signature = req.headers['x-webhook-signature'] as string;
     const partnerIdHeader = req.headers['x-partner-id'] as string;
-    const { event, data } = req.body;
+    // Extract signature from body if present to avoid verification mismatch
+    const bodyWithoutSignature = { ...req.body };
+    if ('signature' in bodyWithoutSignature) {
+      delete bodyWithoutSignature.signature;
+    }
+    const { event, data } = bodyWithoutSignature;
 
     // Validaciones
     if (!signature || !partnerIdHeader) {
@@ -44,8 +51,8 @@ router.post('/partner', async (req: Request, res: Response) => {
 
     const partner = partnerResult.rows[0];
 
-    // Verificar firma HMAC
-    const isValid = WebhookSecurity.verifySignature(req.body, signature, partner.secret);
+    // Verificar firma HMAC (usando body sin signature)
+    const isValid = WebhookSecurity.verifySignature(bodyWithoutSignature, signature, partner.secret);
     
     if (!isValid) {
       await logWebhook(partnerId, 'received', event, req.body, signature, 'failed', null, 'Firma inválida');
@@ -67,6 +74,65 @@ router.post('/partner', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('❌ [WebhookRoutes] Error al procesar webhook de partner:', error);
+    res.status(500).json({ 
+      error: 'Error al procesar webhook',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * POST /api/gym/webhook
+ * Recibir webhook directamente del Gym B2B
+ * Este endpoint usa el secret compartido para verificación
+ */
+router.post(['/webhook', '/marketplace'], async (req: Request, res: Response) => {
+  try {
+    const signature = req.headers['x-webhook-signature'] as string;
+    // Extract signature from body if present to avoid verification mismatch
+    const bodyWithoutSignature = { ...req.body };
+    if ('signature' in bodyWithoutSignature) {
+      delete bodyWithoutSignature.signature;
+    }
+    const { event, data, timestamp } = bodyWithoutSignature;
+
+    console.log(`📨 [GymWebhook] Recibido evento: ${event}`);
+    console.log(`📨 [GymWebhook] Timestamp: ${timestamp}`);
+    console.log(`📨 [GymWebhook] Data:`, JSON.stringify(data, null, 2));
+
+    // Validar que exista la firma
+    if (!signature) {
+      console.error('❌ [GymWebhook] Falta header X-Webhook-Signature');
+      return res.status(400).json({ 
+        error: 'Header X-Webhook-Signature requerido'
+      });
+    }
+
+    // Secret compartido con el Gym
+    const GYM_SHARED_SECRET = process.env.GYM_WEBHOOK_SECRET || 'super-secure-gym-marketplace-2026';
+
+    // Verificar firma HMAC (usando body sin signature)
+    const isValid = WebhookSecurity.verifySignature(bodyWithoutSignature, signature, GYM_SHARED_SECRET);
+    
+    if (!isValid) {
+      console.error('❌ [GymWebhook] Firma inválida');
+      return res.status(401).json({ error: 'Firma inválida' });
+    }
+
+    console.log('✅ [GymWebhook] Firma verificada correctamente');
+
+    // Procesar evento según el tipo
+    await processPartnerEvent(event, data);
+
+    // Responder éxito
+    res.json({ 
+      received: true,
+      event,
+      processed_at: new Date().toISOString(),
+      message: `Evento ${event} procesado exitosamente`
+    });
+  } catch (error: any) {
+    console.error('❌ [GymWebhook] Error al procesar webhook:', error);
     res.status(500).json({ 
       error: 'Error al procesar webhook',
       message: error.message 
@@ -173,6 +239,26 @@ router.get('/logs', async (req: Request, res: Response) => {
  */
 async function processPartnerEvent(event: string, data: any): Promise<void> {
   switch (event) {
+    case 'coupon.issued':
+      console.log(`🎟️  Cupón recibido del Gym para ${data.customer_email}`);
+      await gymWebhookService.processCouponIssued(data);
+      break;
+
+    case 'coupon.redeemed':
+      console.log(`🎉 Cupón canjeado en Gym: ${data.coupon_code}`);
+      await gymWebhookService.processCouponRedeemed(data);
+      break;
+
+    case 'membership.activated':
+      console.log(`🏋️ Membresía activada en Gym para ${data.customer_email || data.user_email}`);
+      await gymWebhookService.processMembershipActivated(data);
+      break;
+
+    case 'membership.created':
+      console.log(`🏋️ Nueva membresía creada en Gym para ${data.customer_email || data.user_email}`);
+      await gymWebhookService.processMembershipCreated(data);
+      break;
+
     case DeliveryEvents.DELIVERY_ASSIGNED:
       console.log(`🚚 Repartidor asignado a orden #${data.order_id}`);
       // Actualizar orden en tu sistema

@@ -115,10 +115,19 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     // Crear carrito si no existe
     if (!currentCart) {
       try {
-        const newCart = await createCartMutation.mutateAsync(user.id);
+        // Obtener el ID numérico del cliente desde el servidor
+        const { getMyClientProfile } = await import('@/api/clients');
+        const clientProfile = await getMyClientProfile();
+        
+        if (!clientProfile?.id_client) {
+          throw new Error('No se encontró el perfil del cliente');
+        }
+        
+        const newCart = await createCartMutation.mutateAsync(clientProfile.id_client);
         currentCart = newCart;
       } catch (error) {
-        throw error;
+        console.error('❌ Error creando carrito:', error);
+        throw new Error('Error al crear el carrito. Por favor, intenta de nuevo.');
       }
     }
 

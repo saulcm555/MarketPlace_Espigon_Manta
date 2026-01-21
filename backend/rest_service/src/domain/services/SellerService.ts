@@ -23,4 +23,8 @@ export class SellerService {
   async deleteSeller(id: string): Promise<boolean> {
     return await this.sellerRepository.delete(id);
   }
+
+  async getSellerByUserId(userId: string): Promise<Seller | null> {
+    return await this.sellerRepository.findByUserId(userId);
+  }
 }

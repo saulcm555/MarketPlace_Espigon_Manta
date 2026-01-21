@@ -7,7 +7,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { createOrder, uploadPaymentReceipt, updateOrderPaymentReceipt, getPaymentMethods } from '@/api';
+import { createOrder, uploadPaymentReceipt, updateOrderPaymentReceipt, getPaymentMethods, getMyClientProfile, getMyCoupons, validateCoupon } from '@/api';
+import type { Coupon, CouponValidationResult } from '@/api/coupons';
 import { compressImage, validateImageFile, formatFileSize } from '@/lib/imageCompression';
 import type { PaymentMethod } from '@/types/api';
 import Navbar from '@/components/Navbar';
@@ -33,6 +34,9 @@ import {
   FileText,
   Building2,
   User,
+  Ticket,
+  Loader2,
+  Gift,
 } from 'lucide-react';
 
 const Checkout = () => {
@@ -70,6 +74,13 @@ const Checkout = () => {
     cvv: ''
   });
 
+  // Coupon states
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResult | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([]);
+  const [isLoadingCoupons, setIsLoadingCoupons] = useState(false);
+
   // Efecto para verificar autenticación
   useEffect(() => {
     if (!isAuthenticated) {
@@ -99,6 +110,7 @@ const Checkout = () => {
     if (!hasLoadedMethods.current) {
       hasLoadedMethods.current = true;
       loadPaymentMethods();
+      loadAvailableCoupons();
     }
   }, [isAuthenticated, cart, isLoadingCart]);
 
@@ -127,6 +139,75 @@ const Checkout = () => {
     } finally {
       setIsLoadingMethods(false);
     }
+  };
+
+  const loadAvailableCoupons = async () => {
+    try {
+      setIsLoadingCoupons(true);
+      const response = await getMyCoupons();
+      setAvailableCoupons(response.coupons || []);
+    } catch (error) {
+      console.log('No hay cupones disponibles o error al cargar:', error);
+      setAvailableCoupons([]);
+    } finally {
+      setIsLoadingCoupons(false);
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast({
+        title: "Error",
+        description: "Ingresa un código de cupón",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsValidatingCoupon(true);
+      const result = await validateCoupon(couponCode.trim(), totalAmount);
+      
+      if (result.valid) {
+        setAppliedCoupon(result);
+        toast({
+          title: "🎉 ¡Cupón aplicado!",
+          description: `Descuento de ${formatPrice(result.discount_amount)} aplicado`,
+        });
+      } else {
+        toast({
+          title: "Cupón inválido",
+          description: result.error || "El cupón no es válido",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || "Error al validar cupón";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    toast({
+      title: "Cupón eliminado",
+      description: "El descuento ha sido removido",
+    });
+  };
+
+  const handleSelectCoupon = (code: string) => {
+    setCouponCode(code);
+    // Auto-aplicar el cupón seleccionado
+    setTimeout(() => {
+      handleApplyCoupon();
+    }, 100);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -311,8 +392,14 @@ const Checkout = () => {
         };
       });
 
-      const orderData = {
-        id_client: user.id,
+      // Obtener el id_client numérico del servidor
+      const clientProfile = await getMyClientProfile();
+      if (!clientProfile?.id_client) {
+        throw new Error('No se pudo obtener el perfil del cliente');
+      }
+
+      const orderData: any = {
+        id_client: clientProfile.id_client,
         id_cart: cart.id_cart,
         id_payment_method: parseInt(paymentMethod),
         delivery_type: deliveryType,
@@ -320,6 +407,11 @@ const Checkout = () => {
         payment_receipt_url: receiptUrl,
         productOrders: productOrders
       };
+
+      // Agregar cupón si está aplicado
+      if (appliedCoupon?.coupon?.code) {
+        orderData.coupon_code = appliedCoupon.coupon.code;
+      }
 
       const newOrder = await createOrder(orderData);
       const orderId = (newOrder as any).id_order || newOrder.id;
@@ -434,7 +526,8 @@ const Checkout = () => {
   
   // Calcular costo de envío basado en el tipo de entrega
   const shipping = deliveryType === 'pickup' ? 0 : 3; // $0 para retiro, $3 para envío a domicilio
-  const total = totalAmount + shipping;
+  const discount = appliedCoupon?.discount_amount || 0;
+  const total = totalAmount + shipping - discount;
 
   return (
     <div className="min-h-screen bg-background">
@@ -670,7 +763,7 @@ const Checkout = () => {
                             {/* Formulario visual de tarjeta (solo para estética) */}
                             {method.method_name?.toLowerCase().includes('tarjeta') && 
                              paymentMethod === methodId?.toString() && (
-                              <div className="ml-9 border-l-2 border-primary pl-4 space-y-3">
+                              <div key={`card-form-${methodId}`} className="ml-9 border-l-2 border-primary pl-4 space-y-3">
                                 <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-lg p-4 space-y-4">
                                   <p className="text-sm font-semibold text-primary mb-3">
                                     💳 Información de la tarjeta
@@ -755,7 +848,7 @@ const Checkout = () => {
 
                             {/* Mostrar detalles bancarios si es transferencia y está seleccionado */}
                             {isTransfer && paymentMethod === methodId?.toString() && details && (
-                              <div className="ml-9 border-l-2 border-primary pl-4 space-y-3">
+                              <div key={`transfer-details-${methodId}`} className="ml-9 border-l-2 border-primary pl-4 space-y-3">
                                 <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                                   <p className="text-sm font-semibold text-primary mb-3">
                                     Realiza la transferencia a esta cuenta:
@@ -890,8 +983,8 @@ const Checkout = () => {
                 <CardContent className="space-y-4">
                   {/* Products */}
                   <div className="space-y-3">
-                    {cartItems.map((item) => (
-                      <div key={item.id} className="flex gap-3">
+                    {cartItems.map((item, index) => (
+                      <div key={item.id_product_cart || item.id || `cart-item-${index}`} className="flex gap-3">
                         <div className="w-16 h-16 bg-muted rounded-md flex-shrink-0 overflow-hidden">
                           {item.product?.image_url ? (
                             <img
@@ -922,6 +1015,102 @@ const Checkout = () => {
 
                   <Separator />
 
+                  {/* Coupon Section */}
+                  <div className="space-y-3">
+                    <Label className="flex items-center gap-2 text-sm font-medium">
+                      <Ticket className="h-4 w-4" />
+                      Cupón de descuento
+                    </Label>
+                    
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
+                        <div className="flex items-center gap-2">
+                          <Gift className="h-4 w-4 text-green-600" />
+                          <div>
+                            <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                              {appliedCoupon.coupon?.code}
+                            </p>
+                            <p className="text-xs text-green-600 dark:text-green-500">
+                              -{appliedCoupon.coupon?.discount_percent}% de descuento
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemoveCoupon}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Ingresa tu código"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleApplyCoupon}
+                            disabled={isValidatingCoupon || !couponCode.trim()}
+                          >
+                            {isValidatingCoupon ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              'Aplicar'
+                            )}
+                          </Button>
+                        </div>
+
+                        {/* Available Coupons */}
+                        {availableCoupons.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">Cupones disponibles:</p>
+                            <div className="space-y-1">
+                              {availableCoupons.filter(c => !c.used).map((coupon) => (
+                                <button
+                                  key={coupon.id_coupon}
+                                  type="button"
+                                  onClick={() => handleSelectCoupon(coupon.code)}
+                                  className="w-full text-left p-2 rounded-md border border-dashed border-primary/50 hover:bg-primary/5 transition-colors"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Gift className="h-3 w-3 text-primary" />
+                                      <span className="text-sm font-mono font-medium">{coupon.code}</span>
+                                    </div>
+                                    <Badge variant="secondary" className="text-xs">
+                                      -{coupon.discount_percent}%
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {coupon.issued_by}
+                                    {coupon.minimum_purchase > 0 && ` • Mín. $${coupon.minimum_purchase}`}
+                                  </p>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {isLoadingCoupons && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-2">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Cargando cupones...
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <Separator />
+
                   {/* Totals */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
@@ -940,6 +1129,17 @@ const Checkout = () => {
                         )}
                       </span>
                     </div>
+                    {appliedCoupon && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-green-600 flex items-center gap-1">
+                          <Ticket className="h-3 w-3" />
+                          Descuento ({appliedCoupon.coupon?.code})
+                        </span>
+                        <span className="font-medium text-green-600">
+                          -{formatPrice(discount)}
+                        </span>
+                      </div>
+                    )}
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
@@ -954,15 +1154,15 @@ const Checkout = () => {
                     disabled={isProcessing}
                   >
                     {isProcessing ? (
-                      <>
+                      <div className="flex items-center">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                         Procesando pedido...
-                      </>
+                      </div>
                     ) : (
-                      <>
+                      <div className="flex items-center">
                         <CheckCircle className="mr-2 h-5 w-5" />
                         Confirmar pedido por {formatPrice(total)}
-                      </>
+                      </div>
                     )}
                   </Button>
 

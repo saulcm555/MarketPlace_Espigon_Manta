@@ -4,7 +4,7 @@
 import { gql } from '@apollo/client';
 
 export const GET_SELLER_DASHBOARD_STATS = gql`
-  query GetSellerDashboardStats($sellerId: Int!) {
+  query GetSellerDashboardStats($sellerId: String!) {
     seller_dashboard_stats(seller_id: $sellerId) {
       seller_id
       today_sales
@@ -21,7 +21,7 @@ export const GET_SELLER_DASHBOARD_STATS = gql`
 `;
 
 export const GET_SELLER_BEST_PRODUCTS = gql`
-  query GetSellerBestProducts($sellerId: Int!, $dateRange: DateRangeInput, $limit: Int) {
+  query GetSellerBestProducts($sellerId: String!, $dateRange: DateRangeInput, $limit: Int) {
     seller_best_products(seller_id: $sellerId, date_range: $dateRange, limit: $limit) {
       period_start
       period_end

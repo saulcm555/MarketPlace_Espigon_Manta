@@ -11,6 +11,9 @@ export { consultarPagoTool } from './consultar_pago';
 // Product Tools
 export { buscarProductosTool, buscarProductos } from './buscar_productos';
 
+// Client Tools
+export { buscarClienteTool, buscarCliente } from './buscar_cliente';
+
 // Order Tools
 export { crearOrdenTool, crearOrden } from './crear_orden';
 
@@ -21,16 +24,19 @@ export { resumenVentasTool, resumenVentas } from './resumen_ventas';
 import { procesarPagoTool } from './procesar_pago';
 import { consultarPagoTool } from './consultar_pago';
 import { buscarProductosTool } from './buscar_productos';
+import { buscarClienteTool } from './buscar_cliente';
 import { crearOrdenTool } from './crear_orden';
 import { resumenVentasTool } from './resumen_ventas';
 
-// Lista de todos los tools disponibles (5 tools totales)
+// Lista de todos los tools disponibles (6 tools totales)
 export const availableTools = [
   // Payment Service (2)
   procesarPagoTool,
   consultarPagoTool,
   // Rest Service - Productos (1)
   buscarProductosTool,
+  // Rest Service - Clientes (1)
+  buscarClienteTool,
   // Rest Service - Órdenes (1)
   crearOrdenTool,
   // Report Service (1)

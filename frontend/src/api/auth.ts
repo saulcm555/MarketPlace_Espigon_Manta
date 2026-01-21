@@ -57,7 +57,7 @@ export const loginAdmin = login;
 /**
  * Registrar nuevo usuario
  * Paso 1: POST /auth/register en Auth Service (crea user con JWT)
- * Paso 2: Frontend debe crear perfil (client/seller/admin) en REST Service con user_id del token
+ * El Auth Service automáticamente crea el perfil en REST Service
  */
 export const register = async (data: {
   email: string;
@@ -69,9 +69,52 @@ export const register = async (data: {
   return response.data;
 };
 
-// Alias para compatibilidad (el frontend debe llamar a REST Service después con el user_id)
-export const registerClient = register;
-export const registerSeller = register;
+/**
+ * Registrar nuevo cliente
+ * Transforma RegisterClientRequest al formato del Auth Service
+ */
+export const registerClient = async (data: {
+  client_name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  address?: string;
+}): Promise<LoginResponse> => {
+  // Transformar al formato que espera el Auth Service
+  const authData = {
+    email: data.email,
+    password: data.password,
+    role: 'client' as const,
+    name: data.client_name,
+  };
+  
+  const response = await authClient.post<LoginResponse>('/auth/register', authData);
+  return response.data;
+};
+
+/**
+ * Registrar nuevo vendedor
+ * Transforma RegisterSellerRequest al formato del Auth Service
+ */
+export const registerSeller = async (data: {
+  seller_name: string;
+  seller_email: string;
+  seller_password: string;
+  phone?: string;
+  bussines_name?: string;
+  location?: string;
+}): Promise<LoginResponse> => {
+  // Transformar al formato que espera el Auth Service
+  const authData = {
+    email: data.seller_email,
+    password: data.seller_password,
+    role: 'seller' as const,
+    name: data.seller_name,
+  };
+  
+  const response = await authClient.post<LoginResponse>('/auth/register', authData);
+  return response.data;
+};
 
 // ============================================
 // Token Refresh
@@ -119,19 +162,21 @@ export const verifyToken = async (): Promise<{ valid: boolean; user?: User }> =>
   }
   
   try {
-    // Primero verificamos con Auth Service
-    const response = await authClient.post('/auth/validate', {
-      token: token
+    // Verificar con Auth Service enviando token en header Authorization
+    const response = await authClient.get('/auth/validate', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
     });
     
     return {
       valid: response.data.valid,
-      user: response.data.payload ? {
-        id: response.data.payload.sub,
-        email: response.data.payload.email,
-        role: response.data.payload.role,
-        name: response.data.payload.email.split('@')[0], // Temporal
-        reference_id: response.data.payload.reference_id
+      user: response.data.user ? {
+        id: response.data.user.id,
+        email: response.data.user.email,
+        role: response.data.user.role,
+        name: response.data.user.name || response.data.user.email.split('@')[0],
+        reference_id: response.data.user.reference_id
       } : undefined
     };
   } catch (error) {

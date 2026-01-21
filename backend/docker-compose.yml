@@ -54,7 +54,7 @@ services:
       - JWT_AUDIENCE=marketplace-espigon
       # Database (Supabase) - Usa pooler port
       - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT_POOLER:-6543}
+      - DB_PORT=${DB_PORT:-6543}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_DATABASE=${DB_DATABASE:-postgres}
@@ -95,7 +95,7 @@ services:
       - PORT=3000
       # Database (Supabase) - usa pooler port para mejor concurrencia
       - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT_POOLER:-6543}
+      - DB_PORT=${DB_PORT:-6543}
       - DB_USER=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_DATABASE:-postgres}
@@ -116,6 +116,9 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@espigon.com}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
       - ADMIN_PHONE=${ADMIN_PHONE:-0000000000}
+      # Gym B2B Webhook Integration
+      - GYM_WEBHOOK_URL=${GYM_WEBHOOK_URL:-http://localhost:3004/api/marketplace/webhook}
+      - GYM_WEBHOOK_SECRET=${GYM_WEBHOOK_SECRET}
     depends_on:
       - redis
     networks:
@@ -143,7 +146,7 @@ services:
       - PORT=3001
       # Database (Supabase) - usa puerto directo
       - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT_DIRECT:-5432}
+      - DB_PORT=${DB_PORT:-6543}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_DATABASE=${DB_DATABASE:-postgres}
@@ -157,6 +160,10 @@ services:
       - WEBHOOK_RETRY_ATTEMPTS=${WEBHOOK_RETRY_ATTEMPTS:-3}
       # Internal API Key
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      # Gym Integration (B2B)
+      - GYM_WEBHOOK_SECRET=${GYM_WEBHOOK_SECRET}
+      - GYM_API_URL=${GYM_API_URL}
+      - REST_SERVICE_URL=http://rest-service:3000
     networks:
       - marketplace-network
     healthcheck:
@@ -180,7 +187,7 @@ services:
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
-      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT_POOLER:-6543}/${DB_DATABASE}
+      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT:-6543}/${DB_DATABASE}
     networks:
       - marketplace-network
     healthcheck:

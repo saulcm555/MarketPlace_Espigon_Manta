@@ -5,9 +5,9 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { 
-  login as apiLogin, 
-  logout as apiLogout, 
+import {
+  login as apiLogin,
+  logout as apiLogout,
   saveAuthData,
   getSavedUser,
   getAuthToken,
@@ -58,19 +58,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================
   const refreshAuth = useCallback(async (): Promise<boolean> => {
     const currentRefreshToken = getRefreshToken();
-    
+
     if (!currentRefreshToken) {
       return false;
     }
-    
+
     try {
       const tokenResponse = await refreshTokens();
-      
+
       if (tokenResponse) {
         setToken(tokenResponse.access_token);
         return true;
       }
-      
+
       return false;
     } catch (error) {
       console.error('Error refreshing auth:', error);
@@ -92,14 +92,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (isTokenExpiringSoon()) {
             console.log('🔄 Token próximo a expirar, refrescando...');
             const refreshed = await refreshAuth();
-            
+
             if (refreshed) {
               setToken(getAuthToken());
               setUser(savedUser);
             } else {
               // No se pudo refrescar, verificar token actual
               const { valid } = await verifyToken();
-              
+
               if (valid) {
                 setToken(savedToken);
                 setUser(savedUser);
@@ -110,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           } else {
             // Token aún válido
             const { valid, user: verifiedUser } = await verifyToken();
-            
+
             if (valid) {
               setToken(savedToken);
               setUser(verifiedUser || savedUser);
@@ -135,7 +135,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================
   useEffect(() => {
     if (!token) return;
-    
+
     // Refrescar 2 minutos antes de que expire (tokens de 15 min)
     const refreshInterval = setInterval(async () => {
       if (isTokenExpiringSoon()) {
@@ -143,7 +143,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await refreshAuth();
       }
     }, 13 * 60 * 1000); // 13 minutos
-    
+
     return () => clearInterval(refreshInterval);
   }, [token, refreshAuth]);
 
@@ -152,23 +152,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // ============================================
   const login = async (credentials: LoginRequest, role: UserRole = 'client') => {
     try {
-      const response: LoginResponse = await apiLogin(credentials, role);
-      
+      const response: LoginResponse = await apiLogin(credentials);
+
       // Determinar el token a usar (nuevo formato vs legacy)
       const accessToken = response.access_token || (response as any).token;
       const refreshToken = response.refresh_token;
       const expiresIn = response.expires_in;
-      
+
+      // Guardar user básico primero
+      let enrichedUser = response.user;
+
+      // 🔧 ENRIQUECER USER CON DATOS DEL REST SERVICE
+      // Si es seller, obtener id_seller del REST service
+      if (enrichedUser.role === 'seller') {
+        try {
+          console.log('🔍 [AuthContext] Enriqueciendo user seller con id_seller...');
+          const sellersResponse = await fetch(`${import.meta.env.VITE_API_URL}/sellers`);
+          if (sellersResponse.ok) {
+            const sellers = await sellersResponse.json();
+            // Buscar seller por email
+            const seller = sellers.find((s: any) => s.seller_email === enrichedUser.email);
+            if (seller) {
+              enrichedUser.id_seller = seller.id_seller;
+              console.log('✅ [AuthContext] id_seller agregado:', seller.id_seller);
+            } else {
+              console.warn('⚠️ [AuthContext] No se encontró seller con email:', enrichedUser.email);
+            }
+          }
+        } catch (error) {
+          console.error('❌ [AuthContext] Error enriqueciendo seller:', error);
+          // Continuar sin id_seller
+        }
+      }
+
       // Save to state
       setToken(accessToken);
-      setUser(response.user);
-      
+      setUser(enrichedUser);
+
       // Save to localStorage
-      saveAuthData(accessToken, response.user, refreshToken, expiresIn);
-      
+      saveAuthData(accessToken, enrichedUser, refreshToken, expiresIn);
+
       // Limpiar intentos fallidos de login para este email
       clearLoginAttempts(credentials.email);
-      
+
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -220,11 +246,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  
+
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  
+
   return context;
 };
 

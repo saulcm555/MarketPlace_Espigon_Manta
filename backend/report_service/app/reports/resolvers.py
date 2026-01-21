@@ -193,22 +193,24 @@ class ReportQueries:
         return await get_dashboard_stats()
     
     @strawberry.field
-    async def seller_dashboard_stats(self, seller_id: int) -> SellerDashboardStats:
+    async def seller_dashboard_stats(self, seller_id: str) -> SellerDashboardStats:
         """
         Estadísticas del dashboard específicas para un vendedor.
         Filtra todas las métricas por los productos que pertenecen al vendedor.
+        Acepta tanto UUID (user_id) como id_seller numérico.
         """
         return await get_seller_dashboard_stats(seller_id)
     
     @strawberry.field
     async def seller_best_products(
         self,
-        seller_id: int,
+        seller_id: str,
         date_range: Optional[DateRangeInput] = None,
         limit: int = 10
     ) -> BestProductsReport:
         """
         Reporte de productos más vendidos de un vendedor específico.
+        Acepta tanto UUID (user_id) como id_seller numérico.
         """
         if date_range:
             start_date = date_range.start_date
