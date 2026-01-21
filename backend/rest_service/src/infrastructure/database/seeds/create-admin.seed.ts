@@ -1,16 +1,21 @@
 /**
  * Seed para crear el usuario administrador principal del sistema
  * 
- * Este script se ejecuta UNA SOLA VEZ para crear el primer administrador
+ * Este script crea el administrador en DOS lugares:
+ * 1. auth_service.users - Para autenticación via Auth Service
+ * 2. public.admin - Para el perfil de administrador en REST Service
+ * 
+ * Es idempotente: puede ejecutarse múltiples veces sin crear duplicados.
  * 
  * Ejecutar con: npx ts-node src/infrastructure/database/seeds/create-admin.seed.ts
  * 
  * @author Saul Castro
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import "reflect-metadata";
 import * as bcrypt from "bcrypt";
+import { v4 as uuidv4 } from "uuid";
 import AppDataSource from "../data-source";
 import { AdminEntity } from "../../../models/adminModel";
 
@@ -28,6 +33,45 @@ const ADMIN_DATA = {
 };
 
 /**
+ * Crear usuario en auth_service.users si no existe
+ * Si existe, actualiza la contraseña para asegurar sincronización
+ */
+async function ensureAuthServiceUser(hashedPassword: string): Promise<string> {
+  // Verificar si ya existe en auth_service.users
+  const existingAuthUser = await AppDataSource.query(
+    `SELECT id, email FROM auth_service.users WHERE email = $1`,
+    [ADMIN_DATA.admin_email]
+  );
+
+  if (existingAuthUser.length > 0) {
+    console.log(`✅ Usuario ya existe en auth_service.users: ${existingAuthUser[0].id}`);
+    
+    // Actualizar la contraseña para sincronizar con .env
+    console.log(`🔄 Actualizando contraseña en auth_service.users...`);
+    await AppDataSource.query(
+      `UPDATE auth_service.users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+      [hashedPassword, existingAuthUser[0].id]
+    );
+    console.log(`✅ Contraseña actualizada`);
+    
+    return existingAuthUser[0].id;
+  }
+
+  // Crear nuevo usuario en auth_service.users
+  const userId = uuidv4();
+  console.log(`📝 Creando usuario en auth_service.users...`);
+  
+  await AppDataSource.query(
+    `INSERT INTO auth_service.users (id, email, password_hash, name, role, is_active, email_verified, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+    [userId, ADMIN_DATA.admin_email, hashedPassword, ADMIN_DATA.admin_name, 'admin', true, true]
+  );
+
+  console.log(`✅ Usuario creado en auth_service.users: ${userId}`);
+  return userId;
+}
+
+/**
  * Función principal del seed
  */
 async function seedAdmin() {
@@ -39,49 +83,72 @@ async function seedAdmin() {
     await AppDataSource.initialize();
     console.log("✅ Conexión establecida\n");
 
-    // 2. Obtener el repositorio de Admin
+    // 2. Hashear la contraseña (se usa para ambas tablas)
+    console.log("🔐 Hasheando contraseña...");
+    const hashedPassword = await bcrypt.hash(ADMIN_DATA.admin_password, 10);
+    console.log("✅ Contraseña hasheada correctamente\n");
+
+    // 3. Asegurar que existe en auth_service.users
+    console.log("🔐 Verificando usuario en Auth Service...");
+    const userId = await ensureAuthServiceUser(hashedPassword);
+    console.log(`   user_id: ${userId}\n`);
+
+    // 4. Obtener el repositorio de Admin
     const adminRepository = AppDataSource.getRepository(AdminEntity);
 
-    // 3. Verificar si ya existe un admin con ese email
-    console.log(` Verificando si ya existe el email: ${ADMIN_DATA.admin_email}`);
+    // 5. Verificar si ya existe un admin con ese email en public.admin
+    console.log(`🔍 Verificando si ya existe el email en public.admin: ${ADMIN_DATA.admin_email}`);
     const existingAdmin = await adminRepository.findOne({
       where: { admin_email: ADMIN_DATA.admin_email }
     });
 
     if (existingAdmin) {
-      console.log("⚠️  Ya existe un administrador con ese email");
-      console.log(`   ID: ${existingAdmin.id_admin}`);
-      console.log(`   Nombre: ${existingAdmin.admin_name}`);
-      console.log(`   Email: ${existingAdmin.admin_email}`);
-      console.log(`   Rol: ${existingAdmin.role}`);
-      console.log(`   Creado: ${existingAdmin.created_at}\n`);
-      console.log("💡 Si deseas crear un nuevo admin, cambia el email en el seed\n");
+      // Admin existe - verificar si tiene user_id vinculado
+      if (!existingAdmin.user_id) {
+        console.log("⚠️  Admin existe pero NO tiene user_id vinculado");
+        console.log("🔄 Vinculando user_id...");
+        await adminRepository.update(
+          { id_admin: existingAdmin.id_admin },
+          { user_id: userId }
+        );
+        console.log(`✅ user_id vinculado: ${userId}\n`);
+      } else {
+        console.log("✅ Admin ya tiene user_id vinculado correctamente\n");
+      }
+
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log("📋 ADMINISTRADOR EXISTENTE");
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      console.log(`ID:       ${existingAdmin.id_admin}`);
+      console.log(`user_id:  ${userId}`);
+      console.log(`Nombre:   ${existingAdmin.admin_name}`);
+      console.log(`Email:    ${existingAdmin.admin_email}`);
+      console.log(`Rol:      ${existingAdmin.role}`);
+      console.log(`Creado:   ${existingAdmin.created_at}`);
+      console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
       return;
     }
 
-    // 4. Hashear la contraseña
-    console.log("🔐 Hasheando contraseña...");
-    const hashedPassword = await bcrypt.hash(ADMIN_DATA.admin_password, 10);
-    console.log("✅ Contraseña hasheada correctamente\n");
-
-    // 5. Crear el nuevo administrador
-    console.log("👤 Creando administrador...");
+    // 6. Crear el nuevo administrador en public.admin
+    console.log("👤 Creando administrador en public.admin...");
     const newAdmin = adminRepository.create({
+      user_id: userId,
       admin_name: ADMIN_DATA.admin_name,
       admin_email: ADMIN_DATA.admin_email,
       admin_password: hashedPassword,
       role: ADMIN_DATA.role
     });
 
-    // 6. Guardar en la base de datos
+    // 7. Guardar en la base de datos
     const savedAdmin = await adminRepository.save(newAdmin);
     console.log("✅ Administrador creado exitosamente\n");
 
-    // 7. Mostrar información del administrador creado
+    // 8. Mostrar información del administrador creado
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log("📋 INFORMACIÓN DEL ADMINISTRADOR CREADO");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log(`ID:       ${savedAdmin.id_admin}`);
+    console.log(`user_id:  ${savedAdmin.user_id}`);
     console.log(`Nombre:   ${savedAdmin.admin_name}`);
     console.log(`Email:    ${savedAdmin.admin_email}`);
     console.log(`Teléfono: ${ADMIN_DATA.phone}`);
@@ -89,28 +156,22 @@ async function seedAdmin() {
     console.log(`Creado:   ${savedAdmin.created_at}`);
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
-    // 8. Mostrar credenciales para login
+    // 9. Mostrar credenciales para login
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("🔑 CREDENCIALES PARA LOGIN");
+    console.log("🔑 CREDENCIALES PARA LOGIN (Auth Service)");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log(`Email:    ${ADMIN_DATA.admin_email}`);
     console.log(`Password: ${ADMIN_DATA.admin_password}`);
+    console.log(`Endpoint: POST http://localhost:4001/auth/login`);
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
-    // 9. Instrucciones para usar Swagger
+    // 10. Instrucciones para usar
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("📝 INSTRUCCIONES PARA USAR SWAGGER");
+    console.log("📝 INSTRUCCIONES DE USO");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("1. Abre http://localhost:3000/api-docs");
-    console.log("2. Busca el endpoint POST /api/auth/login/admin");
-    console.log("3. Haz clic en 'Try it out'");
-    console.log("4. Ingresa el email y password mostrados arriba");
-    console.log("5. Haz clic en 'Execute'");
-    console.log("6. Copia el token de la respuesta");
-    console.log("7. Haz clic en el botón 'Authorize' (🔓) arriba");
-    console.log("8. Pega el token en el campo 'Value'");
-    console.log("9. Haz clic en 'Authorize'");
-    console.log("10. ¡Ya puedes usar todos los endpoints protegidos!");
+    console.log("1. Abre http://localhost:4001/auth/login");
+    console.log("2. Envía POST con { email, password }");
+    console.log("3. Usa el access_token en header: Authorization: Bearer <token>");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
   } catch (error) {

@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import * as jwt from "jsonwebtoken";
+import AppDataSource from "../database/data-source";
+import { SellerEntity } from "../../models/sellerModel";
+import { ClientEntity } from "../../models/clientModel";
 
 // ============================================
 // CONFIGURACIÓN JWT - Compatible con Auth Service
@@ -70,6 +73,11 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
 			...(decoded.role === "admin" && { id_admin: decoded.reference_id }),
 		};
 		
+		// Vinculación automática: si el usuario no tiene user_id en su perfil, vincularlo por email
+		autoLinkUserProfile(decoded).catch(err => {
+			console.error('[authMiddleware] Error en vinculación automática:', err);
+		});
+		
 		next();
 	} catch (err) {
 		if (err instanceof jwt.TokenExpiredError) {
@@ -85,6 +93,50 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
 			});
 		}
 		return res.status(401).json({ message: "Authentication failed" });
+	}
+}
+
+/**
+ * Vincula automáticamente el user_id (UUID de Supabase) con el perfil del vendedor/cliente
+ * si aún no está vinculado. Esto resuelve el problema de usuarios existentes que no tienen
+ * el campo user_id poblado.
+ */
+async function autoLinkUserProfile(decoded: AuthTokenPayload): Promise<void> {
+	if (!decoded.email || !decoded.sub) return;
+	
+	try {
+		if (decoded.role === 'seller') {
+			const sellerRepo = AppDataSource.getRepository(SellerEntity);
+			
+			// Buscar vendedor por user_id primero
+			let seller = await sellerRepo.findOne({ where: { user_id: decoded.sub } });
+			
+			// Si no existe por user_id, buscar por email y vincular
+			if (!seller) {
+				seller = await sellerRepo.findOne({ where: { seller_email: decoded.email } });
+				if (seller && !seller.user_id) {
+					await sellerRepo.update(seller.id_seller, { user_id: decoded.sub });
+					console.log(`[autoLink] Vendedor ${seller.seller_email} vinculado con user_id ${decoded.sub}`);
+				}
+			}
+		} else if (decoded.role === 'client') {
+			const clientRepo = AppDataSource.getRepository(ClientEntity);
+			
+			// Buscar cliente por user_id primero
+			let client = await clientRepo.findOne({ where: { user_id: decoded.sub } });
+			
+			// Si no existe por user_id, buscar por email y vincular
+			if (!client) {
+				client = await clientRepo.findOne({ where: { client_email: decoded.email } });
+				if (client && !client.user_id) {
+					await clientRepo.update(client.id_client, { user_id: decoded.sub });
+					console.log(`[autoLink] Cliente ${client.client_email} vinculado con user_id ${decoded.sub}`);
+				}
+			}
+		}
+	} catch (error) {
+		// No fallar la autenticación si la vinculación falla, solo loguear
+		console.error('[autoLink] Error vinculando perfil:', error);
 	}
 }
 

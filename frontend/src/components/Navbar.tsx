@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -9,12 +9,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Menu, ShoppingCart, User, LogOut, Settings, Package, Receipt, Clock, Cog, MessageCircle } from "lucide-react";
+import { Menu, ShoppingCart, User, LogOut, Settings, Package, Receipt, Clock, Cog, MessageCircle, Ticket, Gift, ExternalLink } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getMyOrders } from "@/api";
+import { getMyOrders, getMyCoupons } from "@/api";
+import type { Coupon } from "@/api/coupons";
 import CartDrawer from "@/components/CartDrawer";
 import logoEspigon from "@/assets/logo.jpg";
 
@@ -30,6 +31,16 @@ const Navbar = () => {
     queryFn: getMyOrders,
     enabled: isAuthenticated && user?.role === 'client',
   });
+
+  // Fetch cupones del usuario (cupones ganados del Gym)
+  const { data: couponsData } = useQuery({
+    queryKey: ['my-coupons'],
+    queryFn: getMyCoupons,
+    enabled: isAuthenticated && user?.role === 'client',
+  });
+
+  const myCoupons = couponsData?.coupons || [];
+  const activeCoupons = myCoupons.filter((c: Coupon) => c.is_active && !c.used);
 
   // Obtener solo los últimos 5 pedidos ordenados por fecha (más recientes primero)
   const recentOrders = [...orders]
@@ -49,6 +60,17 @@ const Navbar = () => {
       day: 'numeric',
       month: 'short',
     }).format(date);
+  };
+
+  const formatExpiryDate = (dateString?: string) => {
+    if (!dateString) return 'Sin expiración';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return 'Expirado';
+    if (diffDays === 1) return 'Expira mañana';
+    if (diffDays <= 7) return `Expira en ${diffDays} días`;
+    return formatDate(dateString);
   };
 
   const getOrderStatusBadge = (status: string) => {
@@ -98,11 +120,11 @@ const Navbar = () => {
             <Link to="/" className="text-foreground/80 hover:text-foreground transition-colors">
               Inicio
             </Link>
-            
+
             <Link to="/products" className="text-foreground/80 hover:text-foreground transition-colors">
               Productos
             </Link>
-            
+
             {/* Categorías eliminado por petición del usuario */}
 
             <Link to="/entrepreneurs" className="text-foreground/80 hover:text-foreground transition-colors">
@@ -130,6 +152,80 @@ const Navbar = () => {
           <div className="flex items-center gap-3">
             {isAuthenticated && user?.role === 'client' && (
               <>
+                {/* Menú de Cupones del Gym */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Ticket className="h-5 w-5" />
+                      {activeCoupons.length > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                          {activeCoupons.length}
+                        </span>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80">
+                    <DropdownMenuLabel className="flex items-center gap-2">
+                      <Gift className="h-4 w-4 text-green-500" />
+                      <span>Cupones del Gym</span>
+                      {activeCoupons.length > 0 && (
+                        <Badge variant="secondary" className="ml-auto text-xs bg-green-100 text-green-700">
+                          {activeCoupons.length} activos
+                        </Badge>
+                      )}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+
+                    {activeCoupons.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-muted-foreground">
+                        <Ticket className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No tienes cupones activos</p>
+                        <p className="text-xs mt-1 text-muted-foreground/70">
+                          ¡Compra más de $5 y gana cupones para el Gym!
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="max-h-72 overflow-y-auto">
+                          {activeCoupons.slice(0, 5).map((coupon: Coupon) => (
+                            <DropdownMenuItem
+                              key={coupon.id_coupon}
+                              className="cursor-default flex-col items-start p-3 h-auto hover:bg-green-50"
+                            >
+                              <div className="w-full flex items-center justify-between mb-1">
+                                <code className="font-mono text-sm font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded">
+                                  {coupon.code}
+                                </code>
+                                <Badge variant="default" className="bg-green-500 text-xs">
+                                  {coupon.discount_percent}% OFF
+                                </Badge>
+                              </div>
+                              <div className="w-full flex items-center justify-between text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatExpiryDate(coupon.expires_at)}
+                                </span>
+                                <span className="text-green-600 font-medium">
+                                  Válido en Gym
+                                </span>
+                              </div>
+                              {coupon.minimum_purchase > 0 && (
+                                <div className="w-full text-xs text-amber-600 mt-1">
+                                  Compra mínima: {formatPrice(coupon.minimum_purchase)}
+                                </div>
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+                        </div>
+                        <DropdownMenuSeparator />
+                        <div className="p-2 text-center text-xs text-muted-foreground bg-muted/30">
+                          <p>🏋️ Usa estos cupones en la app del Gym</p>
+                        </div>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 {/* Menú de Pedidos Recientes */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -152,7 +248,7 @@ const Navbar = () => {
                       )}
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    
+
                     {recentOrders.length === 0 ? (
                       <div className="py-8 text-center text-sm text-muted-foreground">
                         <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -242,26 +338,26 @@ const Navbar = () => {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  
+
                   {user?.role === 'seller' && (
                     <DropdownMenuItem onClick={() => navigate('/seller/dashboard')}>
                       <Package className="mr-2 h-4 w-4" />
                       Mi tienda
                     </DropdownMenuItem>
                   )}
-                  
+
                   {user?.role === 'admin' && (
                     <DropdownMenuItem onClick={() => navigate('/admin/dashboard')}>
                       <Settings className="mr-2 h-4 w-4" />
                       Panel Admin
                     </DropdownMenuItem>
                   )}
-                  
+
                   <DropdownMenuItem onClick={() => navigate('/profile')}>
                     <User className="mr-2 h-4 w-4" />
                     Mi perfil
                   </DropdownMenuItem>
-                  
+
                   {/* Configuración para clientes y vendedores */}
                   {(user?.role === 'client' || user?.role === 'seller') && (
                     <DropdownMenuItem onClick={() => navigate('/settings')}>
@@ -269,9 +365,9 @@ const Navbar = () => {
                       Configuración
                     </DropdownMenuItem>
                   )}
-                  
+
                   <DropdownMenuSeparator />
-                  
+
                   <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                     <LogOut className="mr-2 h-4 w-4" />
                     Cerrar sesión
@@ -304,7 +400,7 @@ const Navbar = () => {
                 </DropdownMenu>
               </>
             )}
-            
+
             <Button variant="ghost" size="icon" className="md:hidden">
               <Menu className="h-5 w-5" />
             </Button>

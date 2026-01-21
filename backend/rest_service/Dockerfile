@@ -32,7 +32,7 @@ RUN addgroup -g 1001 -S nodejs && \
 
 # Copiar dependencias de producción
 COPY package*.json ./
-RUN npm install --only=production --legacy-peer-deps && npm cache clean --force
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copiar código compilado desde builder
 COPY --from=builder /app/dist ./dist

@@ -15,3 +15,6 @@ export * from './OrderClient';
 
 // Report Client (Report Service - GraphQL)
 export * from './ReportClient';
+
+// Client Client (Rest Service)
+export * from './ClientClient';

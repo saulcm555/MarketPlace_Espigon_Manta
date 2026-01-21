@@ -26,43 +26,53 @@ import wsAuthRoutes from "../infrastructure/http/routes/wsAuthRoutes";
 import uploadRoutes from "../infrastructure/http/routes/uploadRoutes";
 import statisticsRoutes from "../infrastructure/http/routes/statisticsRoutes";
 import reportsRoutes from "../infrastructure/http/routes/reportsRoutes";
+
+// ✅ Combinar ambos cambios
+import couponRoutes from "../infrastructure/http/routes/couponRoutes";
 import logsRoutes from "../infrastructure/http/routes/logsRoutes";
 
 const app = express();
 
-// CORS Configuration
+// ============================================
+// CORS Configuration (permite frontend acceder al backend)
+// ============================================
 app.use((req, res, next) => {
   const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:8080',
-    'http://localhost:8081',
-    'http://192.168.56.1:8080',
-    'http://192.168.1.87:8080',
-    'http://172.20.64.1:8080'
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:8080",
+    "http://localhost:8081",
+    "http://192.168.56.1:8080",
+    "http://192.168.1.87:8080",
+    "http://172.20.64.1:8080",
   ];
-  
+
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader("Access-Control-Allow-Origin", origin);
   }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  
-  if (req.method === 'OPTIONS') {
+
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+
+  // Handle preflight
+  if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
-  
+
   next();
 });
 
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
+// Servir archivos estáticos (imágenes subidas)
+app.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
+
+// Setup Swagger documentation
 setupSwagger(app);
 
+// Health check route (para verificación de servicios)
 app.get("/", (req, res) => {
   res.json({
     status: "ok",
@@ -70,8 +80,8 @@ app.get("/", (req, res) => {
     version: "1.0.0",
     endpoints: {
       swagger: "/api-docs",
-      health: "/health"
-    }
+      health: "/health",
+    },
   });
 });
 
@@ -81,8 +91,8 @@ app.get("/health", (req, res) => {
     timestamp: new Date().toISOString(),
     services: {
       database: "connected",
-      redis: "connected"
-    }
+      redis: "connected",
+    },
   });
 });
 
@@ -100,12 +110,18 @@ app.use("/api/carts", cartRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/payment-methods", paymentMethodRoutes);
 app.use("/api/deliveries", deliveryRoutes);
-app.use("/api/ws", wsAuthRoutes);
-app.use("/api/upload", uploadRoutes);
-app.use("/api/statistics", statisticsRoutes);
-app.use("/api/reports", reportsRoutes);
-app.use("/api/logs", logsRoutes);
 
+// ✅ Mantener rutas existentes + nuevas
+app.use("/api/ws", wsAuthRoutes); // 🔔 Rutas de autorización WebSocket
+app.use("/api/upload", uploadRoutes); // 📤 Rutas de subida de archivos
+app.use("/api/statistics", statisticsRoutes); // 📊 Estadísticas del marketplace
+app.use("/api/reports", reportsRoutes); // 📄 Generación de reportes PDF
+app.use("/api/coupons", couponRoutes); // 🎟️ Sistema de cupones B2B
+app.use("/api/logs", logsRoutes); // 🧾 Logs de workflows/n8n y servicios internos
+
+// ============================================
+// ERROR HANDLING MIDDLEWARES (al final)
+// ============================================
 app.use(notFoundHandler);
 app.use(errorHandler);
 
@@ -121,14 +137,14 @@ const startServer = async () => {
     await connectRedis();
     console.log("✅ Redis conectado correctamente");
 
-    const cleanupEnabled = process.env.CLEANUP_ENABLED === 'true';
+    const cleanupEnabled = process.env.CLEANUP_ENABLED === "true";
     if (cleanupEnabled) {
       console.log("🧹 Iniciando scheduler de limpieza automática...");
       startCleanupScheduler();
       console.log("✅ Scheduler iniciado correctamente");
     }
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`\n🚀 ============================================`);
       console.log(`   🛍️  REST Service - Marketplace Espigón Manta`);
       console.log(`   🌐 Servidor escuchando en puerto ${PORT}`);
@@ -136,26 +152,29 @@ const startServer = async () => {
       console.log(`   💚 Health check: http://localhost:${PORT}/health`);
       console.log(`============================================\n`);
     });
+
+    const shutdown = async (signal: string) => {
+      console.log(`\n⚠️ ${signal} recibido. Cerrando servidor...`);
+
+      stopCleanupScheduler();
+
+      server.close(() => {
+        console.log("✅ Servidor HTTP cerrado");
+      });
+
+      await disconnectRedis();
+      await AppDataSource.destroy();
+      console.log("✅ Redis y Base de datos desconectados");
+
+      process.exit(0);
+    };
+
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT (Ctrl+C)"));
   } catch (error) {
     console.error("❌ Error al iniciar el servidor:", error);
     process.exit(1);
   }
 };
-
-process.on('SIGTERM', async () => {
-  console.log('⚠️ SIGTERM recibido. Cerrando servidor...');
-  stopCleanupScheduler();
-  await disconnectRedis();
-  await AppDataSource.destroy();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('\n⚠️ SIGINT recibido (Ctrl+C). Cerrando servidor...');
-  stopCleanupScheduler();
-  await disconnectRedis();
-  await AppDataSource.destroy();
-  process.exit(0);
-});
 
 startServer();

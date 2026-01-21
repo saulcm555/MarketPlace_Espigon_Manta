@@ -2,6 +2,7 @@ import { Cart } from "./cart";
 
 export interface Client {
 	id_client: number;
+	user_id?: string; // Vincula con auth_service.users.id (UUID)
 	client_name: string;
 	client_email: string;
 	client_password: string;

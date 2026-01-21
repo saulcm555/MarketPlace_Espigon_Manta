@@ -41,9 +41,11 @@ router.post("/refresh", rateLimitRefresh, authController.refresh);
 router.get("/me", authMiddleware, authController.getMe);
 
 // ============================================
-// GET /auth/validate - Validar token (interno)
+// GET/POST /auth/validate - Validar token (interno)
 // No requiere auth (valida el token que recibe)
+// Soporta tanto GET como POST para compatibilidad
 // ============================================
 router.get("/validate", authController.validate);
+router.post("/validate", authController.validate);
 
 export default router;
