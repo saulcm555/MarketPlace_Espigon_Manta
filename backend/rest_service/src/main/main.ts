@@ -26,12 +26,11 @@ import wsAuthRoutes from "../infrastructure/http/routes/wsAuthRoutes";
 import uploadRoutes from "../infrastructure/http/routes/uploadRoutes";
 import statisticsRoutes from "../infrastructure/http/routes/statisticsRoutes";
 import reportsRoutes from "../infrastructure/http/routes/reportsRoutes";
+import logsRoutes from "../infrastructure/http/routes/logsRoutes";
 
 const app = express();
 
-// ============================================
-// CORS Configuration (permite frontend acceder al backend)
-// ============================================
+// CORS Configuration
 app.use((req, res, next) => {
   const allowedOrigins = [
     'http://localhost:5173',
@@ -52,7 +51,6 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
-  // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
@@ -61,14 +59,10 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
-
-// Servir archivos estáticos (imágenes subidas)
 app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
-// Setup Swagger documentation
 setupSwagger(app);
 
-// Health check route (para verificación de servicios)
 app.get("/", (req, res) => {
   res.json({
     status: "ok",
@@ -106,63 +100,62 @@ app.use("/api/carts", cartRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/payment-methods", paymentMethodRoutes);
 app.use("/api/deliveries", deliveryRoutes);
-app.use("/api/ws", wsAuthRoutes); // 🔔 Rutas de autorización WebSocket
-app.use("/api/upload", uploadRoutes); // 📤 Rutas de subida de archivos
-app.use("/api/statistics", statisticsRoutes); // 📊 Estadísticas del marketplace
-app.use("/api/reports", reportsRoutes); // 📄 Generación de reportes PDF
+app.use("/api/ws", wsAuthRoutes);
+app.use("/api/upload", uploadRoutes);
+app.use("/api/statistics", statisticsRoutes);
+app.use("/api/reports", reportsRoutes);
+app.use("/api/logs", logsRoutes);
 
-// ============================================
-// ERROR HANDLING MIDDLEWARES
-// Debe ir DESPUÉS de todas las rutas
-// ============================================
-
-// Captura rutas no encontradas (404)
 app.use(notFoundHandler);
-
-// Middleware global de manejo de errores
 app.use(errorHandler);
 
-AppDataSource.initialize()
-  .then(async () => {
-    console.log("✅ Conexión a la base de datos establecida correctamente");
-    
-    // Inicializar Redis para notificaciones en tiempo real
+const PORT = process.env.PORT || 3000;
+
+const startServer = async () => {
+  try {
+    console.log("📦 Conectando a PostgreSQL...");
+    await AppDataSource.initialize();
+    console.log("✅ PostgreSQL conectado correctamente");
+
+    console.log("📦 Conectando a Redis...");
     await connectRedis();
-    
-    // Iniciar scheduler de limpieza automática de comprobantes
-    startCleanupScheduler();
-    
-    const server = app.listen(3000, () => {
-      console.log("🚀 Servidor Express corriendo en puerto 3000");
+    console.log("✅ Redis conectado correctamente");
+
+    const cleanupEnabled = process.env.CLEANUP_ENABLED === 'true';
+    if (cleanupEnabled) {
+      console.log("🧹 Iniciando scheduler de limpieza automática...");
+      startCleanupScheduler();
+      console.log("✅ Scheduler iniciado correctamente");
+    }
+
+    app.listen(PORT, () => {
+      console.log(`\n🚀 ============================================`);
+      console.log(`   🛍️  REST Service - Marketplace Espigón Manta`);
+      console.log(`   🌐 Servidor escuchando en puerto ${PORT}`);
+      console.log(`   📚 Swagger docs: http://localhost:${PORT}/api-docs`);
+      console.log(`   💚 Health check: http://localhost:${PORT}/health`);
+      console.log(`============================================\n`);
     });
-
-    // Graceful shutdown
-    const shutdown = async () => {
-      console.log("\n⚠️  Cerrando servidor...");
-      
-      // Detener scheduler de limpieza
-      stopCleanupScheduler();
-      
-      // Cerrar servidor HTTP
-      server.close(() => {
-        console.log("✅ Servidor HTTP cerrado");
-      });
-      
-      // Desconectar Redis
-      await disconnectRedis();
-      
-      // Cerrar conexión a base de datos
-      await AppDataSource.destroy();
-      console.log("✅ Base de datos desconectada");
-      
-      process.exit(0);
-    };
-
-    // Manejar señales de terminación
-    process.on("SIGTERM", shutdown);
-    process.on("SIGINT", shutdown);
-  })
-  .catch((err) => {
-    console.error("❌ Error inicializando la base de datos:", err);
+  } catch (error) {
+    console.error("❌ Error al iniciar el servidor:", error);
     process.exit(1);
-  });
+  }
+};
+
+process.on('SIGTERM', async () => {
+  console.log('⚠️ SIGTERM recibido. Cerrando servidor...');
+  stopCleanupScheduler();
+  await disconnectRedis();
+  await AppDataSource.destroy();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('\n⚠️ SIGINT recibido (Ctrl+C). Cerrando servidor...');
+  stopCleanupScheduler();
+  await disconnectRedis();
+  await AppDataSource.destroy();
+  process.exit(0);
+});
+
+startServer();

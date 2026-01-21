@@ -425,3 +425,91 @@ export const getProductOrders = asyncHandler(async (req: Request, res: Response)
   });
   res.json(productOrders);
 });
+
+/**
+ * PATCH /api/orders/:id
+ * Actualización parcial de orden para servicios internos (n8n workflows)
+ * Permite actualizar campos específicos sin sobrescribir toda la orden
+ * Requiere autenticación con INTERNAL_API_KEY
+ */
+export const patchOrder = asyncHandler(async (req: Request, res: Response) => {
+  const id = req.params.id;
+  const updates = req.body;
+
+  if (!id) {
+    return res.status(400).json({ 
+      success: false,
+      error: "ID de orden requerido" 
+    });
+  }
+
+  // Verificar que la orden existe
+  const existingOrder = await orderService.getOrderById(id);
+  if (!existingOrder) {
+    return res.status(404).json({ 
+      success: false,
+      error: "Orden no encontrada" 
+    });
+  }
+
+  // Construir objeto de actualización solo con campos permitidos y presentes
+  const allowedFields = [
+    'status',
+    'delivered_at',
+    'tracking_number',
+    'estimated_delivery',
+    'payment_id',
+    'payment_status',
+    'payment_receipt_url',
+    'payment_verified_at',
+    'transaction_id',
+    'payment_error'
+  ];
+
+  const updateData: any = {};
+  
+  for (const field of allowedFields) {
+    if (updates[field] !== undefined) {
+      updateData[field] = updates[field];
+    }
+  }
+
+  // Si no hay campos válidos para actualizar
+  if (Object.keys(updateData).length === 0) {
+    return res.status(400).json({ 
+      success: false,
+      error: "No se proporcionaron campos válidos para actualizar",
+      allowed_fields: allowedFields
+    });
+  }
+
+  // Actualizar la orden
+  const updatedOrder = await orderService.updateOrder(id, updateData);
+
+  // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Orden actualizada por servicio interno
+  if (updatedOrder && updateData.status) {
+    const sellerId = updatedOrder.productOrders?.[0]?.product?.id_seller?.toString();
+    if (sellerId) {
+      notifySellerStatsUpdated(sellerId, {
+        order_id: updatedOrder.id_order,
+        status: updatedOrder.status,
+        action: 'order_updated_internal'
+      }).catch(err => console.error('Error notifying seller stats:', err));
+    }
+    
+    notifyAdminStatsUpdated({
+      order_id: updatedOrder.id_order,
+      status: updatedOrder.status,
+      action: 'order_updated_internal'
+    }).catch(err => console.error('Error notifying admin stats:', err));
+  }
+
+  console.log(`✅ [OrderController] PATCH /api/orders/${id} - Actualizada con: ${JSON.stringify(updateData)}`);
+
+  res.json({
+    success: true,
+    message: "Orden actualizada correctamente",
+    data: updatedOrder,
+    updated_fields: Object.keys(updateData)
+  });
+});
