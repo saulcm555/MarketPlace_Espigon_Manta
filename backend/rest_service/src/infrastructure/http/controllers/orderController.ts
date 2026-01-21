@@ -40,7 +40,7 @@ export const getMyOrders = asyncHandler(async (req: Request, res: Response) => {
 export const getOrderById = asyncHandler(async (req: Request, res: Response) => {
   const queryOrdersUseCase = new QueryOrders(orderService);
   const order = await queryOrdersUseCase.getOrderById({ id_order: Number(req.params.id) });
-  
+
   if (!order) {
     throw new NotFoundError("Orden");
   }
@@ -50,7 +50,7 @@ export const getOrderById = asyncHandler(async (req: Request, res: Response) => 
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
   const createOrderUseCase = new CreateOrder(orderService, cartService);
   const order = await createOrderUseCase.execute(req.body);
-  
+
   // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Nuevo pedido creado
   if (order) {
     const sellerId = order.productOrders?.[0]?.product?.id_seller?.toString();
@@ -61,26 +61,26 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
         action: 'order_created'
       }).catch(err => console.error('Error notifying seller stats:', err));
     }
-    
+
     notifyAdminStatsUpdated({
       order_id: order.id_order,
       status: order.status,
       action: 'order_created'
     }).catch(err => console.error('Error notifying admin stats:', err));
   }
-  
+
   res.status(201).json(order);
 });
 
 export const updateOrder = asyncHandler(async (req: Request, res: Response) => {
   const updateOrderStatusUseCase = new UpdateOrderStatus(orderService);
   const id = Number(req.params.id);
-  
+
   const order = await updateOrderStatusUseCase.execute({
     id_order: id,
     status: req.body.status,
   });
-  
+
   // 📊 NOTIFICACIÓN DE ESTADÍSTICAS: Estado de pedido actualizado
   if (order) {
     const sellerId = order.productOrders?.[0]?.product?.id_seller?.toString();
@@ -91,25 +91,25 @@ export const updateOrder = asyncHandler(async (req: Request, res: Response) => {
         action: 'order_status_updated'
       }).catch(err => console.error('Error notifying seller stats:', err));
     }
-    
+
     notifyAdminStatsUpdated({
       order_id: order.id_order,
       status: order.status,
       action: 'order_status_updated'
     }).catch(err => console.error('Error notifying admin stats:', err));
   }
-  
+
   res.json(order);
 });
 
 export const deleteOrder = asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const success = await orderService.deleteOrder(id.toString());
-  
+
   if (!success) {
     throw new NotFoundError("Orden");
   }
-  
+
   res.json({ message: "Orden eliminada correctamente" });
 });
 
@@ -117,26 +117,26 @@ export const deleteOrder = asyncHandler(async (req: Request, res: Response) => {
 export const addReview = asyncHandler(async (req: Request, res: Response) => {
   const { id_product_order } = req.params;
   const { rating, review_comment } = req.body;
-  
+
   const updated = await orderService.addReviewToProductOrder(
     Number(id_product_order),
     rating,
     review_comment
   );
-  
+
   if (!updated) {
     throw new NotFoundError("Producto en orden");
   }
-  
+
   res.json({ message: "Reseña agregada correctamente", data: updated });
 });
 
 // Obtener reseñas de un producto
 export const getProductReviews = asyncHandler(async (req: Request, res: Response) => {
   const { id_product } = req.params;
-  
+
   const reviews = await orderService.getProductReviews(Number(id_product));
-  
+
   res.json(reviews);
 });
 
@@ -154,8 +154,8 @@ export const updatePaymentReceipt = asyncHandler(async (req: Request, res: Respo
   }
 
   if (!payment_receipt_url) {
-    return res.status(400).json({ 
-      message: "La URL del comprobante es requerida" 
+    return res.status(400).json({
+      message: "La URL del comprobante es requerida"
     });
   }
 
@@ -181,7 +181,7 @@ export const updatePaymentReceipt = asyncHandler(async (req: Request, res: Respo
         action: 'payment_receipt_uploaded'
       }).catch(err => console.error('Error notifying seller stats:', err));
     }
-    
+
     notifyAdminStatsUpdated({
       order_id: updatedOrder.id_order,
       status: updatedOrder.status,
@@ -222,15 +222,15 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
   }
 
   // Actualizar según la decisión
-  const updateData = approved 
+  const updateData = approved
     ? {
-        status: 'payment_confirmed',
-        payment_verified_at: new Date()
-      }
+      status: 'payment_confirmed',
+      payment_verified_at: new Date()
+    }
     : {
-        status: 'payment_rejected',
-        payment_verified_at: new Date()
-      };
+      status: 'payment_rejected',
+      payment_verified_at: new Date()
+    };
 
   const updatedOrder = await orderService.updateOrder(id, updateData);
 
@@ -244,7 +244,7 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
         action: approved ? 'payment_verified' : 'payment_rejected'
       }).catch(err => console.error('Error notifying seller stats:', err));
     }
-    
+
     notifyAdminStatsUpdated({
       order_id: updatedOrder.id_order,
       status: updatedOrder.status,
@@ -252,9 +252,46 @@ export const verifyPayment = asyncHandler(async (req: Request, res: Response) =>
     }).catch(err => console.error('Error notifying admin stats:', err));
   }
 
+  // 🔔 NOTIFICAR A N8N: Enviar evento al Payment Handler workflow
+  try {
+    const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL || 'http://localhost:5678';
+    const webhookPath = '/webhook/payment-verification';
+
+    const webhookPayload = {
+      orderId: id,
+      approved: approved,
+      verifiedBy: req.user?.id || 'seller',
+      verifiedAt: new Date().toISOString(),
+      orderStatus: updatedOrder?.status
+    };
+
+    // Enviar a n8n de forma asíncrona (no bloqueante)
+    fetch(`${n8nWebhookUrl}${webhookPath}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(webhookPayload)
+    })
+      .then(response => {
+        if (response.ok) {
+          console.log(`✅ [OrderController] Evento enviado a n8n: payment_${approved ? 'approved' : 'rejected'} para orden ${id}`);
+        } else {
+          console.warn(`⚠️ [OrderController] n8n webhook respondió con status ${response.status}`);
+        }
+      })
+      .catch(error => {
+        console.error('❌ [OrderController] Error al notificar a n8n:', error.message);
+        // No lanzar error - el pago ya fue verificado exitosamente
+      });
+  } catch (error) {
+    console.error('❌ [OrderController] Error al preparar notificación a n8n:', error);
+    // Continuar - el pago ya fue verificado
+  }
+
   res.json({
-    message: approved 
-      ? "Pago verificado y aprobado correctamente" 
+    message: approved
+      ? "Pago verificado y aprobado correctamente"
       : "Pago rechazado",
     order: updatedOrder
   });
@@ -270,7 +307,7 @@ export const getSellerPendingPayments = asyncHandler(async (req: Request, res: R
     return res.status(401).json({ message: "No se pudo identificar el vendedor" });
   }
   const allPendingOrders = await orderService.getOrdersByStatus('payment_pending_verification');
-  
+
   const sellerPendingOrders = allPendingOrders.filter(order => {
     // Primero verificar en productOrders (relación directa y más confiable)
     if (order.productOrders && order.productOrders.length > 0) {
@@ -279,17 +316,17 @@ export const getSellerPendingPayments = asyncHandler(async (req: Request, res: R
       });
       if (hasSellerProducts) return true;
     }
-    
+
     // Fallback: verificar en cart.productCarts
     if (order.cart?.productCarts) {
       return order.cart.productCarts.some((cartProduct: ProductCart) => {
         return cartProduct.product?.id_seller === sellerId;
       });
     }
-    
+
     return false;
   });
-  
+
   res.json(sellerPendingOrders);
 });
 
@@ -302,9 +339,9 @@ export const getSellerOrders = asyncHandler(async (req: Request, res: Response) 
   if (!sellerId) {
     return res.status(401).json({ message: "No se pudo identificar el vendedor" });
   }
-  
+
   const allOrders = await orderService.getAllOrders();
-  
+
   // Filtrar órdenes que contienen productos del vendedor
   const sellerOrders = allOrders.filter(order => {
     // Verificar en productOrders (relación directa)
@@ -313,17 +350,17 @@ export const getSellerOrders = asyncHandler(async (req: Request, res: Response) 
         return productOrder.product?.id_seller === sellerId;
       });
     }
-    
+
     // Fallback: verificar en cart.productCarts
     if (order.cart?.productCarts) {
       return order.cart.productCarts.some((cartProduct: ProductCart) => {
         return cartProduct.product?.id_seller === sellerId;
       });
     }
-    
+
     return false;
   });
-  
+
   res.json(sellerOrders);
 });
 
@@ -352,14 +389,14 @@ export const markOrderAsDelivered = asyncHandler(async (req: Request, res: Respo
 
   // Verificar que el vendedor tiene productos en esta orden
   let hasSellerProducts = false;
-  
+
   // Verificar en productOrders
   if (order.productOrders && order.productOrders.length > 0) {
     hasSellerProducts = order.productOrders.some((productOrder: any) => {
       return productOrder.product?.id_seller === sellerId;
     });
   }
-  
+
   // Fallback: verificar en cart.productCarts
   if (!hasSellerProducts && order.cart?.productCarts) {
     hasSellerProducts = order.cart.productCarts.some((cartProduct: ProductCart) => {
@@ -368,8 +405,8 @@ export const markOrderAsDelivered = asyncHandler(async (req: Request, res: Respo
   }
 
   if (!hasSellerProducts) {
-    return res.status(403).json({ 
-      message: "No tienes permiso para marcar esta orden como entregada" 
+    return res.status(403).json({
+      message: "No tienes permiso para marcar esta orden como entregada"
     });
   }
 
@@ -377,8 +414,8 @@ export const markOrderAsDelivered = asyncHandler(async (req: Request, res: Respo
   // Permitido desde: pending (pago efectivo), payment_confirmed, processing, shipped
   const validStatuses = ['pending', 'payment_confirmed', 'processing', 'shipped'];
   if (!validStatuses.includes(order.status)) {
-    return res.status(400).json({ 
-      message: `No se puede marcar como entregado desde el estado: ${order.status}` 
+    return res.status(400).json({
+      message: `No se puede marcar como entregado desde el estado: ${order.status}`
     });
   }
 
@@ -399,7 +436,7 @@ export const markOrderAsDelivered = asyncHandler(async (req: Request, res: Respo
         action: 'order_delivered'
       }).catch(err => console.error('Error notifying seller stats:', err));
     }
-    
+
     notifyAdminStatsUpdated({
       order_id: updatedOrder.id_order,
       status: 'delivered',
@@ -437,18 +474,18 @@ export const patchOrder = asyncHandler(async (req: Request, res: Response) => {
   const updates = req.body;
 
   if (!id) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
-      error: "ID de orden requerido" 
+      error: "ID de orden requerido"
     });
   }
 
   // Verificar que la orden existe
   const existingOrder = await orderService.getOrderById(id);
   if (!existingOrder) {
-    return res.status(404).json({ 
+    return res.status(404).json({
       success: false,
-      error: "Orden no encontrada" 
+      error: "Orden no encontrada"
     });
   }
 
@@ -467,7 +504,7 @@ export const patchOrder = asyncHandler(async (req: Request, res: Response) => {
   ];
 
   const updateData: any = {};
-  
+
   for (const field of allowedFields) {
     if (updates[field] !== undefined) {
       updateData[field] = updates[field];
@@ -476,7 +513,7 @@ export const patchOrder = asyncHandler(async (req: Request, res: Response) => {
 
   // Si no hay campos válidos para actualizar
   if (Object.keys(updateData).length === 0) {
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
       error: "No se proporcionaron campos válidos para actualizar",
       allowed_fields: allowedFields
@@ -496,7 +533,7 @@ export const patchOrder = asyncHandler(async (req: Request, res: Response) => {
         action: 'order_updated_internal'
       }).catch(err => console.error('Error notifying seller stats:', err));
     }
-    
+
     notifyAdminStatsUpdated({
       order_id: updatedOrder.id_order,
       status: updatedOrder.status,

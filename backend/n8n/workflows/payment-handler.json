@@ -1,29 +1,35 @@
 {
-  "name": "Payment Handler - Stripe Webhooks",
+  "name": "Payment Handler - Verificación de Transferencias",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "webhook/payment",
+        "path": "webhook/payment-verification",
         "responseMode": "responseNode",
         "options": {}
       },
       "id": "webhook-trigger",
-      "name": "Webhook Stripe",
+      "name": "Webhook Verificación",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [250, 300],
-      "webhookId": "payment-webhook"
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "payment-verification-webhook"
     },
     {
       "parameters": {
-        "jsCode": "// Validar firma del webhook de Stripe (modo desarrollo: sin verificación)\nconst event = $input.first().json;\n\n// En desarrollo, aceptamos sin verificar firma\nreturn {\n  verified: true,\n  mode: 'development',\n  event: event\n};"
+        "jsCode": "// Extraer datos del evento de verificación\nconst body = $input.first().json;\n\n// Validar que tenga los datos necesarios\nif (!body.orderId) {\n  throw new Error('orderId es requerido');\n}\n\nreturn {\n  orderId: body.orderId,\n  approved: body.approved || false,\n  verifiedBy: body.verifiedBy || 'seller',\n  verifiedAt: new Date().toISOString(),\n  event: body\n};"
       },
-      "id": "validate-signature",
-      "name": "Validar Firma",
+      "id": "validate-event",
+      "name": "Validar Evento",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [470, 300]
+      "position": [
+        470,
+        300
+      ]
     },
     {
       "parameters": {
@@ -35,11 +41,11 @@
           },
           "conditions": [
             {
-              "id": "condition-success",
-              "leftValue": "={{ $json.event.body.type }}",
-              "rightValue": "payment_intent.succeeded",
+              "id": "condition-approved",
+              "leftValue": "={{ $json.approved }}",
+              "rightValue": true,
               "operator": {
-                "type": "string",
+                "type": "boolean",
                 "operation": "equals"
               }
             }
@@ -48,21 +54,27 @@
         },
         "options": {}
       },
-      "id": "if-payment-success",
-      "name": "¿Pago Exitoso?",
+      "id": "if-payment-approved",
+      "name": "¿Pago Aprobado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [690, 300]
+      "position": [
+        690,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Extraer datos del evento de pago exitoso\nconst event = $input.first().json.event;\nconst body = event.body || event;\nconst paymentIntent = body.data?.object || body.data;\n\nconst orderId = paymentIntent.metadata?.orderId || paymentIntent.metadata?.order_id || 'unknown';\nconst amount = (paymentIntent.amount || 0) / 100;\nconst currency = paymentIntent.currency?.toUpperCase() || 'USD';\nconst paymentId = paymentIntent.id || 'unknown';\n\nreturn {\n  orderId: orderId,\n  paymentId: paymentId,\n  amount: amount,\n  currency: currency,\n  status: 'paid',\n  paidAt: new Date().toISOString(),\n  eventType: body.type,\n  success: true\n};"
+        "jsCode": "// Preparar datos para actualizar orden aprobada\nconst data = $input.first().json;\n\nreturn {\n  orderId: data.orderId,\n  status: 'payment_confirmed',\n  payment_verified_at: data.verifiedAt,\n  verified_by: data.verifiedBy,\n  success: true\n};"
       },
-      "id": "extract-payment-data",
-      "name": "Extraer Datos Pago",
+      "id": "prepare-approved-data",
+      "name": "Preparar Datos Aprobación",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [910, 200]
+      "position": [
+        910,
+        200
+      ]
     },
     {
       "parameters": {
@@ -83,7 +95,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"paid\",\n  \"payment_id\": \"{{ $json.paymentId }}\",\n  \"paid_at\": \"{{ $json.paidAt }}\"\n}",
+        "jsonBody": "={\n  \"status\": \"{{ $json.status }}\",\n  \"payment_verified_at\": \"{{ $json.payment_verified_at }}\"\n}",
         "options": {
           "response": {
             "response": {
@@ -92,11 +104,14 @@
           }
         }
       },
-      "id": "update-order",
-      "name": "Actualizar Orden",
+      "id": "update-order-approved",
+      "name": "Actualizar Orden Aprobada",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1130, 200]
+      "position": [
+        1130,
+        200
+      ]
     },
     {
       "parameters": {
@@ -113,7 +128,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"room\": \"sellers\",\n  \"event\": \"PAYMENT_RECEIVED\",\n  \"data\": {\n    \"orderId\": \"{{ $('Extraer Datos Pago').item.json.orderId }}\",\n    \"amount\": {{ $('Extraer Datos Pago').item.json.amount }},\n    \"currency\": \"{{ $('Extraer Datos Pago').item.json.currency }}\",\n    \"status\": \"paid\",\n    \"message\": \"Nuevo pago recibido\",\n    \"timestamp\": \"{{ $now.toISO() }}\"\n  }\n}",
+        "jsonBody": "={\n  \"room\": \"order_{{ $('Preparar Datos Aprobación').item.json.orderId }}\",\n  \"event\": \"PAYMENT_VERIFIED\",\n  \"data\": {\n    \"orderId\": \"{{ $('Preparar Datos Aprobación').item.json.orderId }}\",\n    \"status\": \"payment_confirmed\",\n    \"message\": \"Tu pago ha sido verificado y aprobado\",\n    \"timestamp\": \"{{ $now.toISO() }}\"\n  }\n}",
         "options": {
           "response": {
             "response": {
@@ -122,11 +137,14 @@
           }
         }
       },
-      "id": "notify-websocket-success",
-      "name": "Notificar WebSocket",
+      "id": "notify-websocket-approved",
+      "name": "Notificar Cliente (WS)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1350, 200]
+      "position": [
+        1350,
+        200
+      ]
     },
     {
       "parameters": {
@@ -147,7 +165,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"level\": \"info\",\n  \"workflow\": \"payment-handler\",\n  \"event\": \"payment_success\",\n  \"message\": \"Pago procesado exitosamente\",\n  \"data\": {\n    \"orderId\": \"{{ $('Extraer Datos Pago').item.json.orderId }}\",\n    \"paymentId\": \"{{ $('Extraer Datos Pago').item.json.paymentId }}\",\n    \"amount\": {{ $('Extraer Datos Pago').item.json.amount }},\n    \"currency\": \"{{ $('Extraer Datos Pago').item.json.currency }}\",\n    \"status\": \"paid\"\n  },\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "jsonBody": "={\n  \"level\": \"info\",\n  \"workflow\": \"payment-handler\",\n  \"event\": \"payment_verified\",\n  \"message\": \"Pago verificado y aprobado por vendedor\",\n  \"data\": {\n    \"orderId\": \"{{ $('Preparar Datos Aprobación').item.json.orderId }}\",\n    \"status\": \"payment_confirmed\",\n    \"verified_by\": \"{{ $('Preparar Datos Aprobación').item.json.verified_by }}\"\n  },\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
         "options": {
           "response": {
             "response": {
@@ -156,33 +174,42 @@
           }
         }
       },
-      "id": "log-payment-success",
-      "name": "📝 Log: Pago Exitoso",
+      "id": "log-payment-approved",
+      "name": "📝 Log: Pago Aprobado",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1570, 200]
+      "position": [
+        1570,
+        200
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"received\": true,\n  \"status\": \"processed\",\n  \"paymentStatus\": \"success\",\n  \"notified\": true\n}",
+        "responseBody": "={\n  \"received\": true,\n  \"status\": \"processed\",\n  \"paymentStatus\": \"approved\",\n  \"orderId\": \"{{ $('Preparar Datos Aprobación').item.json.orderId }}\",\n  \"notified\": true\n}",
         "options": {}
       },
-      "id": "respond-success",
+      "id": "respond-approved",
       "name": "Responder OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1790, 200]
+      "position": [
+        1790,
+        200
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Extraer datos del evento de pago fallido\nconst event = $input.first().json.event;\nconst body = event.body || event;\nconst paymentIntent = body.data?.object || body.data;\n\nconst orderId = paymentIntent.metadata?.orderId || paymentIntent.metadata?.order_id || 'unknown';\nconst paymentId = paymentIntent.id || 'unknown';\nconst failureMessage = paymentIntent.last_payment_error?.message || 'Pago rechazado';\n\nreturn {\n  orderId: orderId,\n  paymentId: paymentId,\n  status: 'payment_failed',\n  failureMessage: failureMessage,\n  failedAt: new Date().toISOString(),\n  eventType: body.type,\n  success: false\n};"
+        "jsCode": "// Preparar datos para orden rechazada\nconst data = $input.first().json;\n\nreturn {\n  orderId: data.orderId,\n  status: 'payment_rejected',\n  rejected_at: data.verifiedAt,\n  rejected_by: data.verifiedBy,\n  success: false\n};"
       },
-      "id": "extract-failure-data",
-      "name": "Extraer Datos Error",
+      "id": "prepare-rejected-data",
+      "name": "Preparar Datos Rechazo",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [910, 450]
+      "position": [
+        910,
+        450
+      ]
     },
     {
       "parameters": {
@@ -203,7 +230,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"payment_failed\",\n  \"failure_reason\": \"{{ $json.failureMessage }}\"\n}",
+        "jsonBody": "={\n  \"status\": \"{{ $json.status }}\"\n}",
         "options": {
           "response": {
             "response": {
@@ -212,11 +239,14 @@
           }
         }
       },
-      "id": "update-order-failed",
-      "name": "Marcar Orden Fallida",
+      "id": "update-order-rejected",
+      "name": "Marcar Orden Rechazada",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1130, 450]
+      "position": [
+        1130,
+        450
+      ]
     },
     {
       "parameters": {
@@ -233,7 +263,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"room\": \"sellers\",\n  \"event\": \"PAYMENT_FAILED\",\n  \"data\": {\n    \"orderId\": \"{{ $('Extraer Datos Error').item.json.orderId }}\",\n    \"status\": \"payment_failed\",\n    \"reason\": \"{{ $('Extraer Datos Error').item.json.failureMessage }}\",\n    \"message\": \"Pago fallido\",\n    \"timestamp\": \"{{ $now.toISO() }}\"\n  }\n}",
+        "jsonBody": "={\n  \"room\": \"order_{{ $('Preparar Datos Rechazo').item.json.orderId }}\",\n  \"event\": \"PAYMENT_REJECTED\",\n  \"data\": {\n    \"orderId\": \"{{ $('Preparar Datos Rechazo').item.json.orderId }}\",\n    \"status\": \"payment_rejected\",\n    \"message\": \"Tu comprobante de pago fue rechazado. Por favor, verifica los datos y sube un nuevo comprobante.\",\n    \"timestamp\": \"{{ $now.toISO() }}\"\n  }\n}",
         "options": {
           "response": {
             "response": {
@@ -242,11 +272,14 @@
           }
         }
       },
-      "id": "notify-websocket-failed",
-      "name": "Notificar WS Error",
+      "id": "notify-websocket-rejected",
+      "name": "Notificar Cliente Rechazo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1350, 450]
+      "position": [
+        1350,
+        450
+      ]
     },
     {
       "parameters": {
@@ -267,7 +300,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"level\": \"error\",\n  \"workflow\": \"payment-handler\",\n  \"event\": \"payment_failed\",\n  \"message\": \"Pago fallido\",\n  \"data\": {\n    \"orderId\": \"{{ $('Extraer Datos Error').item.json.orderId }}\",\n    \"paymentId\": \"{{ $('Extraer Datos Error').item.json.paymentId }}\",\n    \"status\": \"payment_failed\",\n    \"reason\": \"{{ $('Extraer Datos Error').item.json.failureMessage }}\"\n  },\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "jsonBody": "={\n  \"level\": \"warning\",\n  \"workflow\": \"payment-handler\",\n  \"event\": \"payment_rejected\",\n  \"message\": \"Comprobante de pago rechazado por vendedor\",\n  \"data\": {\n    \"orderId\": \"{{ $('Preparar Datos Rechazo').item.json.orderId }}\",\n    \"status\": \"payment_rejected\",\n    \"rejected_by\": \"{{ $('Preparar Datos Rechazo').item.json.rejected_by }}\"\n  },\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
         "options": {
           "response": {
             "response": {
@@ -276,100 +309,106 @@
           }
         }
       },
-      "id": "log-payment-failed",
-      "name": "📝 Log: Pago Fallido",
+      "id": "log-payment-rejected",
+      "name": "📝 Log: Pago Rechazado",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1570, 450]
+      "position": [
+        1570,
+        450
+      ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"received\": true,\n  \"status\": \"processed\",\n  \"paymentStatus\": \"failed\",\n  \"notified\": true\n}",
+        "responseBody": "={\n  \"received\": true,\n  \"status\": \"processed\",\n  \"paymentStatus\": \"rejected\",\n  \"orderId\": \"{{ $('Preparar Datos Rechazo').item.json.orderId }}\",\n  \"notified\": true\n}",
         "options": {}
       },
-      "id": "respond-failed",
-      "name": "Responder Fallo",
+      "id": "respond-rejected",
+      "name": "Responder Rechazo",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1790, 450]
+      "position": [
+        1790,
+        450
+      ]
     }
   ],
   "connections": {
-    "Webhook Stripe": {
+    "Webhook Verificación": {
       "main": [
         [
           {
-            "node": "Validar Firma",
+            "node": "Validar Evento",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Validar Firma": {
+    "Validar Evento": {
       "main": [
         [
           {
-            "node": "¿Pago Exitoso?",
+            "node": "¿Pago Aprobado?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "¿Pago Exitoso?": {
+    "¿Pago Aprobado?": {
       "main": [
         [
           {
-            "node": "Extraer Datos Pago",
+            "node": "Preparar Datos Aprobación",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Extraer Datos Error",
+            "node": "Preparar Datos Rechazo",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extraer Datos Pago": {
+    "Preparar Datos Aprobación": {
       "main": [
         [
           {
-            "node": "Actualizar Orden",
+            "node": "Actualizar Orden Aprobada",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Actualizar Orden": {
+    "Actualizar Orden Aprobada": {
       "main": [
         [
           {
-            "node": "Notificar WebSocket",
+            "node": "Notificar Cliente (WS)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Notificar WebSocket": {
+    "Notificar Cliente (WS)": {
       "main": [
         [
           {
-            "node": "📝 Log: Pago Exitoso",
+            "node": "📝 Log: Pago Aprobado",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "📝 Log: Pago Exitoso": {
+    "📝 Log: Pago Aprobado": {
       "main": [
         [
           {
@@ -380,44 +419,44 @@
         ]
       ]
     },
-    "Extraer Datos Error": {
+    "Preparar Datos Rechazo": {
       "main": [
         [
           {
-            "node": "Marcar Orden Fallida",
+            "node": "Marcar Orden Rechazada",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Marcar Orden Fallida": {
+    "Marcar Orden Rechazada": {
       "main": [
         [
           {
-            "node": "Notificar WS Error",
+            "node": "Notificar Cliente Rechazo",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Notificar WS Error": {
+    "Notificar Cliente Rechazo": {
       "main": [
         [
           {
-            "node": "📝 Log: Pago Fallido",
+            "node": "📝 Log: Pago Rechazado",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "📝 Log: Pago Fallido": {
+    "📝 Log: Pago Rechazado": {
       "main": [
         [
           {
-            "node": "Responder Fallo",
+            "node": "Responder Rechazo",
             "type": "main",
             "index": 0
           }
