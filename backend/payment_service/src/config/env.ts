@@ -25,4 +25,9 @@ export const env = {
   
   // Internal API Key (service-to-service authentication)
   INTERNAL_API_KEY: process.env.INTERNAL_API_KEY,
+  
+  // Gym Integration (B2B)
+  GYM_WEBHOOK_SECRET: process.env.GYM_WEBHOOK_SECRET || '',
+  GYM_API_URL: process.env.GYM_API_URL || '',
+  REST_SERVICE_URL: process.env.REST_SERVICE_URL || 'http://rest-service:3000',
 };

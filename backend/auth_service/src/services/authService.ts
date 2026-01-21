@@ -68,7 +68,7 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   // Verificar si el email ya existe
   const existingUser = await repo.findOne({ where: { email: data.email } });
   if (existingUser) {
-    throw new AuthError("EMAIL_EXISTS", "El email ya está registrado");
+    throw new AuthError("EMAIL_EXISTS", "El email ya está registrado", 409); // 409 Conflict
   }
 
   // Hash del password
@@ -85,6 +85,18 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
   });
 
   await repo.save(user);
+
+  // ============================================
+  // CREAR PERFIL EN REST SERVICE
+  // ============================================
+  try {
+    await createProfileInRestService(user.id, user.email, user.role, data.name);
+    console.log(`✅ Perfil creado en REST Service para ${user.role}: ${user.email}`);
+  } catch (profileError) {
+    console.error(`⚠️ Error creando perfil en REST Service:`, profileError);
+    // No fallar el registro si el perfil no se puede crear
+    // El usuario podrá crearlo después o se creará automáticamente
+  }
 
   // Generar tokens
   const tokens = generateTokenPair(user);
@@ -327,6 +339,53 @@ async function incrementLoginAttempts(user: User): Promise<void> {
   }
 
   await repo.save(user);
+}
+
+// ============================================
+// CREAR PERFIL EN REST SERVICE
+// ============================================
+
+async function createProfileInRestService(
+  userId: string,
+  email: string,
+  role: string,
+  name: string
+): Promise<void> {
+  const endpoints: Record<string, string> = {
+    client: '/api/clients/find-or-create',
+    seller: '/api/sellers/find-or-create',
+    admin: '/api/admins/find-or-create',
+  };
+
+  const endpoint = endpoints[role];
+  if (!endpoint) {
+    console.warn(`⚠️ Rol no soportado para crear perfil: ${role}`);
+    return;
+  }
+
+  const url = `${env.REST_SERVICE_URL}${endpoint}`;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Service-Auth': 'internal-auth-service', // Header interno entre servicios
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      email: email,
+      name: name,
+      source: 'auth_service_register',
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`REST Service respondió ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  console.log(`📋 Perfil ${role} creado/encontrado:`, data);
 }
 
 // ============================================

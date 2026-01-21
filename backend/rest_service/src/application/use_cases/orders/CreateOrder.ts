@@ -6,6 +6,7 @@ import AppDataSource from "../../../infrastructure/database/data-source";
 import { OrderEntity, ProductOrderEntity } from "../../../models/orderModel";
 import { ProductEntity } from "../../../models/productModel";
 import { PaymentMethodEntity } from "../../../models/paymentMethodModel";
+import { Coupon } from "../../../models/couponModel";
 import { notifyOrderCreated } from "../../../infrastructure/clients/notificationClient";
 import { notifySellerStatsUpdated, notifyAdminStatsUpdated } from "../../../infrastructure/clients/statsEventClient";
 import { processPayment } from "../../../infrastructure/clients/paymentClient";
@@ -52,10 +53,53 @@ export class CreateOrder {
     }
 
     // Calcular el total desde productOrders
-    const total_amount = data.productOrders.reduce(
+    let total_amount = data.productOrders.reduce(
       (sum, item) => sum + item.price_unit * item.quantity,
       0
     );
+
+    let discount_amount = 0;
+    let coupon_code: string | undefined;
+
+    // 🎟️ APLICAR CUPÓN si se proporciona
+    if (data.coupon_code && data.customer_email) {
+      try {
+        console.log(`🎟️ Validando cupón ${data.coupon_code} para usuario ${data.customer_email}...`);
+        
+        // Buscar el cupón directamente en la base de datos
+        const couponRepo = AppDataSource.getRepository(Coupon);
+        const coupon = await couponRepo.findOne({
+          where: {
+            code: data.coupon_code,
+            customer_email: data.customer_email,
+            is_active: true,
+            used: false
+          }
+        });
+
+        if (coupon) {
+          // Verificar si está expirado
+          if (coupon.expires_at && new Date() > new Date(coupon.expires_at)) {
+            console.warn(`⚠️ Cupón ${data.coupon_code} expirado`);
+          } else if (total_amount < coupon.minimum_purchase) {
+            console.warn(`⚠️ Cupón ${data.coupon_code} requiere compra mínima de $${coupon.minimum_purchase}`);
+          } else {
+            // Calcular descuento
+            discount_amount = coupon.calculateDiscount(total_amount);
+            total_amount = total_amount - discount_amount;
+            coupon_code = data.coupon_code;
+            console.log(`🎟️ Cupón ${data.coupon_code} aplicado: -$${discount_amount.toFixed(2)} | Nuevo total: $${total_amount.toFixed(2)}`);
+          }
+        } else {
+          console.warn(`⚠️ Cupón ${data.coupon_code} no encontrado para el usuario ${data.customer_email}`);
+        }
+      } catch (error) {
+        console.error('❌ Error al validar cupón:', error);
+        // Continuar sin aplicar cupón si hay error
+      }
+    } else if (data.coupon_code && !data.customer_email) {
+      console.warn(`⚠️ No se puede validar cupón sin email del cliente`);
+    }
 
     // Validar que el total sea mayor a 0
     if (total_amount <= 0) {
@@ -88,6 +132,12 @@ export class CreateOrder {
       // Solo agregar payment_receipt_url si existe
       if (data.payment_receipt_url) {
         orderData.payment_receipt_url = data.payment_receipt_url;
+      }
+
+      // Agregar información del cupón si se aplicó
+      if (coupon_code && discount_amount > 0) {
+        orderData.coupon_code = coupon_code;
+        orderData.discount_amount = discount_amount;
       }
       
       const newOrder = orderRepo.create(orderData);
@@ -148,6 +198,25 @@ export class CreateOrder {
       }
 
       await queryRunner.commitTransaction();
+
+      // 🎟️ MARCAR CUPÓN COMO USADO si se aplicó
+      if (coupon_code && discount_amount > 0) {
+        try {
+          const couponRepo = AppDataSource.getRepository(Coupon);
+          await couponRepo.update(
+            { code: coupon_code },
+            { 
+              used: true, 
+              used_at: new Date(), 
+              order_id: savedOrder.id_order 
+            }
+          );
+          console.log(`✅ Cupón ${coupon_code} marcado como usado en orden ${savedOrder.id_order}`);
+        } catch (error) {
+          console.error('❌ Error al marcar cupón como usado:', error);
+          // No fallar la orden si hay error al marcar el cupón
+        }
+      }
 
       // 💳 PROCESAR PAGO AUTOMÁTICO: Solo para tarjetas de crédito/débito
       // Obtener el método de pago para verificar si requiere procesamiento automático

@@ -24,13 +24,23 @@ export class WebhookSecurity {
    * Verificar firma HMAC-SHA256
    */
   static verifySignature(payload: any, signature: string, secret: string): boolean {
-    const expectedSignature = this.generateSignature(payload, secret);
-    
-    // Comparación segura contra timing attacks
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
+    try {
+      const expectedSignature = this.generateSignature(payload, secret);
+      
+      // Verificar que las firmas tengan la misma longitud
+      if (signature.length !== expectedSignature.length) {
+        return false;
+      }
+      
+      // Comparación segura contra timing attacks
+      return crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expectedSignature)
+      );
+    } catch (error) {
+      console.error('[WebhookSecurity] Error verificando firma:', error);
+      return false;
+    }
   }
 
   /**

@@ -9,11 +9,11 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { 
-  TrendingUp, 
-  DollarSign, 
-  ShoppingBag, 
-  Package, 
+import {
+  TrendingUp,
+  DollarSign,
+  ShoppingBag,
+  Package,
   Calendar,
   ArrowUp,
   Activity,
@@ -56,9 +56,13 @@ interface SellerBestProductsReport {
 
 export function SellerAnalytics() {
   const { user, token } = useAuth();
-  
+
   // Obtener el seller_id del usuario autenticado
-  const sellerId = user?.id_seller || user?.id;
+  // PRIORIDAD: Usar id_seller numérico si existe, sino intentar con UUID
+  const sellerId = user?.id_seller ? String(user.id_seller) : user?.id;
+
+  console.log('🔍 [SellerAnalytics] user:', user);
+  console.log('🔍 [SellerAnalytics] sellerId:', sellerId);
 
   if (!sellerId) {
     return (
@@ -111,19 +115,19 @@ export function SellerAnalytics() {
         my_seller_id: sellerId,
         match: event.seller_id === sellerId?.toString()
       });
-      
+
       // Si el evento es para este vendedor, refetch las queries
       if (event.type === 'SELLER_STATS_UPDATED' && event.seller_id === sellerId?.toString()) {
         console.log('🔄 [SellerAnalytics] Refetching data for seller', sellerId);
         console.log('📊 [BEFORE REFETCH] Current stats:', statsData?.seller_dashboard_stats);
-        
+
         refetchStats().then((result) => {
           console.log('✅ Stats refetched successfully');
           console.log('📊 [AFTER REFETCH] New stats:', result.data?.seller_dashboard_stats);
         }).catch((err) => {
           console.error('❌ Error refetching stats:', err);
         });
-        
+
         refetchProducts().then(() => {
           console.log('✅ Products refetched');
         }).catch((err) => {
@@ -321,7 +325,7 @@ export function SellerAnalytics() {
             ) : stats ? (
               <>
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart 
+                  <BarChart
                     data={[
                       {
                         name: 'Hoy',
@@ -334,20 +338,20 @@ export function SellerAnalytics() {
                     ]}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="name" 
+                    <XAxis
+                      dataKey="name"
                       stroke="#6b7280"
                       tick={{ fontSize: 12 }}
                     />
-                    <YAxis 
+                    <YAxis
                       stroke="#6b7280"
                       tick={{ fontSize: 12 }}
                       tickFormatter={(value) => `$${value.toFixed(0)}`}
                     />
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value: number) => [`$${value.toFixed(2)}`, 'Ventas']}
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
+                      contentStyle={{
+                        backgroundColor: 'white',
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
                         padding: '10px'
@@ -406,37 +410,37 @@ export function SellerAnalytics() {
             ) : stats ? (
               <>
                 <ResponsiveContainer width="100%" height={250}>
-                  <LineChart 
+                  <LineChart
                     data={[
                       { periodo: 'Inicio', ventas: 0 },
                       { periodo: 'Acumulado', ventas: stats.total_revenue },
                     ]}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="periodo" 
+                    <XAxis
+                      dataKey="periodo"
                       stroke="#6b7280"
                       tick={{ fontSize: 12 }}
                     />
-                    <YAxis 
+                    <YAxis
                       stroke="#6b7280"
                       tick={{ fontSize: 12 }}
                       tickFormatter={(value) => `$${value.toFixed(0)}`}
                     />
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value: number) => [`$${value.toFixed(2)}`, 'Ventas Totales']}
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
+                      contentStyle={{
+                        backgroundColor: 'white',
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
                         padding: '10px'
                       }}
                     />
                     <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="ventas" 
-                      stroke="#3b82f6" 
+                    <Line
+                      type="monotone"
+                      dataKey="ventas"
+                      stroke="#3b82f6"
                       strokeWidth={3}
                       name="Ingresos Acumulados"
                       dot={{ fill: '#3b82f6', r: 5 }}

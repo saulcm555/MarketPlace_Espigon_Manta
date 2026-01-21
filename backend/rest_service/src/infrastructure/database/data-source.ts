@@ -6,6 +6,7 @@ import { AdminEntity } from "../../models/adminModel";
 import { CartEntity, ProductCartEntity } from "../../models/cartModel";
 import { CategoryEntity } from "../../models/categoryModel";
 import { ClientEntity } from "../../models/clientModel";
+import { Coupon } from "../../models/couponModel";
 import { DeliveryEntity } from "../../models/deliveryModel";
 import { InventoryEntity } from "../../models/inventoryModel";
 import { OrderEntity, ProductOrderEntity } from "../../models/orderModel";
@@ -41,6 +42,7 @@ const AppDataSource = new DataSource({
     ProductCartEntity,
     CategoryEntity,
     ClientEntity,
+    Coupon,
     DeliveryEntity,
     InventoryEntity,
     OrderEntity,

@@ -12,6 +12,57 @@ REST_API_URL = "http://127.0.0.1:3000/api"  # URL del REST service
 # Token de servicio interno para comunicación entre microservicios
 SERVICE_TOKEN = "internal-service-graphql-reports-2024"
 
+async def resolve_seller_id(seller_identifier: str) -> int:
+    """
+    Resuelve un seller_identifier (UUID o int) a id_seller numérico.
+    Si ya es un número, lo devuelve directamente.
+    Si es UUID, consulta el nuevo endpoint /sellers/by-user/:userId.
+    """
+    # Intentar convertir directamente a int
+    try:
+        seller_id = int(seller_identifier)
+        print(f"✅ [resolve_seller_id] Already numeric: {seller_id}")
+        return seller_id
+    except (ValueError, TypeError):
+        pass
+    
+    # Es un UUID, hacer lookup usando el nuevo endpoint
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = {
+                "X-Service-Token": SERVICE_TOKEN,
+                "X-Internal-Service": "report-service"
+            }
+            
+            # Usar el nuevo endpoint by-user
+            url = f"{BASE_URL}/sellers/by-user/{seller_identifier}"
+            print(f"🔍 [resolve_seller_id] Calling: {url}")
+            
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            
+            print(f"✅ [resolve_seller_id] Response: {data}")
+            
+            # Extraer id_seller
+            if isinstance(data, dict) and "id_seller" in data:
+                seller_id = int(data["id_seller"])
+                print(f"✅ [resolve_seller_id] Resolved UUID {seller_identifier} to id_seller={seller_id}")
+                return seller_id
+            else:
+                print(f"❌ [resolve_seller_id] Invalid response format: {data}")
+                raise ValueError(f"Invalid response format from /sellers/by-user")
+                
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            print(f"❌ [resolve_seller_id] Seller not found for user_id={seller_identifier}")
+            raise ValueError(f"No seller found with user_id={seller_identifier}")
+        print(f"❌ [resolve_seller_id] HTTP error {e.response.status_code}: {e}")
+        raise ValueError(f"HTTP error resolving seller: {e}")
+    except Exception as e:
+        print(f"❌ [resolve_seller_id] Unexpected error: {str(e)}")
+        raise ValueError(f"Could not resolve seller_id from identifier: {seller_identifier}")
+
 async def fetch_data(endpoint: str, params: Dict[str, Any] = None) -> Any:
     """Función auxiliar para obtener datos del REST API"""
     try:
@@ -911,16 +962,21 @@ async def get_top_rated_products_report(limit: int = 20):
 
 # ======================= ESTADÍSTICAS DEL VENDEDOR =======================
 
-async def get_seller_dashboard_stats(seller_id: int):
+async def get_seller_dashboard_stats(seller_identifier: str):
     """
     Genera estadísticas del dashboard específicas para un vendedor
     OPTIMIZADO: Usa endpoint directo del REST API en lugar de procesar todos los datos
+    Acepta tanto UUID (user_id) como id_seller numérico
     """
     import time
     from app.reports.schema import SellerDashboardStats
     
     request_start = time.time()
-    print(f"🔍 [REPORT_SERVICE] Fetching seller dashboard stats for seller_id={seller_id}")
+    print(f"🔍 [REPORT_SERVICE] Fetching seller dashboard stats for seller_identifier={seller_identifier}")
+    
+    # Resolver el seller_identifier a id_seller numérico
+    seller_id = await resolve_seller_id(seller_identifier)
+    print(f"✅ [REPORT_SERVICE] Resolved seller_id={seller_id}")
     
     # Usar endpoint optimizado que hace la query SQL directamente
     try:
@@ -974,14 +1030,19 @@ async def get_seller_dashboard_stats(seller_id: int):
             pending_orders=0
         )
 
-async def get_seller_best_products(seller_id: int, start_date: date, end_date: date, limit: int = 10):
+async def get_seller_best_products(seller_identifier: str, start_date: date, end_date: date, limit: int = 10):
     """
     Obtiene los productos más vendidos de un vendedor específico.
     OPTIMIZADO: Usa endpoint optimizado con SQL en REST service.
+    Acepta tanto UUID (user_id) como id_seller numérico
     """
     from app.reports.schema import BestProductsReport, ProductSalesItem
     
-    print(f"🔍 [get_seller_best_products] Called with seller_id={seller_id}, start_date={start_date}, end_date={end_date}, limit={limit}")
+    print(f"🔍 [get_seller_best_products] Called with seller_identifier={seller_identifier}, start_date={start_date}, end_date={end_date}, limit={limit}")
+    
+    # Resolver el seller_identifier a id_seller numérico
+    seller_id = await resolve_seller_id(seller_identifier)
+    print(f"✅ [get_seller_best_products] Resolved seller_id={seller_id}")
     
     try:
         # Llamar al endpoint optimizado del REST service
