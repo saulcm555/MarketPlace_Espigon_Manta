@@ -5,6 +5,34 @@
 
 import { Bot, User, Wrench, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
+
+/**
+ * Parsea markdown básico a HTML
+ * Soporta: **bold**, *italic*, `code`, listas con *, - y números
+ */
+function parseMarkdown(text: string): string {
+  if (!text) return '';
+  
+  let html = text
+    // Escapar HTML para prevenir XSS
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // Bold **text**
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    // Italic *text*
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    // Inline code `code`
+    .replace(/`([^`]+)`/g, '<code class="bg-muted px-1 py-0.5 rounded text-xs">$1</code>')
+    // Lists: lines starting with * or - or numbers
+    .replace(/^[\*\-]\s+(.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+    .replace(/^\d+\.\s+(.+)$/gm, '<li class="ml-4 list-decimal">$1</li>')
+    // Line breaks
+    .replace(/\n/g, '<br/>');
+  
+  return html;
+}
 
 export interface MessageProps {
   role: 'user' | 'assistant';
@@ -66,7 +94,10 @@ export function ChatMessage({
             <span className="text-sm">Escribiendo...</span>
           </div>
         ) : (
-          <p className="text-sm whitespace-pre-wrap break-words">{content}</p>
+          <div 
+            className="text-sm prose prose-sm dark:prose-invert max-w-none"
+            dangerouslySetInnerHTML={{ __html: parseMarkdown(content) }}
+          />
         )}
 
         {/* Tools Used */}
