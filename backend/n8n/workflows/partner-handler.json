@@ -306,6 +306,40 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "http://rest-service:3000/api/logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-partner-handler"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"level\": \"info\",\n  \"workflow\": \"partner-handler\",\n  \"event\": \"{{ $('Verificar HMAC').item.json.event }}\",\n  \"message\": \"Evento partner procesado\",\n  \"data\": {\n    \"partnerId\": \"{{ $('Verificar HMAC').item.json.partnerId }}\",\n    \"event\": \"{{ $('Verificar HMAC').item.json.event }}\",\n    \"handled\": true\n  },\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "log-partner-event",
+      "name": "📝 Log: Evento Partner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={\n  \"status\": \"received\",\n  \"event\": \"{{ $('Verificar HMAC').item.json.event }}\",\n  \"processedAt\": \"{{ $now.toISO() }}\",\n  \"partnerId\": \"{{ $('Verificar HMAC').item.json.partnerId }}\"\n}",
         "options": {}
@@ -314,7 +348,7 @@
       "name": "Responder ACK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1650, 300]
+      "position": [1870, 300]
     }
   ],
   "connections": {
@@ -405,7 +439,7 @@
       "main": [
         [
           {
-            "node": "Responder ACK",
+            "node": "📝 Log: Evento Partner",
             "type": "main",
             "index": 0
           }
@@ -416,7 +450,7 @@
       "main": [
         [
           {
-            "node": "Responder ACK",
+            "node": "📝 Log: Evento Partner",
             "type": "main",
             "index": 0
           }
@@ -427,7 +461,7 @@
       "main": [
         [
           {
-            "node": "Responder ACK",
+            "node": "📝 Log: Evento Partner",
             "type": "main",
             "index": 0
           }
@@ -438,7 +472,7 @@
       "main": [
         [
           {
-            "node": "Responder ACK",
+            "node": "📝 Log: Evento Partner",
             "type": "main",
             "index": 0
           }
@@ -446,6 +480,17 @@
       ]
     },
     "Evento Desconocido": {
+      "main": [
+        [
+          {
+            "node": "📝 Log: Evento Partner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Log: Evento Partner": {
       "main": [
         [
           {

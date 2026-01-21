@@ -26,7 +26,10 @@ import wsAuthRoutes from "../infrastructure/http/routes/wsAuthRoutes";
 import uploadRoutes from "../infrastructure/http/routes/uploadRoutes";
 import statisticsRoutes from "../infrastructure/http/routes/statisticsRoutes";
 import reportsRoutes from "../infrastructure/http/routes/reportsRoutes";
+
+// ✅ Combinar ambos cambios
 import couponRoutes from "../infrastructure/http/routes/couponRoutes";
+import logsRoutes from "../infrastructure/http/routes/logsRoutes";
 
 const app = express();
 
@@ -35,36 +38,36 @@ const app = express();
 // ============================================
 app.use((req, res, next) => {
   const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://localhost:8080',
-    'http://localhost:8081',
-    'http://192.168.56.1:8080',
-    'http://192.168.1.87:8080',
-    'http://172.20.64.1:8080'
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:8080",
+    "http://localhost:8081",
+    "http://192.168.56.1:8080",
+    "http://192.168.1.87:8080",
+    "http://172.20.64.1:8080",
   ];
-  
+
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader("Access-Control-Allow-Origin", origin);
   }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  
+
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+
   // Handle preflight
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
-  
+
   next();
 });
 
 app.use(express.json());
 
 // Servir archivos estáticos (imágenes subidas)
-app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+app.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
 
 // Setup Swagger documentation
 setupSwagger(app);
@@ -77,8 +80,8 @@ app.get("/", (req, res) => {
     version: "1.0.0",
     endpoints: {
       swagger: "/api-docs",
-      health: "/health"
-    }
+      health: "/health",
+    },
   });
 });
 
@@ -88,8 +91,8 @@ app.get("/health", (req, res) => {
     timestamp: new Date().toISOString(),
     services: {
       database: "connected",
-      redis: "connected"
-    }
+      redis: "connected",
+    },
   });
 });
 
@@ -107,64 +110,71 @@ app.use("/api/carts", cartRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/payment-methods", paymentMethodRoutes);
 app.use("/api/deliveries", deliveryRoutes);
+
+// ✅ Mantener rutas existentes + nuevas
 app.use("/api/ws", wsAuthRoutes); // 🔔 Rutas de autorización WebSocket
 app.use("/api/upload", uploadRoutes); // 📤 Rutas de subida de archivos
 app.use("/api/statistics", statisticsRoutes); // 📊 Estadísticas del marketplace
 app.use("/api/reports", reportsRoutes); // 📄 Generación de reportes PDF
 app.use("/api/coupons", couponRoutes); // 🎟️ Sistema de cupones B2B
+app.use("/api/logs", logsRoutes); // 🧾 Logs de workflows/n8n y servicios internos
 
 // ============================================
-// ERROR HANDLING MIDDLEWARES
-// Debe ir DESPUÉS de todas las rutas
+// ERROR HANDLING MIDDLEWARES (al final)
 // ============================================
-
-// Captura rutas no encontradas (404)
 app.use(notFoundHandler);
-
-// Middleware global de manejo de errores
 app.use(errorHandler);
 
-AppDataSource.initialize()
-  .then(async () => {
-    console.log("✅ Conexión a la base de datos establecida correctamente");
-    
-    // Inicializar Redis para notificaciones en tiempo real
+const PORT = process.env.PORT || 3000;
+
+const startServer = async () => {
+  try {
+    console.log("📦 Conectando a PostgreSQL...");
+    await AppDataSource.initialize();
+    console.log("✅ PostgreSQL conectado correctamente");
+
+    console.log("📦 Conectando a Redis...");
     await connectRedis();
-    
-    // Iniciar scheduler de limpieza automática de comprobantes
-    startCleanupScheduler();
-    
-    const server = app.listen(3000, () => {
-      console.log("🚀 Servidor Express corriendo en puerto 3000");
+    console.log("✅ Redis conectado correctamente");
+
+    const cleanupEnabled = process.env.CLEANUP_ENABLED === "true";
+    if (cleanupEnabled) {
+      console.log("🧹 Iniciando scheduler de limpieza automática...");
+      startCleanupScheduler();
+      console.log("✅ Scheduler iniciado correctamente");
+    }
+
+    const server = app.listen(PORT, () => {
+      console.log(`\n🚀 ============================================`);
+      console.log(`   🛍️  REST Service - Marketplace Espigón Manta`);
+      console.log(`   🌐 Servidor escuchando en puerto ${PORT}`);
+      console.log(`   📚 Swagger docs: http://localhost:${PORT}/api-docs`);
+      console.log(`   💚 Health check: http://localhost:${PORT}/health`);
+      console.log(`============================================\n`);
     });
 
-    // Graceful shutdown
-    const shutdown = async () => {
-      console.log("\n⚠️  Cerrando servidor...");
-      
-      // Detener scheduler de limpieza
+    const shutdown = async (signal: string) => {
+      console.log(`\n⚠️ ${signal} recibido. Cerrando servidor...`);
+
       stopCleanupScheduler();
-      
-      // Cerrar servidor HTTP
+
       server.close(() => {
         console.log("✅ Servidor HTTP cerrado");
       });
-      
-      // Desconectar Redis
+
       await disconnectRedis();
-      
-      // Cerrar conexión a base de datos
       await AppDataSource.destroy();
-      console.log("✅ Base de datos desconectada");
-      
+      console.log("✅ Redis y Base de datos desconectados");
+
       process.exit(0);
     };
 
-    // Manejar señales de terminación
-    process.on("SIGTERM", shutdown);
-    process.on("SIGINT", shutdown);
-  })
-  .catch((err) => {
-    console.error("❌ Error inicializando la base de datos:", err);
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT (Ctrl+C)"));
+  } catch (error) {
+    console.error("❌ Error al iniciar el servidor:", error);
     process.exit(1);
-  });
+  }
+};
+
+startServer();

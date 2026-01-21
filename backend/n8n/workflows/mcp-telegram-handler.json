@@ -122,6 +122,40 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "http://rest-service:3000/api/logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-mcp-handler"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"level\": \"info\",\n  \"workflow\": \"mcp-telegram-handler\",\n  \"event\": \"message_processed\",\n  \"message\": \"Mensaje de Telegram procesado y respondido\",\n  \"data\": {\n    \"userId\": \"{{ $('Extraer Mensaje').item.json.userId }}\",\n    \"username\": \"{{ $('Extraer Mensaje').item.json.username }}\",\n    \"messageLength\": {{ $('Extraer Mensaje').item.json.text.length }}\n  },\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "log-message-processed",
+      "name": "📝 Log: Mensaje Procesado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1570, 400]
+    },
+    {
+      "parameters": {
         "chatId": "={{ $('Extraer Mensaje').item.json.chatId }}",
         "text": "={{ $json.response }}",
         "additionalFields": {
@@ -139,6 +173,40 @@
           "name": "Telegram Bot"
         }
       }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rest-service:3000/api/logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-mcp-handler"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"level\": \"info\",\n  \"workflow\": \"mcp-telegram-handler\",\n  \"event\": \"command_start\",\n  \"message\": \"Usuario inició conversación con comando /start\",\n  \"data\": {\n    \"userId\": \"{{ $('Extraer Mensaje').item.json.userId }}\",\n    \"username\": \"{{ $('Extraer Mensaje').item.json.username }}\",\n    \"firstName\": \"{{ $('Extraer Mensaje').item.json.firstName }}\"\n  },\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "log-command-start",
+      "name": "📝 Log: Comando Start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1130, 200]
     }
   ],
   "connections": {
@@ -198,6 +266,28 @@
         [
           {
             "node": "Enviar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Respuesta": {
+      "main": [
+        [
+          {
+            "node": "📝 Log: Mensaje Procesado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Bienvenida": {
+      "main": [
+        [
+          {
+            "node": "📝 Log: Comando Start",
             "type": "main",
             "index": 0
           }

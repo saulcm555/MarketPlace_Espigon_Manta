@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middlewares/authMiddleware";
 import { roleMiddleware } from "../../middlewares/roleMiddleware";
+import { internalAuthMiddleware } from "../middlewares/internalAuthMiddleware";
 import { validateRequest } from "../../middlewares/validateRequest";
 import {
   createOrderValidation,
@@ -21,7 +22,8 @@ import {
   getSellerOrders,
   getMyOrders,
   markOrderAsDelivered,
-  getProductOrders
+  getProductOrders,
+  patchOrder
 } from "../controllers/orderController";
 
 const router = Router();
@@ -35,6 +37,11 @@ router.get("/seller/orders", authMiddleware, roleMiddleware("seller"), getSeller
 
 router.get("/:id", getOrderByIdValidation, validateRequest, authMiddleware, getOrderById); // Cliente ve su orden
 router.post("/", createOrderValidation, validateRequest, authMiddleware, roleMiddleware("client"), createOrder); // Solo cliente crea orden
+
+// ✅ NUEVO: PATCH para actualización parcial desde n8n (con internal auth)
+router.patch("/:id", internalAuthMiddleware, patchOrder); // n8n y servicios internos
+
+// PUT para actualización completa (solo admin)
 router.put("/:id", getOrderByIdValidation, updateOrderValidation, validateRequest, authMiddleware, roleMiddleware("admin"), updateOrder); // Solo admin actualiza
 router.delete("/:id", getOrderByIdValidation, validateRequest, authMiddleware, roleMiddleware("admin"), deleteOrder); // Solo admin elimina
 

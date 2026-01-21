@@ -130,6 +130,40 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "http://rest-service:3000/api/logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-payment-handler"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"level\": \"info\",\n  \"workflow\": \"payment-handler\",\n  \"event\": \"payment_success\",\n  \"message\": \"Pago procesado exitosamente\",\n  \"data\": {\n    \"orderId\": \"{{ $('Extraer Datos Pago').item.json.orderId }}\",\n    \"paymentId\": \"{{ $('Extraer Datos Pago').item.json.paymentId }}\",\n    \"amount\": {{ $('Extraer Datos Pago').item.json.amount }},\n    \"currency\": \"{{ $('Extraer Datos Pago').item.json.currency }}\",\n    \"status\": \"paid\"\n  },\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "log-payment-success",
+      "name": "📝 Log: Pago Exitoso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1570, 200]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={\n  \"received\": true,\n  \"status\": \"processed\",\n  \"paymentStatus\": \"success\",\n  \"notified\": true\n}",
         "options": {}
@@ -138,7 +172,7 @@
       "name": "Responder OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1570, 200]
+      "position": [1790, 200]
     },
     {
       "parameters": {
@@ -216,6 +250,40 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "http://rest-service:3000/api/logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-payment-handler"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"level\": \"error\",\n  \"workflow\": \"payment-handler\",\n  \"event\": \"payment_failed\",\n  \"message\": \"Pago fallido\",\n  \"data\": {\n    \"orderId\": \"{{ $('Extraer Datos Error').item.json.orderId }}\",\n    \"paymentId\": \"{{ $('Extraer Datos Error').item.json.paymentId }}\",\n    \"status\": \"payment_failed\",\n    \"reason\": \"{{ $('Extraer Datos Error').item.json.failureMessage }}\"\n  },\n  \"timestamp\": \"{{ $now.toISO() }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "log-payment-failed",
+      "name": "📝 Log: Pago Fallido",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1570, 450]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
         "responseBody": "={\n  \"received\": true,\n  \"status\": \"processed\",\n  \"paymentStatus\": \"failed\",\n  \"notified\": true\n}",
         "options": {}
@@ -224,7 +292,7 @@
       "name": "Responder Fallo",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1570, 450]
+      "position": [1790, 450]
     }
   ],
   "connections": {
@@ -294,6 +362,17 @@
       "main": [
         [
           {
+            "node": "📝 Log: Pago Exitoso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Log: Pago Exitoso": {
+      "main": [
+        [
+          {
             "node": "Responder OK",
             "type": "main",
             "index": 0
@@ -324,6 +403,17 @@
       ]
     },
     "Notificar WS Error": {
+      "main": [
+        [
+          {
+            "node": "📝 Log: Pago Fallido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Log: Pago Fallido": {
       "main": [
         [
           {

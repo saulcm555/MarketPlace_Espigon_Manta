@@ -1,0 +1,826 @@
+{
+  "name": "Scheduled Tasks - Cron Jobs Programados",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "daily-report-trigger",
+      "name": "Reporte Diario (8:00 AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 23,
+              "triggerAtMinute": 30
+            }
+          ]
+        }
+      },
+      "id": "cleanup-trigger",
+      "name": "Limpieza Diaria (11:30 PM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "health-check-trigger",
+      "name": "Health Check (cada 15 min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 700]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "id": "reminder-trigger",
+      "name": "Recordatorios (6:00 PM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 900]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generar contexto para el reporte diario\nconst now = new Date();\nconst yesterday = new Date(now);\nyesterday.setDate(yesterday.getDate() - 1);\n\nreturn {\n  task: 'daily_report',\n  timestamp: now.toISOString(),\n  dateFrom: yesterday.toISOString().split('T')[0],\n  dateTo: now.toISOString().split('T')[0],\n  reportType: 'daily_summary'\n};"
+      },
+      "id": "prepare-report",
+      "name": "Preparar Datos Reporte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://report-service:4000/graphql",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-scheduled-tasks"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"query { dailySummary(startDate: \\\"{{ $json.dateFrom }}\\\", endDate: \\\"{{ $json.dateTo }}\\\") { totalOrders totalRevenue topProducts { productName quantity } } }\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "generate-report",
+      "name": "Generar Reporte GraphQL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatear reporte para envío\nconst reportData = $input.first().json;\nconst data = reportData.data?.dailySummary || {};\n\nconst reportHtml = `\n<h2>📊 Reporte Diario - ${new Date().toLocaleDateString('es-ES')}</h2>\n<h3>Resumen de Ventas</h3>\n<ul>\n  <li><strong>Total Órdenes:</strong> ${data.totalOrders || 0}</li>\n  <li><strong>Ingresos Totales:</strong> $${(data.totalRevenue || 0).toFixed(2)}</li>\n</ul>\n<h3>Productos Más Vendidos</h3>\n<ul>\n${(data.topProducts || []).map(p => `  <li>${p.productName}: ${p.quantity} unidades</li>`).join('\\n')}\n</ul>\n`;\n\nreturn {\n  subject: `Reporte Diario MarketPlace - ${new Date().toLocaleDateString('es-ES')}`,\n  html: reportHtml,\n  reportData: data\n};"
+      },
+      "id": "format-report",
+      "name": "Formatear Reporte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@marketplace-espigon.com",
+        "toEmail": "admin@marketplace-espigon.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}"
+      },
+      "id": "send-report-email",
+      "name": "Enviar Email Reporte",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1130, 300],
+      "credentials": {
+        "smtp": {
+          "id": "SMTP_CREDENTIAL_ID",
+          "name": "SMTP Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rest-service:3000/api/logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-scheduled-tasks"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"level\": \"info\",\n  \"workflow\": \"scheduled-tasks\",\n  \"task\": \"daily_report\",\n  \"message\": \"Reporte diario generado y enviado exitosamente\",\n  \"data\": {{ $json.reportData }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "log-report-success",
+      "name": "📝 Log: Reporte Enviado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar limpieza de datos antiguos\nconst now = new Date();\nconst thirtyDaysAgo = new Date(now);\nthirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);\n\nreturn {\n  task: 'data_cleanup',\n  timestamp: now.toISOString(),\n  cutoffDate: thirtyDaysAgo.toISOString(),\n  targets: [\n    'expired_sessions',\n    'old_logs',\n    'temp_uploads',\n    'completed_orders_older_than_6_months'\n  ]\n};"
+      },
+      "id": "prepare-cleanup",
+      "name": "Preparar Limpieza",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 500]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "http://auth-service:4001/api/sessions/expired",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-scheduled-tasks"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "cleanup-sessions",
+      "name": "Limpiar Sesiones Expiradas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 500]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://rest-service:3000/api/logs?before={{ $('Preparar Limpieza').item.json.cutoffDate }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-scheduled-tasks"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "cleanup-logs",
+      "name": "Limpiar Logs Antiguos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consolidar resultados de limpieza\nconst sessionsResult = $('Limpiar Sesiones Expiradas').first().json;\nconst logsResult = $input.first().json;\n\nconst sessionsDeleted = sessionsResult.deleted || 0;\nconst logsDeleted = logsResult.deleted || 0;\n\nreturn {\n  task: 'cleanup_completed',\n  sessionsDeleted,\n  logsDeleted,\n  totalCleaned: sessionsDeleted + logsDeleted,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "consolidate-cleanup",
+      "name": "Consolidar Resultados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rest-service:3000/api/logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-scheduled-tasks"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"level\": \"info\",\n  \"workflow\": \"scheduled-tasks\",\n  \"task\": \"data_cleanup\",\n  \"message\": \"Limpieza de datos completada\",\n  \"data\": {\n    \"sessionsDeleted\": {{ $json.sessionsDeleted }},\n    \"logsDeleted\": {{ $json.logsDeleted }},\n    \"totalCleaned\": {{ $json.totalCleaned }}\n  },\n  \"timestamp\": \"{{ $json.timestamp }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "log-cleanup-success",
+      "name": "📝 Log: Limpieza Completada",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar health checks de servicios\nconst services = [\n  { name: 'REST Service', url: 'http://rest-service:3000/health' },\n  { name: 'Auth Service', url: 'http://auth-service:4001/health' },\n  { name: 'Payment Service', url: 'http://payment-service:3001/health' },\n  { name: 'Realtime Service', url: 'http://realtime-service:8085/health' },\n  { name: 'Report Service', url: 'http://report-service:4000/health' },\n  { name: 'AI Orchestrator', url: 'http://ai-orchestrator:3004/health' }\n];\n\nreturn services.map(s => ({\n  serviceName: s.name,\n  url: s.url,\n  timestamp: new Date().toISOString()\n}));"
+      },
+      "id": "prepare-health-checks",
+      "name": "Preparar Health Checks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 700]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 5000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "execute-health-check",
+      "name": "Ejecutar Health Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 700]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analizar resultados de health checks\nconst results = $input.all();\nconst failed = [];\nconst succeeded = [];\n\nfor (const item of results) {\n  const serviceName = item.json.serviceName || 'Unknown';\n  const statusCode = item.json.statusCode;\n  \n  if (!statusCode || statusCode >= 400) {\n    failed.push(serviceName);\n  } else {\n    succeeded.push(serviceName);\n  }\n}\n\nconst status = failed.length === 0 ? 'healthy' : 'degraded';\n\nreturn {\n  status,\n  totalServices: results.length,\n  succeeded: succeeded.length,\n  failed: failed.length,\n  failedServices: failed,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "analyze-health",
+      "name": "Analizar Resultados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 700]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.failed }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-failures",
+      "name": "¿Hay Fallos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1130, 700]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://realtime-service:8085/api/alerts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-scheduled-tasks"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"service_down\",\n  \"severity\": \"critical\",\n  \"message\": \"Servicios caídos detectados\",\n  \"failedServices\": {{ JSON.stringify($json.failedServices) }},\n  \"timestamp\": \"{{ $json.timestamp }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "send-alert",
+      "name": "🚨 Enviar Alerta Crítica",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rest-service:3000/api/logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-scheduled-tasks"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"level\": \"{{ $json.status === 'healthy' ? 'info' : 'warning' }}\",\n  \"workflow\": \"scheduled-tasks\",\n  \"task\": \"health_check\",\n  \"message\": \"Health check completado - Status: {{ $json.status }}\",\n  \"data\": {\n    \"status\": \"{{ $json.status }}\",\n    \"succeeded\": {{ $json.succeeded }},\n    \"failed\": {{ $json.failed }},\n    \"failedServices\": {{ JSON.stringify($json.failedServices) }}\n  },\n  \"timestamp\": \"{{ $json.timestamp }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "log-health-check",
+      "name": "📝 Log: Health Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar recordatorios de pedidos pendientes\nconst now = new Date();\nconst twoDaysAgo = new Date(now);\ntwoDaysAgo.setDate(twoDaysAgo.getDate() - 2);\n\nreturn {\n  task: 'pending_orders_reminder',\n  timestamp: now.toISOString(),\n  cutoffDate: twoDaysAgo.toISOString()\n};"
+      },
+      "id": "prepare-reminders",
+      "name": "Preparar Recordatorios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 900]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://rest-service:3000/api/orders?status=pending&createdBefore={{ $json.cutoffDate }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-scheduled-tasks"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "get-pending-orders",
+      "name": "Obtener Pedidos Pendientes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 900]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesar pedidos pendientes para recordatorios\nconst response = $input.first().json;\nconst orders = response.data || response.orders || [];\n\nif (orders.length === 0) {\n  return {\n    hasReminders: false,\n    count: 0,\n    message: 'No hay pedidos pendientes para recordar'\n  };\n}\n\nconst reminders = orders.map(order => ({\n  orderId: order.id,\n  userEmail: order.userEmail,\n  userName: order.userName,\n  total: order.total,\n  createdAt: order.createdAt\n}));\n\nreturn {\n  hasReminders: true,\n  count: orders.length,\n  reminders: reminders\n};"
+      },
+      "id": "process-reminders",
+      "name": "Procesar Recordatorios",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 900]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.hasReminders }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-reminders",
+      "name": "¿Hay Recordatorios?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1130, 900]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rest-service:3000/api/notifications/reminders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-scheduled-tasks"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"type\": \"pending_order_reminder\",\n  \"reminders\": {{ JSON.stringify($json.reminders) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "send-reminders",
+      "name": "Enviar Recordatorios",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 850]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://rest-service:3000/api/logs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Internal-Service",
+              "value": "n8n-scheduled-tasks"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"level\": \"info\",\n  \"workflow\": \"scheduled-tasks\",\n  \"task\": \"reminders\",\n  \"message\": \"Recordatorios procesados\",\n  \"data\": {\n    \"count\": {{ $('Procesar Recordatorios').item.json.count }},\n    \"hasReminders\": {{ $('Procesar Recordatorios').item.json.hasReminders }}\n  },\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "log-reminders",
+      "name": "📝 Log: Recordatorios",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1350, 1000]
+    }
+  ],
+  "connections": {
+    "Reporte Diario (8:00 AM)": {
+      "main": [
+        [
+          {
+            "node": "Preparar Datos Reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpieza Diaria (11:30 PM)": {
+      "main": [
+        [
+          {
+            "node": "Preparar Limpieza",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Health Check (cada 15 min)": {
+      "main": [
+        [
+          {
+            "node": "Preparar Health Checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recordatorios (6:00 PM)": {
+      "main": [
+        [
+          {
+            "node": "Preparar Recordatorios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Datos Reporte": {
+      "main": [
+        [
+          {
+            "node": "Generar Reporte GraphQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Reporte GraphQL": {
+      "main": [
+        [
+          {
+            "node": "Formatear Reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Reporte": {
+      "main": [
+        [
+          {
+            "node": "Enviar Email Reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Email Reporte": {
+      "main": [
+        [
+          {
+            "node": "📝 Log: Reporte Enviado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Limpieza": {
+      "main": [
+        [
+          {
+            "node": "Limpiar Sesiones Expiradas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar Sesiones Expiradas": {
+      "main": [
+        [
+          {
+            "node": "Limpiar Logs Antiguos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar Logs Antiguos": {
+      "main": [
+        [
+          {
+            "node": "Consolidar Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar Resultados": {
+      "main": [
+        [
+          {
+            "node": "📝 Log: Limpieza Completada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Health Checks": {
+      "main": [
+        [
+          {
+            "node": "Ejecutar Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ejecutar Health Check": {
+      "main": [
+        [
+          {
+            "node": "Analizar Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analizar Resultados": {
+      "main": [
+        [
+          {
+            "node": "¿Hay Fallos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay Fallos?": {
+      "main": [
+        [
+          {
+            "node": "🚨 Enviar Alerta Crítica",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📝 Log: Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚨 Enviar Alerta Crítica": {
+      "main": [
+        [
+          {
+            "node": "📝 Log: Health Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Recordatorios": {
+      "main": [
+        [
+          {
+            "node": "Obtener Pedidos Pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Pedidos Pendientes": {
+      "main": [
+        [
+          {
+            "node": "Procesar Recordatorios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Recordatorios": {
+      "main": [
+        [
+          {
+            "node": "¿Hay Recordatorios?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay Recordatorios?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Recordatorios",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📝 Log: Recordatorios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Recordatorios": {
+      "main": [
+        [
+          {
+            "node": "📝 Log: Recordatorios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-19T00:00:00.000Z",
+  "versionId": "1"
+}
