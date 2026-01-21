@@ -5,6 +5,8 @@ import { UpdateClientProfile } from "../../../application/use_cases/clients/Upda
 import { ClientService } from "../../../domain/services/ClientService";
 import { ClientRepositoryImpl } from "../../repositories/ClientRepositoryImpl";
 import { asyncHandler, NotFoundError, BadRequestError, ForbiddenError } from "../../middlewares/errors";
+import AppDataSource from "../../database/data-source";
+import { ClientEntity } from "../../../models/clientModel";
 
 // Instancias de dependencias
 const clientRepository = new ClientRepositoryImpl();
@@ -80,22 +82,29 @@ export const deleteClient = asyncHandler(async (req: Request, res: Response) => 
 
 /**
  * POST /api/clients/find-or-create
- * Endpoint interno para crear clientes automáticamente cuando llegan cupones B2B
- * Si el cliente ya existe (por email), lo retorna. Si no, lo crea.
+ * Endpoint interno para crear clientes automáticamente desde Auth Service o cupones B2B
+ * Si el cliente ya existe (por email o user_id), lo retorna. Si no, lo crea.
  */
 export const findOrCreateClient = asyncHandler(async (req: Request, res: Response) => {
-  const { email, name, source } = req.body;
+  const { email, name, source, user_id } = req.body;
   
   if (!email) {
     throw new BadRequestError("El email es requerido");
   }
   
-  console.log(`🔍 [findOrCreateClient] Buscando cliente: ${email}`);
+  console.log(`🔍 [findOrCreateClient] Buscando cliente: ${email}, user_id: ${user_id}`);
   
-  // Buscar cliente existente por email
+  // Buscar cliente existente por email o user_id
   let client = await clientService.getClientByEmail(email);
   
+  // Si existe y viene user_id, actualizar el user_id si no lo tiene
   if (client) {
+    if (user_id && !client.user_id) {
+      console.log(`🔄 [findOrCreateClient] Actualizando user_id del cliente existente`);
+      const clientRepo = AppDataSource.getRepository(ClientEntity);
+      await clientRepo.update({ id_client: client.id_client }, { user_id: user_id });
+      client.user_id = user_id;
+    }
     console.log(`✅ [findOrCreateClient] Cliente encontrado: ${client.id_client}`);
     return res.json({ 
       client, 
@@ -109,9 +118,10 @@ export const findOrCreateClient = asyncHandler(async (req: Request, res: Respons
   
   const newClientData = {
     client_name: name || email.split('@')[0],
-    email: email,
-    password: `temp_${Date.now()}`, // Password temporal
-    source: source || 'partner_coupon'
+    client_email: email,                    // ← Campo correcto
+    client_password: `temp_${Date.now()}`,  // ← Campo correcto (NO se usa, auth está en Auth Service)
+    user_id: user_id || null,               // Vincular con auth_service.users
+    address: 'Por definir',                 // Campo requerido
   };
   
   // Wrap callback en promesa
@@ -122,7 +132,7 @@ export const findOrCreateClient = asyncHandler(async (req: Request, res: Respons
     });
   });
   
-  console.log(`✅ [findOrCreateClient] Cliente creado: ${newClient?.id_client}`);
+  console.log(`✅ [findOrCreateClient] Cliente creado: ${newClient?.id_client}, user_id: ${user_id}`);
   
   res.status(201).json({ 
     client: newClient, 

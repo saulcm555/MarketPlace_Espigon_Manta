@@ -50,14 +50,17 @@ export const getMyOrders = asyncHandler(async (req: Request, res: Response) => {
   console.log('[getMyOrders] clientIdRaw:', clientIdRaw);
 
   if (!clientIdRaw) {
-    throw new Error("Cliente no autenticado");
+    // Error 404 claro: el perfil del cliente no existe en la tabla clients
+    throw new NotFoundError(
+      "Perfil de cliente no encontrado. Por favor complete su registro o contacte soporte."
+    );
   }
 
   const clientId = Number(clientIdRaw);
   console.log('[getMyOrders] clientId (numeric):', clientId);
   
   if (Number.isNaN(clientId)) {
-    throw new Error("Identificador de cliente inválido");
+    throw new NotFoundError("Identificador de cliente inválido");
   }
 
   const queryOrdersUseCase = new QueryOrders(orderService);
